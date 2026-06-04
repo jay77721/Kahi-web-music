@@ -5,7 +5,9 @@
 @import "../styles/cards.css";
 
 /* ── Reset & base ── */
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+@layer base {
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+}
 /* Theme-aware color scheme — controls native form/scrollbar styling. */
 html { color-scheme: light dark; scroll-behavior: smooth; }
 [data-theme="dark"] html, html:not([data-theme="light"]) { color-scheme: dark; }
@@ -764,4 +766,3 @@ input[type="range"]:focus-visible::-moz-range-thumb { opacity: 1; transform: sca
     box-shadow: none;
   }
 }
-

@@ -115,7 +115,7 @@ describe('PageTransitionRoute', () => {
   })
 
   test('renders nothing harmful when no children are provided', () => {
-    const { container } = render(<PageTransitionRoute routeKey="/empty" />)
+    const { container } = render(<PageTransitionRoute routeKey="/empty">{null}</PageTransitionRoute>)
     // No motion wrapper because AnimatePresence + the inner motion both
     // render nothing without children — but the component must not throw.
     expect(container).toBeTruthy()

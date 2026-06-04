@@ -13,7 +13,7 @@ function createFakeSession() {
   const session = {
     metadata: null as MediaMetadata | null,
     playbackState: 'none' as MediaSessionPlaybackState,
-    setActionHandler: vi.fn(),
+    setActionHandler: vi.fn<(action: MediaSessionAction, handler: MediaSessionActionHandler | null) => void>(),
   }
   return session
 }
@@ -33,9 +33,9 @@ class FakeMediaMetadata {
   album: string
   artwork: MediaImage[]
   constructor(init: MediaMetadataInit) {
-    this.title = init.title
-    this.artist = init.artist
-    this.album = init.album
+    this.title = init.title!
+    this.artist = init.artist!
+    this.album = init.album!
     this.artwork = init.artwork ?? []
   }
 }
@@ -108,7 +108,7 @@ describe('lib/mediaSession', () => {
       const seek = vi.fn()
       setMediaActionHandlers({ seek })
       const call = session.setActionHandler.mock.calls.find(
-        ([action]: [string, unknown]) => action === 'seekto',
+        ([action]) => action === 'seekto',
       )
       expect(call).toBeDefined()
       const seektoHandler = call?.[1] as (details: { seekTime?: number }) => void
@@ -121,7 +121,7 @@ describe('lib/mediaSession', () => {
       const seek = vi.fn()
       setMediaActionHandlers({ seek })
       const call = session.setActionHandler.mock.calls.find(
-        ([action]: [string, unknown]) => action === 'seekto',
+        ([action]) => action === 'seekto',
       )
       const seektoHandler = call?.[1] as (details: { seekTime?: number }) => void
       seektoHandler({})
@@ -131,8 +131,8 @@ describe('lib/mediaSession', () => {
     test('clears omitted actions (passes null)', () => {
       setMediaActionHandlers({ play: vi.fn() })
       const calls = session.setActionHandler.mock.calls
-      const playCall = calls.find(([a]: [string]) => a === 'play')
-      const pauseCall = calls.find(([a]: [string]) => a === 'pause')
+      const playCall = calls.find(([a]) => a === 'play')
+      const pauseCall = calls.find(([a]) => a === 'pause')
       expect(playCall?.[1]).toBeTypeOf('function')
       expect(pauseCall?.[1]).toBeNull()
     })
@@ -178,7 +178,7 @@ describe('lib/mediaSession', () => {
       expect(session.playbackState).toBe('none')
       // every action should be cleared with null
       const clearedActions = session.setActionHandler.mock.calls.map(
-        ([action, handler]: [string, unknown]) => `${action}=${handler === null}`,
+        ([action, handler]) => `${action}=${handler === null}`,
       )
       expect(clearedActions).toEqual([
         'play=true',

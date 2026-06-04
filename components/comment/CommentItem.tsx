@@ -5,7 +5,7 @@ import { ThumbsUp, MessageCircle, Trash2 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { formatRelativeTime, formatCount } from '@/lib/format'
 import { toast } from 'sonner'
-import type { Comment } from '@/types/api'
+import type { Comment } from '@/types/comment'
 
 interface CommentItemProps {
   comment: Comment

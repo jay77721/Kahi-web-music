@@ -7,7 +7,7 @@ import { ChevronDown, Users, Mic2 } from 'lucide-react'
 import { useDominantColor } from '@/hooks/useDominantColor'
 import { imageUrl, formatCount } from '@/lib/format'
 import type { DominantColor } from '@/lib/color'
-import type { Artist } from '@/types/api'
+import type { Artist } from '@/types/artist'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------

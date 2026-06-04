@@ -118,9 +118,9 @@ vi.mock('swr', () => ({
 
 vi.mock('framer-motion', () => ({
   motion: new Proxy({}, {
-    get: () => (props: Record<string, unknown>) => {
+    get: () => (props: { children?: React.ReactNode } & Record<string, unknown>) => {
       const { children, ...rest } = props;
-      return React.createElement('div', { 'data-framer-motion': 'true', ...rest }, children);
+      return React.createElement('div', { 'data-framer-motion': 'true', ...(rest as React.HTMLAttributes<HTMLDivElement>) }, children);
     },
   }),
   AnimatePresence: ({ children }: { children: React.ReactNode }) => children,

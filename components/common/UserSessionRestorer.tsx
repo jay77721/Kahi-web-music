@@ -11,8 +11,8 @@ import { useUserStore } from '@/stores/userStore'
  * takes over so the store reflects the latest persisted session
  * (handles cases where localStorage was updated by another tab or
  * where the initial read happened before the browser fully populated
- * storage). Safe to call multiple times — `restore()` only writes when
- * persisted data exists.
+ * storage). Safe to call multiple times — `restore()` always marks the
+ * restoration pass complete, even when no persisted session is present.
  */
 export function UserSessionRestorer(): null {
   useEffect(() => {

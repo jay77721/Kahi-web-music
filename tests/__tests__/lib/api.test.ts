@@ -1,6 +1,7 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 import ncmApi, { unwrapField } from '@/lib/api'
-import type { Song, SearchResponse, Playlist } from '@/types/api'
+import type { Song, SearchResponse } from '@/types/api'
+import type { Playlist } from '@/types/playlist'
 import { mockSong } from '@/tests/helpers/mock-data'
 
 // Provide minimal window.location for URL construction
@@ -16,6 +17,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
   Object.defineProperty(global, 'window', { value: originalWindow, writable: true, configurable: true })
   global.fetch = originalFetch
@@ -211,13 +213,13 @@ describe('NcmApiClient', () => {
     })
 
     test('search() calls correct endpoint with query params', async () => {
-      const mockSearchResult: SearchResponse = {
+      const mockSearchResult = {
         code: 200,
         result: {
           songs: { songCount: 2, songs: [mockSong, mockSong] },
           playlists: { playlistCount: 5, playlists: [] },
         },
-      }
+      } as unknown as SearchResponse
       global.fetch = vi.fn().mockResolvedValue(createMockFetchResponse(mockSearchResult))
 
       const result = await ncmApi.search('周杰伦', 1, 30, 0)

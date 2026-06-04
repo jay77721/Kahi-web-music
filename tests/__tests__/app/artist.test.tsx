@@ -3,7 +3,9 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import React from 'react'
-import type { Artist, Song, Album } from '@/types/api'
+import type { Song } from '@/types/api'
+import type { Artist } from '@/types/artist'
+import type { Album } from '@/types/album'
 
 // ---------------------------------------------------------------------------
 // Mocks

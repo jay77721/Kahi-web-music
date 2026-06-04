@@ -106,7 +106,7 @@ function makePlayerStore() {
   }
 }
 
-function swrState<T>(overrides: Partial<{ data: T; error: unknown }> = {}) {
+function swrState<T>(overrides: Partial<{ data: T; error: unknown; isLoading: boolean; mutate: () => void }> = {}) {
   return { data: undefined as T | undefined, isLoading: false, error: null, mutate: vi.fn(), ...overrides }
 }
 

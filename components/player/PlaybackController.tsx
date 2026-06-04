@@ -6,6 +6,7 @@ import { useHistoryStore } from '@/stores/historyStore'
 import { useUIStore } from '@/stores/uiStore'
 import { audioEngine } from '@/lib/audio'
 import { ncmApi } from '@/lib/api'
+import { normalizeLyricData } from '@/lib/api-adapters'
 import { parseLyricResponse } from '@/lib/lrc'
 import {
   setMediaMetadata,
@@ -28,6 +29,10 @@ export function PlaybackController() {
   } = usePlayerStore()
 
   const currentTrackIdRef = useRef<number | null>(null)
+  const streamRetryRef = useRef<{ trackId: number | null; retried: boolean }>({
+    trackId: null,
+    retried: false,
+  })
 
   // Restore persisted state on mount (client-side only)
   useEffect(() => {
@@ -47,42 +52,24 @@ export function PlaybackController() {
     currentTrackIdRef.current = currentTrack.id
 
     let cancelled = false
-    let retryCount = 0
-    const MAX_RETRIES = 2
 
-    const loadAndPlay = async (isRetry = false) => {
+    const loadAndPlay = (br = 320000) => {
       try {
-        if (!isRetry) clearPlaybackError()
-        const br = isRetry ? 128000 : 320000
+        clearPlaybackError()
 
         const url = `/api/song/stream?id=${currentTrack.id}&br=${br}`
 
-        if (!url) {
-          if (!cancelled && retryCount < MAX_RETRIES) {
-            retryCount++
-            setTimeout(() => loadAndPlay(true), 500)
-            return
-          }
-          if (!cancelled) {
-            setPlaybackError('无法获取播放链接')
-            setIsPlaying(false)
-          }
-          return
-        }
-
         if (cancelled) return
 
+        streamRetryRef.current = { trackId: currentTrack.id, retried: false }
         audioEngine.load(url)
+        const { volume, isMuted } = usePlayerStore.getState()
+        audioEngine.setVolume(isMuted ? 0 : volume)
 
         if (hasUserInteracted) {
           audioEngine.play()
         }
       } catch (e) {
-        if (!cancelled && retryCount < MAX_RETRIES) {
-          retryCount++
-          setTimeout(() => loadAndPlay(true), 500)
-          return
-        }
         if (!cancelled) {
           setPlaybackError(e instanceof Error ? e.message : '加载失败')
           setIsPlaying(false)
@@ -104,9 +91,9 @@ export function PlaybackController() {
     const loadLyrics = async () => {
       try {
         const data = await ncmApi.songLyric(currentTrack.id)
-        const wrapped = (data as { data?: { lrc?: { lyric?: string }; tlyric?: { lyric?: string } } } | undefined)?.data
-        if (!cancelled && wrapped) {
-          setLyrics(parseLyricResponse(wrapped.lrc?.lyric || '', wrapped.tlyric?.lyric))
+        const lyric = normalizeLyricData(data)
+        if (!cancelled && lyric) {
+          setLyrics(parseLyricResponse(lyric.lrc.lyric, lyric.tlyric?.lyric))
         }
       } catch { /* lyrics optional */ }
     }
@@ -122,7 +109,23 @@ export function PlaybackController() {
     const onPlay = () => { clearPlaybackError(); setIsPlaying(true) }
     const onPause = () => setIsPlaying(false)
     const onEnd = () => { setIsPlaying(false); next() }
+    const retryLowerBitrate = (): boolean => {
+      const { currentTrack, hasUserInteracted, volume, isMuted } = usePlayerStore.getState()
+      const retry = streamRetryRef.current
+      if (!currentTrack || retry.trackId !== currentTrack.id || retry.retried) return false
+
+      retry.retried = true
+      try {
+        audioEngine.load(`/api/song/stream?id=${currentTrack.id}&br=128000`)
+        audioEngine.setVolume(isMuted ? 0 : volume)
+        if (hasUserInteracted) audioEngine.play()
+        return true
+      } catch {
+        return false
+      }
+    }
     const onError = (err: unknown) => {
+      if (retryLowerBitrate()) return
       setPlaybackError(err instanceof Error ? err.message : '播放出错')
       setIsPlaying(false)
     }

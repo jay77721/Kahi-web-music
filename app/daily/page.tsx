@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { DailyHero } from '@/components/discover/DailyHero'
 import { ncmApi } from '@/lib/api'
+import { normalizeSongList } from '@/lib/api-adapters'
 import { PlayerBar } from '@/components/player/PlayerBar'
 import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { usePlayerStore } from '@/stores/playerStore'
@@ -26,9 +27,7 @@ export default function DailyPage() {
   const { data, isLoading, error, mutate } = useSWR<Song[]>(
     isLoggedIn ? 'recommend-songs' : null,
     async (): Promise<Song[]> => {
-      const res = await ncmApi.recommendSongs()
-      const wrapped = res as unknown as { data?: { dailySongs?: Song[] }; dailySongs?: Song[] }
-      return (wrapped.data?.dailySongs ?? wrapped.dailySongs ?? []) as Song[]
+      return normalizeSongList(await ncmApi.recommendSongs())
     },
     {
       revalidateOnFocus: false,

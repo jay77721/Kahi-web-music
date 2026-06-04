@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, act, waitFor } from '@testing-library/react'
+import { renderHook, act } from '@testing-library/react'
 
 // Stub the sonner toast module so we can assert on its calls.
 const toastErrorMock = vi.hoisted(() => vi.fn())

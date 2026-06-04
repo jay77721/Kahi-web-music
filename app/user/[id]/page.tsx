@@ -7,39 +7,27 @@ import { AppShell } from '@/components/layout/AppShell'
 import { PlaylistCard } from '@/components/common/PlaylistCard'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ncmApi } from '@/lib/api'
+import { normalizePlaylistList, normalizeUserProfile } from '@/lib/api-adapters'
 import { imageUrl, formatCount } from '@/lib/format'
 import { PlayerBar } from '@/components/player/PlayerBar'
 import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import type { Playlist } from '@/types/playlist'
-
-interface UserProfile {
-  userId: number
-  nickname: string
-  avatarUrl: string
-  backgroundUrl?: string
-  level: number
-  followeds: number
-  follows: number
-  playlistCount: number
-  listenSongs: number
-  signature?: string
-}
+import type { UserProfile } from '@/types/user'
 
 export default function UserPage() {
   const params = useParams()
   const id = params.id as string
 
-  const { data, isLoading, error } = useSWR(
+  const { data, isLoading, error } = useSWR<{ profile: UserProfile | null; playlists: Playlist[] }>(
     id ? `user-${id}` : null,
     async () => {
       const [detail, playlists] = await Promise.all([
         ncmApi.userDetail(id),
         ncmApi.userPlaylist(id, 50),
       ])
-      const detailWrapped = (detail as { profile?: UserProfile } | undefined)
       return {
-        profile: detailWrapped?.profile,
-        playlists: (playlists as { playlist?: Playlist[] } | undefined)?.playlist || [],
+        profile: normalizeUserProfile(detail),
+        playlists: normalizePlaylistList(playlists),
       }
     }
   )
@@ -49,7 +37,7 @@ export default function UserPage() {
   }
 
   const profile = data?.profile
-  const playlists = (data?.playlists || []) as Playlist[]
+  const playlists = data?.playlists || []
 
   if (error || !profile) {
     return <AppShell><div className="p-6 text-center text-[var(--text-tertiary)]">用户不存在</div></AppShell>

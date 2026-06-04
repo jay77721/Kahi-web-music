@@ -1,3 +1,19 @@
+// Domain type imports (used by response wrappers below)
+import type { Artist } from './artist'
+import type { Album } from './album'
+import type { MV } from './mv'
+import type { Playlist } from './playlist'
+import type { UserProfile } from './user'
+
+// Re-exports for backward compatibility
+export type { Artist, ArtistDetail } from './artist'
+export type { Album } from './album'
+export type { MV } from './mv'
+export type { Comment, CommentUser, CommentResponse } from './comment'
+export type { Playlist } from './playlist'
+export type { User, UserProfile, UserAccount, LoginQRKey, LoginQRCreate } from './user'
+export { QRStatus } from './user'
+
 export interface ApiResponse<T = unknown> {
   code: number
   data?: T
@@ -297,150 +313,4 @@ export interface LyricData {
   lrc: { lyric: string }
   tlyric?: { lyric: string }
   klyric?: { lyric: string }
-}
-
-export interface Artist {
-  id: number
-  name: string
-  picUrl?: string
-  img1v1Url?: string
-  alias?: string[]
-  albumSize?: number
-  mvSize?: number
-  musicSize?: number
-}
-
-export interface ArtistDetail {
-  artist: Artist
-  hotSongs: Song[]
-  more: boolean
-  user?: {
-    userId: number
-    nickname: string
-    avatarUrl: string
-  }
-}
-
-export interface Album {
-  id: number
-  name: string
-  picUrl: string
-  publishTime: number
-  artist?: Artist
-  songs?: Song[]
-}
-
-export interface MV {
-  id: number
-  name: string
-  picUrl: string
-  cover?: string
-  imgurl?: string
-  artistId?: number
-  artistName?: string
-  publishTime?: string
-  duration?: number
-  playCount?: number
-  desc?: string
-}
-
-export interface User {
-  userId: number
-  nickname: string
-  avatarUrl: string
-  signature?: string
-  followeds?: number
-  follows?: number
-  eventCount?: number
-  playlistCount?: number
-}
-
-export interface Playlist {
-  id: number
-  name: string
-  coverImgUrl: string
-  creator: User
-  description?: string
-  tracks?: Song[]
-  trackCount: number
-  playCount: number
-  subscribedCount: number
-  createTime: number
-  updateTime: number
-  tags?: string[]
-}
-
-export interface Comment {
-  commentId: number
-  user: CommentUser
-  content: string
-  time: number
-  likedCount: number
-  liked: boolean
-  beReplied?: {
-    user: CommentUser
-    content: string
-  }[]
-  replyCount?: number
-}
-
-export interface CommentUser {
-  userId: number
-  nickname: string
-  avatarUrl: string
-}
-
-export interface CommentResponse {
-  hotComments: Comment[]
-  comments: Comment[]
-  total: number
-  hasMore: boolean
-}
-
-export interface UserProfile {
-  userId: number
-  nickname: string
-  avatarUrl: string
-  backgroundUrl?: string
-  signature?: string
-  gender?: number
-  birthday?: number
-  province?: number
-  city?: number
-  vipType?: number
-  level?: number
-  createTime?: number
-  listenSongs?: number
-  playlistCount?: number
-  playlistBeSubscribedCount?: number
-  followeds?: number
-  follows?: number
-  eventCount?: number
-  mutualFollow?: boolean
-}
-
-export interface UserAccount {
-  id: number
-  userName: string
-  type: number
-  anonimousUser: boolean
-  createTime: number
-  token: string
-  profile: UserProfile | null
-}
-
-export interface LoginQRKey {
-  unikey: string
-}
-
-export interface LoginQRCreate {
-  qrurl: string
-  qrimg: string
-}
-
-export enum QRStatus {
-  EXPIRED = 800,
-  WAITING = 801,
-  SCANNED = 802,
-  CONFIRMED = 803,
 }

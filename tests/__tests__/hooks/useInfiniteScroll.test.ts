@@ -1,4 +1,4 @@
-import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useInfiniteScroll } from '@/hooks/useInfiniteScroll'
 
@@ -8,10 +8,10 @@ interface Item {
 }
 
 describe('useInfiniteScroll', () => {
-  let fetchFn: ReturnType<typeof vi.fn>
+  let fetchFn: ReturnType<typeof vi.fn<(offset: number, limit: number) => Promise<Item[]>>>
 
   beforeEach(() => {
-    fetchFn = vi.fn()
+    fetchFn = vi.fn<(offset: number, limit: number) => Promise<Item[]>>()
   })
 
   test('starts with empty data and hasMore=true', () => {

@@ -16,7 +16,7 @@ const HowlCtor = vi.hoisted(() => {
     const state = {
       playing: false,
       state: 'unloaded' as 'unloaded' | 'loading' | 'loaded',
-      volumeValue: 1,
+      volumeValue: typeof config.volume === 'number' ? config.volume : 1,
       seekValue: 0,
       durationValue: 0,
     }
@@ -126,6 +126,21 @@ describe('AudioEngine', () => {
       expect(config.format).toEqual(['mp3'])
     })
 
+    test('preserves a volume set before load', () => {
+      engine.setVolume(0.42)
+      engine.load('https://example.com/audio.mp3')
+      expect(mockState.configs[0].volume).toBe(0.42)
+      expect(engine.getVolume()).toBe(0.42)
+    })
+
+    test('keeps the current volume when loading a new url', () => {
+      engine.load('https://example.com/a.mp3')
+      engine.setVolume(0.35)
+      engine.load('https://example.com/b.mp3')
+      expect(mockState.configs[1].volume).toBe(0.35)
+      expect(engine.getVolume()).toBe(0.35)
+    })
+
     test('skips reload when the same url is loaded twice', () => {
       engine.load('https://example.com/audio.mp3')
       engine.load('https://example.com/audio.mp3')
@@ -194,6 +209,11 @@ describe('AudioEngine', () => {
       engine.load('https://example.com/audio.mp3')
       engine.setVolume(0.42)
       expect(engine.getVolume()).toBeCloseTo(0.42)
+    })
+
+    test('remembers volume even when no source is loaded', () => {
+      engine.setVolume(0.56)
+      expect(engine.getVolume()).toBeCloseTo(0.56)
     })
   })
 
@@ -283,6 +303,17 @@ describe('AudioEngine', () => {
       expect(onError).toHaveBeenCalledWith('network-fail')
     })
 
+    test('onLoad forwards successful Howl load events', () => {
+      engine.load('https://example.com/audio.mp3')
+      const onLoad = vi.fn()
+      engine.onLoad(onLoad)
+      const howl = mockState.howlInstances[0] as {
+        _handlers: Record<string, ((...args: unknown[]) => void) | null>
+      }
+      howl._handlers.onload?.()
+      expect(onLoad).toHaveBeenCalled()
+    })
+
     test('reset also clears all event callbacks', () => {
       engine.load('https://example.com/audio.mp3')
       const onPlay = vi.fn()
@@ -304,6 +335,13 @@ describe('AudioEngine', () => {
       engine.destroy()
       expect(howl.unload).toHaveBeenCalled()
       expect(engine.getState()).toBe('error')
+    })
+
+    test('destroy clears the loaded url so the same url can be loaded again', () => {
+      engine.load('https://example.com/audio.mp3')
+      engine.destroy()
+      engine.load('https://example.com/audio.mp3')
+      expect(mockState.howlInstances).toHaveLength(2)
     })
   })
 })

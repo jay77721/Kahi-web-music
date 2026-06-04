@@ -12,15 +12,16 @@ interface LoginCellphoneResult {
 
 interface UserState {
   isLoggedIn: boolean
+  hasRestoredSession: boolean
   profile: UserProfile | null
   cookie: string | null
 
   setProfile: (profile: UserProfile) => void
   setCookie: (cookie: string) => void
   /**
-   * Authenticate via cellphone + captcha. Persists the profile + cookie
-   * to localStorage on success and throws on failure with the API's
-   * human-readable message.
+   * Authenticate via cellphone + captcha. Persists the profile on success
+   * and relies on browser Set-Cookie for the session; the cookie state field
+   * remains for compatibility with older localStorage-backed sessions.
    */
   login: (phone: string, captcha: string) => Promise<UserProfile>
   logout: () => void
@@ -29,16 +30,17 @@ interface UserState {
 
 export const useUserStore = create<UserState>((set) => ({
   isLoggedIn: false,
+  hasRestoredSession: false,
   profile: null,
   cookie: null,
 
   setProfile: (profile) => {
-    set({ profile, isLoggedIn: true })
+    set({ profile, isLoggedIn: true, hasRestoredSession: true })
     storage.set(STORAGE_KEYS.USER_PROFILE, profile)
   },
 
   setCookie: (cookie) => {
-    set({ cookie })
+    set({ cookie, hasRestoredSession: true })
     storage.set(STORAGE_KEYS.USER_COOKIE, cookie)
   },
 
@@ -48,17 +50,13 @@ export const useUserStore = create<UserState>((set) => ({
       throw new Error(res?.message || '登录失败，请检查手机号或验证码')
     }
     const profile = res.profile
-    set({ profile, isLoggedIn: true })
+    set({ profile, isLoggedIn: true, hasRestoredSession: true })
     storage.set(STORAGE_KEYS.USER_PROFILE, profile)
-    if (res.cookie) {
-      set({ cookie: res.cookie })
-      storage.set(STORAGE_KEYS.USER_COOKIE, res.cookie)
-    }
     return profile
   },
 
   logout: () => {
-    set({ isLoggedIn: false, profile: null, cookie: null })
+    set({ isLoggedIn: false, hasRestoredSession: true, profile: null, cookie: null })
     storage.remove(STORAGE_KEYS.USER_COOKIE)
     storage.remove(STORAGE_KEYS.USER_PROFILE)
     // Drop any cached API responses so the next user does not see the
@@ -69,8 +67,6 @@ export const useUserStore = create<UserState>((set) => ({
   restore: () => {
     const cookie = storage.get<string | null>(STORAGE_KEYS.USER_COOKIE, null)
     const profile = storage.get<UserProfile | null>(STORAGE_KEYS.USER_PROFILE, null)
-    if (cookie || profile) {
-      set({ cookie, profile, isLoggedIn: !!profile })
-    }
+    set({ cookie, profile, isLoggedIn: !!profile, hasRestoredSession: true })
   },
 }))

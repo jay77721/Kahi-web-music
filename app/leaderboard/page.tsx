@@ -9,24 +9,17 @@ import { SongTable } from '@/components/common/SongTable'
 import { Skeleton } from '@/components/ui/skeleton'
 import { LeaderboardTabs, type LeaderboardTabItem } from '@/components/leaderboard/LeaderboardTabs'
 import { ncmApi } from '@/lib/api'
+import {
+  normalizeLeaderboardDetail,
+  normalizeLeaderboardList,
+  type NormalizedLeaderboardDetail,
+  type NormalizedLeaderboardItem,
+} from '@/lib/api-adapters'
 import { imageUrl } from '@/lib/format'
 import { PlayerBar } from '@/components/player/PlayerBar'
 import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { usePlayerStore } from '@/stores/playerStore'
 import { cn } from '@/lib/utils'
-import type { Song } from '@/types/song'
-
-interface ChartItem {
-  id: number
-  name: string
-  coverImgUrl: string
-}
-
-interface ChartDetail {
-  name: string
-  coverImgUrl: string
-  tracks: Song[]
-}
 
 // Four official charts. IDs are the canonical NCM chart IDs.
 const OFFICIAL_CHARTS: LeaderboardTabItem<number>[] = [
@@ -41,18 +34,15 @@ export default function LeaderboardPage() {
   const { playQueue } = usePlayerStore()
   const selectedIdRef = useRef<number | null>(null)
 
-  const { data: toplist } = useSWR<ChartItem[]>('toplist', async () => {
-    const result = await ncmApi.toplist()
-    const data = result as unknown as { list?: ChartItem[] }
-    return data.list ?? []
-  })
+  const { data: toplist } = useSWR<NormalizedLeaderboardItem[]>('toplist', async () =>
+    normalizeLeaderboardList(await ncmApi.toplist())
+  )
 
-  const { data: detail, isLoading: detailLoading } = useSWR<ChartDetail | null>(
+  const { data: detail, isLoading: detailLoading } = useSWR<NormalizedLeaderboardDetail | null>(
     selectedId ? `top-list-${selectedId}` : null,
     async () => {
       const result = await ncmApi.topList(selectedId as number)
-      const data = result as unknown as { playlist?: ChartDetail }
-      return data.playlist ?? null
+      return normalizeLeaderboardDetail(result)
     }
   )
 

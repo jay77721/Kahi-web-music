@@ -6,11 +6,15 @@ import { motion } from 'framer-motion'
 import { Disc3, Music } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ncmApi } from '@/lib/api'
+import {
+  normalizeSearchResult,
+  type NormalizedSearchResult,
+} from '@/lib/api-adapters'
 import { usePlayerStore } from '@/stores/playerStore'
 import { SearchEmptyState } from '@/components/search/SearchEmptyState'
 import { cn } from '@/lib/utils'
 import { parseLRC } from '@/lib/lrc'
-import type { Song, LyricSearchResponse, LyricSearchResult, LyricSearchSong } from '@/types/api'
+import type { Song, LyricSearchResult, LyricSearchSong } from '@/types/api'
 
 interface LyricSearchResultsProps {
   query: string
@@ -22,13 +26,14 @@ export function LyricSearchResults({ query }: LyricSearchResultsProps) {
   const playSong = usePlayerStore((state) => state.playSong)
   const swrKey = query ? `lyric-search:${query}` : null
 
-  const { data, isLoading } = useSWR<LyricSearchResponse>(
+  const { data, isLoading } = useSWR<unknown>(
     swrKey,
-    async () => ncmApi.searchLyric(query, 30)
+    async () => normalizeSearchResult(await ncmApi.searchLyric(query, 30))
   )
+  const result = useMemo<NormalizedSearchResult>(() => normalizeSearchResult(data), [data])
 
   const items = useMemo<LyricSearchResult[]>(() => {
-    const songs: LyricSearchSong[] = data?.result?.songs ?? []
+    const songs: LyricSearchSong[] = result.songs ?? []
     if (songs.length === 0) return []
 
     return songs.map((s) => ({
@@ -38,7 +43,7 @@ export function LyricSearchResults({ query }: LyricSearchResultsProps) {
       album: s.al ?? { id: 0, name: '', picUrl: '' },
       lyric: s.lyric ?? '',
     }))
-  }, [data])
+  }, [result])
 
   if (isLoading) {
     return <LyricSearchSkeleton />

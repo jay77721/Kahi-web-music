@@ -14,6 +14,9 @@ export const mockSong = {
   alia: [],
   pop: 95,
   mark: 0,
+  publishTime: 1057324800000,
+  noCopyrightRcmd: null,
+  mv: 0,
 };
 
 export const mockArtist = {

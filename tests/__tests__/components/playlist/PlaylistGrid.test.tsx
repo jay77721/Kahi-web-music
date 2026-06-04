@@ -1,7 +1,7 @@
 import { describe, test, expect, afterEach, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { PlaylistGrid } from '@/components/playlist/PlaylistGrid'
-import type { Playlist } from '@/types/api'
+import type { Playlist } from '@/types/playlist'
 
 // Stub next/image so it renders a plain <img>.
 vi.mock('next/image', () => ({

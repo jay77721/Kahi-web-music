@@ -2,7 +2,7 @@
 
 import { Flame } from 'lucide-react'
 import { CommentItem } from './CommentItem'
-import type { Comment } from '@/types/api'
+import type { Comment } from '@/types/comment'
 
 interface HotCommentListProps {
   comments: Comment[]

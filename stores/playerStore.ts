@@ -157,11 +157,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   togglePlay: () => {
-    set({ hasUserInteracted: true })
-    if (audioEngine.isPlaying()) {
-      audioEngine.pause()
-    } else {
+    const willBePlaying = !audioEngine.isPlaying()
+    set({ hasUserInteracted: true, isPlaying: willBePlaying })
+    if (willBePlaying) {
       audioEngine.play()
+    } else {
+      audioEngine.pause()
     }
   },
 

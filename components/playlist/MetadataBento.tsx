@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { motion, type Variants } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
@@ -26,16 +26,6 @@ export interface BentoItem {
 interface MetadataBentoProps {
   items: readonly BentoItem[]
   className?: string
-}
-
-// ---------------------------------------------------------------------------
-// Layout map (12-col CSS Grid)
-// ---------------------------------------------------------------------------
-
-const SIZE_CLASS: Record<BentoSize, string> = {
-  sm: 'col-span-6 md:col-span-3 row-span-1',
-  md: 'col-span-6 md:col-span-4 row-span-2',
-  lg: 'col-span-12 md:col-span-6 row-span-2',
 }
 
 // ---------------------------------------------------------------------------
@@ -73,7 +63,8 @@ interface BentoTileProps {
 
 function BentoTile({ item }: BentoTileProps) {
   const size: BentoSize = item.size ?? 'sm'
-  const isLarge = size === 'md' || size === 'lg'
+  const isPrimary = size === 'lg'
+  const style = item.color ? ({ '--bento-accent': item.color } as CSSProperties) : undefined
 
   return (
     <motion.div
@@ -82,33 +73,39 @@ function BentoTile({ item }: BentoTileProps) {
       whileTap={{ scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 320, damping: 24 }}
       className={cn(
-        'bento-card group relative flex flex-col justify-between overflow-hidden',
-        'rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm',
-        'p-4 md:p-5',
+        'bento-card group relative flex min-h-[64px] items-center gap-2 overflow-hidden',
+        'rounded-lg border border-white/10 bg-white/[0.04] backdrop-blur-sm',
+        'px-3 py-2',
         'transition-colors duration-200',
-        'hover:bg-white/10 hover:shadow-[0_8px_32px_rgba(0,0,0,0.4)]',
-        SIZE_CLASS[size]
+        'hover:bg-white/10 hover:shadow-[0_8px_24px_rgba(0,0,0,0.28)]'
       )}
-      style={item.color ? ({ '--bento-accent': item.color } as React.CSSProperties) : undefined}
+      style={style}
       data-bento-size={size}
     >
       <div
-        className="flex items-center gap-2 text-white/70"
+        aria-hidden="true"
+        className={cn(
+          'flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/5',
+          '[&_svg]:h-4 [&_svg]:w-4'
+        )}
         style={item.color ? { color: item.color } : undefined}
       >
-        <span className="[&_svg]:w-4 [&_svg]:h-4">{item.icon}</span>
-        <span className="text-[10px] md:text-xs font-medium uppercase tracking-wider text-white/60">
-          {item.label}
-        </span>
+        {item.icon}
       </div>
 
-      <div
-        className={cn(
-          'font-semibold text-white leading-none',
-          isLarge ? 'text-3xl md:text-4xl' : 'text-2xl md:text-3xl'
-        )}
-      >
-        {item.value}
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[10px] font-medium uppercase tracking-wider text-white/55">
+          {item.label}
+        </div>
+        <div
+          className={cn(
+            'truncate font-semibold leading-tight text-white',
+            isPrimary ? 'text-lg' : 'text-base'
+          )}
+          title={item.value}
+        >
+          {item.value}
+        </div>
       </div>
     </motion.div>
   )
@@ -119,11 +116,10 @@ function BentoTile({ item }: BentoTileProps) {
 // ---------------------------------------------------------------------------
 
 /**
- * Renders a bento-grid layout of playlist metadata tiles.
+ * Renders a compact responsive strip of playlist metadata.
  *
- * Tiles come in three sizes (`sm`, `md`, `lg`) that map to a 12-column CSS
- * grid for editorial-style asymmetry. Items animate in with a 50ms stagger
- * and scale up subtly on hover.
+ * The `size` prop still marks relative importance for typography, while the
+ * layout keeps every tile short so playlist tracks stay visible above the fold.
  */
 export function MetadataBento({ items, className }: MetadataBentoProps) {
   if (items.length === 0) return null
@@ -136,7 +132,7 @@ export function MetadataBento({ items, className }: MetadataBentoProps) {
       initial="hidden"
       animate="visible"
       className={cn(
-        'bento-grid grid grid-cols-12 gap-3 md:gap-4 auto-rows-[88px] md:auto-rows-[100px]',
+        'bento-grid grid grid-cols-[repeat(auto-fit,minmax(104px,1fr))] gap-2 md:gap-3',
         className
       )}
     >

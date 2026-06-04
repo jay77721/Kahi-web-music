@@ -8,7 +8,8 @@ import { AppShell } from '@/components/layout/AppShell'
 import { SongTable } from '@/components/common/SongTable'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
-import { ncmApi, unwrapField } from '@/lib/api'
+import { ncmApi } from '@/lib/api'
+import { normalizeIdList, normalizeSongList } from '@/lib/api-adapters'
 import { PlayerBar } from '@/components/player/PlayerBar'
 import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { usePlayerStore } from '@/stores/playerStore'
@@ -72,10 +73,10 @@ export default function LikedPage() {
     async () => {
       const uid = profile?.userId
       if (!uid) return []
-      const ids = unwrapField<number[]>(await ncmApi.likelist(uid), 'ids') || []
+      const ids = normalizeIdList(await ncmApi.likelist(uid))
       if (ids.length === 0) return []
       const detail = await ncmApi.songDetail(ids.slice(0, MAX_SONGS_PER_FETCH).join(','))
-      return unwrapField<Song[]>(detail, 'songs') || []
+      return normalizeSongList(detail)
     }
   )
 

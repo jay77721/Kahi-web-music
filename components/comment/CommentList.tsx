@@ -10,7 +10,8 @@ import { CommentItem } from './CommentItem'
 import { ncmApi } from '@/lib/api'
 import { formatCount } from '@/lib/format'
 import { toast } from 'sonner'
-import type { ApiResponse, Comment, CommentResponse } from '@/types/api'
+import type { ApiResponse } from '@/types/api'
+import type { Comment, CommentResponse } from '@/types/comment'
 
 interface CommentListProps {
   id: number | string

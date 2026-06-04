@@ -6,6 +6,7 @@ import useSWR from 'swr'
 import { AppShell } from '@/components/layout/AppShell'
 import { FMMainPlayer } from '@/components/fm/FMMainPlayer'
 import { ncmApi } from '@/lib/api'
+import { normalizeSongList } from '@/lib/api-adapters'
 import { useUserStore } from '@/stores/userStore'
 import { PlayerBar } from '@/components/player/PlayerBar'
 import { PlayerOverlays } from '@/components/player/PlayerOverlays'
@@ -30,9 +31,7 @@ export default function FMPage() {
   const { data: fmSongs, mutate, error } = useSWR<Song[]>(
     isLoggedIn ? 'personal-fm' : null,
     async (): Promise<Song[]> => {
-      const res = await ncmApi.personalFm()
-      const data = res as unknown as Song[]
-      return data ?? []
+      return normalizeSongList(await ncmApi.personalFm())
     }
   )
 

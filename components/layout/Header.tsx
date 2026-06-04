@@ -3,22 +3,18 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useState, useEffect, useCallback } from 'react'
-import { Search, ChevronLeft, ChevronRight, User, Menu, Sun, Moon } from 'lucide-react'
+import { useState, useCallback } from 'react'
+import { Search, User, Sun, Moon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/stores/uiStore'
 import { useUserStore } from '@/stores/userStore'
-import { useIsMobile } from '@/hooks/useMediaQuery'
 
 export function Header() {
   const router = useRouter()
   const [searchValue, setSearchValue] = useState('')
-  const { theme, setTheme, setSearchOpen, toggleSidebar } = useUIStore()
+  const { theme, setTheme, setSearchOpen } = useUIStore()
   const { isLoggedIn, profile } = useUserStore()
-  const isMobile = useIsMobile()
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => { setMounted(true) }, [])
 
   const handleSearch = useCallback(
     (e: React.FormEvent) => {
@@ -32,45 +28,9 @@ export function Header() {
   )
 
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-3 px-3 md:px-6 h-14 bg-[var(--bg-primary)] border-b border-[var(--border)]">
-      {/* Left section */}
-      <div className="flex items-center gap-2">
-        {/* Mobile hamburger */}
-        {isMobile && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden w-9 h-9 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
-            onClick={toggleSidebar}
-            aria-label="菜单"
-          >
-            <Menu className="w-5 h-5" />
-          </Button>
-        )}
-
-        {/* Navigation arrows (desktop/tablet) */}
-        {!isMobile && (
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => router.back()}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-all duration-150"
-              aria-label="后退"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => router.forward()}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-all duration-150"
-              aria-label="前进"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Center: Search bar */}
-      <form onSubmit={handleSearch} className="flex-1 max-w-[420px] mx-auto">
+    <header className="sticky top-0 z-30 flex items-center gap-2 md:gap-3 px-3 md:px-6 h-14 bg-[var(--bg-primary)] border-b border-[var(--border)]">
+      {/* Center: search bar */}
+      <form onSubmit={handleSearch} className="min-w-0 flex-1 md:max-w-[420px]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
           <Input
@@ -85,26 +45,28 @@ export function Header() {
       </form>
 
       {/* Right section */}
-      <div className="flex items-center gap-1">
-        {/* Theme toggle */}
-        {!isMobile && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-8 h-8 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all duration-150"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            aria-label="切换主题"
-          >
-            {mounted && theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </Button>
-        )}
+      <div className="ml-auto flex shrink-0 items-center gap-1">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="hidden md:inline-flex w-8 h-8 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all duration-150"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          aria-label="切换主题"
+        >
+          {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </Button>
 
-        {/* User profile / login */}
         {isLoggedIn && profile ? (
           <Link href={`/user/${profile.userId}`}>
             <div className="w-8 h-8 rounded-full bg-[var(--bg-elevated)] overflow-hidden hover:border-[var(--border-strong)] transition-all duration-150 cursor-pointer">
               {profile.avatarUrl ? (
-                <Image src={profile.avatarUrl} alt={profile.nickname} width={32} height={32} className="w-full h-full object-cover" />
+                <Image
+                  src={profile.avatarUrl}
+                  alt={profile.nickname}
+                  width={32}
+                  height={32}
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <User className="w-4 h-4 text-[var(--text-secondary)]" />
@@ -114,8 +76,13 @@ export function Header() {
           </Link>
         ) : (
           <Link href="/login">
-            <Button variant="ghost" size="sm" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all duration-150">
-              <User className="w-4 h-4 mr-1.5" />
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label="登录"
+              className="h-9 w-9 p-0 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all duration-150 md:h-8 md:w-auto md:px-3 md:rounded-[min(var(--radius-md),12px)]"
+            >
+              <User className="w-4 h-4 md:mr-1.5" />
               <span className="hidden md:inline">登录</span>
             </Button>
           </Link>

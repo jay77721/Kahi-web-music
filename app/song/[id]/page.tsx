@@ -13,14 +13,12 @@ import { LyricsPanel } from '@/components/player/LyricsPanel'
 import { CommentList } from '@/components/comment/CommentList'
 import { PlayerBar } from '@/components/player/PlayerBar'
 import { PlayerOverlays } from '@/components/player/PlayerOverlays'
-import { ncmApi, unwrapField } from '@/lib/api'
+import { ncmApi } from '@/lib/api'
+import { normalizeLyricData, normalizeSongList } from '@/lib/api-adapters'
 import { imageUrl } from '@/lib/format'
 import { parseLyricResponse } from '@/lib/lrc'
 import { usePlayerStore } from '@/stores/playerStore'
 import { toast } from 'sonner'
-import type {
-  LyricDataResponse,
-} from '@/types/api'
 import type { LyricLine, Song } from '@/types/song'
 
 // ---------------------------------------------------------------------------
@@ -54,20 +52,14 @@ export default function SongDetailPage() {
         ncmApi.simiSong(id).catch(() => null),
       ])
 
-      const song = unwrapField<Song[]>(detail, 'songs')?.[0] ?? null
-      const lyricRoot = (() => {
-        if (!lyric) return null
-        if (typeof lyric === 'object' && 'lrc' in (lyric as object)) {
-          return lyric as LyricDataResponse
-        }
-        return unwrapField<LyricDataResponse>(lyric, 'data') ?? null
-      })()
+      const song = normalizeSongList(detail)[0] ?? null
+      const lyricRoot = normalizeLyricData(lyric)
       const lrcText = lyricRoot?.lrc?.lyric ?? ''
       const tlyricText = lyricRoot?.tlyric?.lyric ?? ''
       const lyrics = lrcText.length >= MIN_LYRIC_LENGTH
         ? parseLyricResponse(lrcText, tlyricText)
         : []
-      const simiSongs = unwrapField<Song[]>(simi, 'songs') || []
+      const simiSongs = normalizeSongList(simi)
 
       return { song, lyrics, simiSongs }
     }

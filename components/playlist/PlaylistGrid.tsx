@@ -3,7 +3,7 @@
 import { memo } from 'react'
 import { motion } from 'framer-motion'
 import { PlaylistCard } from '@/components/common/PlaylistCard'
-import type { Playlist } from '@/types/api'
+import type { Playlist } from '@/types/playlist'
 
 export interface PlaylistGridProps {
   playlists: Playlist[]

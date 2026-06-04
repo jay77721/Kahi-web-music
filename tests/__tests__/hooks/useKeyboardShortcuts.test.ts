@@ -31,7 +31,19 @@ describe('useKeyboardShortcuts', () => {
     expect(handler).toHaveBeenCalledTimes(1)
   })
 
-  it('triggers handler for Shift+P', () => {
+  it('supports Space shortcut spelling', () => {
+    const handler = vi.fn()
+    renderHook(() =>
+      useKeyboardShortcuts({
+        shortcuts: [{ key: 'Space', handler, preventDefault: true }],
+      })
+    )
+
+    dispatchKey(' ')
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+
+  it('allows extra modifiers for single-key shortcuts', () => {
     const handler = vi.fn()
     renderHook(() =>
       useKeyboardShortcuts({
@@ -39,29 +51,59 @@ describe('useKeyboardShortcuts', () => {
       })
     )
 
+    dispatchKey('p', { shiftKey: true, altKey: true })
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+
+  it('strictly matches explicit Shift+P', () => {
+    const handler = vi.fn()
+    renderHook(() =>
+      useKeyboardShortcuts({
+        shortcuts: [{ key: 'Shift+P', handler, preventDefault: true }],
+      })
+    )
+
+    dispatchKey('p')
+    dispatchKey('p', { shiftKey: true, altKey: true })
+    expect(handler).not.toHaveBeenCalled()
+
     dispatchKey('p', { shiftKey: true })
     expect(handler).toHaveBeenCalledTimes(1)
   })
 
-  it('triggers handler for Control+K', () => {
-    const handler = vi.fn()
+  it('strictly matches explicit Control+K and Ctrl+K', () => {
+    const controlHandler = vi.fn()
+    const ctrlHandler = vi.fn()
     renderHook(() =>
       useKeyboardShortcuts({
-        shortcuts: [{ key: 'k', handler, preventDefault: true }],
+        shortcuts: [
+          { key: 'Control+K', handler: controlHandler, preventDefault: true },
+          { key: 'Ctrl+K', handler: ctrlHandler, preventDefault: true },
+        ],
       })
     )
+
+    dispatchKey('k')
+    dispatchKey('k', { ctrlKey: true, altKey: true })
+    expect(controlHandler).not.toHaveBeenCalled()
+    expect(ctrlHandler).not.toHaveBeenCalled()
 
     dispatchKey('k', { ctrlKey: true })
-    expect(handler).toHaveBeenCalledTimes(1)
+    expect(controlHandler).toHaveBeenCalledTimes(1)
+    expect(ctrlHandler).not.toHaveBeenCalled()
   })
 
-  it('triggers handler for Alt+K', () => {
+  it('strictly matches explicit Alt+K', () => {
     const handler = vi.fn()
     renderHook(() =>
       useKeyboardShortcuts({
-        shortcuts: [{ key: 'k', handler, preventDefault: true }],
+        shortcuts: [{ key: 'Alt+K', handler, preventDefault: true }],
       })
     )
+
+    dispatchKey('k')
+    dispatchKey('k', { altKey: true, shiftKey: true })
+    expect(handler).not.toHaveBeenCalled()
 
     dispatchKey('k', { altKey: true })
     expect(handler).toHaveBeenCalledTimes(1)

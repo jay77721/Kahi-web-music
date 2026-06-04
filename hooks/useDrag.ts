@@ -62,7 +62,6 @@ export function useDrag(options: UseDragOptions = {}): UseDragResult {
   )
 
   const isDraggingRef = useRef(false)
-  const [, forceUpdate] = useState(0)
 
   const handleMove = useCallback(
     (clientX: number, clientY: number) => {

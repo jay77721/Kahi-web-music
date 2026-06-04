@@ -39,12 +39,27 @@ function useLoginBackground() {
 export default function LoginPage() {
   const router = useRouter()
   const isLoggedIn = useUserStore((s) => s.isLoggedIn)
+  const hasRestoredSession = useUserStore((s) => s.hasRestoredSession)
   const [activeTab, setActiveTab] = useState<TabValue>('phone')
   const bgStyle = useLoginBackground()
+  const isRestoringSession = !hasRestoredSession
 
   useEffect(() => {
-    if (isLoggedIn) router.push('/my')
+    if (isLoggedIn) router.replace('/my')
   }, [isLoggedIn, router])
+
+  if (isRestoringSession || isLoggedIn) {
+    return (
+      <main
+        className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 bg-black text-[var(--text-tertiary)]"
+        style={bgStyle}
+      >
+        <p role="status" aria-live="polite" className="text-sm">
+          {isLoggedIn ? '正在进入个人页...' : '正在恢复登录状态...'}
+        </p>
+      </main>
+    )
+  }
 
   return (
     <main

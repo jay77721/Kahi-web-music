@@ -62,19 +62,29 @@ function FullScreenPlayerContent() {
   const seenUrlsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
-    if (!rawUrl) {
-      setStableUrl(null)
-      return
+    let cancelled = false
+
+    queueMicrotask(() => {
+      if (cancelled) return
+
+      if (!rawUrl) {
+        setStableUrl(null)
+        return
+      }
+      // If we've extracted this URL recently, keep showing the previous color
+      // and don't trigger a new extraction.
+      const last = lastExtractedRef.current
+      if (last && last.url === rawUrl && Date.now() - last.at < RESAMPLE_INTERVAL_MS) {
+        return
+      }
+      // Mark as seen so the hook skips re-extraction if it would be redundant.
+      seenUrlsRef.current.add(rawUrl)
+      setStableUrl(rawUrl)
+    })
+
+    return () => {
+      cancelled = true
     }
-    // If we've extracted this URL recently, keep showing the previous color
-    // and don't trigger a new extraction.
-    const last = lastExtractedRef.current
-    if (last && last.url === rawUrl && Date.now() - last.at < RESAMPLE_INTERVAL_MS) {
-      return
-    }
-    // Mark as seen so the hook skips re-extraction if it would be redundant.
-    seenUrlsRef.current.add(rawUrl)
-    setStableUrl(rawUrl)
   }, [rawUrl])
 
   const handleColorLoaded = useCallback((url: string) => {

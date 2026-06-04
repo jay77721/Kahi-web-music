@@ -1,34 +1,83 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
-import { usePlayerStore } from '@/stores/playerStore'
-import { useUserStore } from '@/stores/userStore'
-import { useHistoryStore } from '@/stores/historyStore'
-import { toast } from 'sonner'
-import { ncmApi } from '@/lib/api'
 import {
-  Play,
-  ListPlus,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import Image from 'next/image'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+import {
+  Copy,
+  Disc3,
   Heart,
   HeartOff,
-  Disc3,
-  User,
-  Copy,
+  ListPlus,
   Music,
+  Play,
+  User,
 } from 'lucide-react'
-import type { Song } from '@/types/song'
-import Image from 'next/image'
+import { ncmApi } from '@/lib/api'
 import { imageUrl } from '@/lib/format'
+import { useHistoryStore } from '@/stores/historyStore'
+import { usePlayerStore } from '@/stores/playerStore'
+import { useUserStore } from '@/stores/userStore'
+import type { Song } from '@/types/song'
 
 interface SongContextMenuProps {
+  children: ReactNode
+}
+
+interface SongContextMenuState {
+  isOpen: boolean
+  x: number
+  y: number
+  song: Song | null
+}
+
+interface SongContextMenuController {
+  openMenu: (song: Song, x: number, y: number) => void
+  closeMenu: () => void
+}
+
+interface ContextMenuInnerProps {
   song: Song
-  children: React.ReactNode
+  x: number
+  y: number
+  onClose: () => void
+}
+
+const MENU_WIDTH = 210
+const MENU_ESTIMATED_HEIGHT = 380
+const VIEWPORT_PADDING = 8
+
+const SongContextMenuContext = createContext<SongContextMenuController | null>(null)
+
+export function useSongContextMenu(): SongContextMenuController | null {
+  return useContext(SongContextMenuContext)
 }
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
   return '操作失败'
+}
+
+function getMenuPosition(x: number, y: number): { left: number; top: number } {
+  if (typeof window === 'undefined') return { left: x, top: y }
+
+  const maxLeft = Math.max(VIEWPORT_PADDING, window.innerWidth - MENU_WIDTH - VIEWPORT_PADDING)
+  const maxTop = Math.max(VIEWPORT_PADDING, window.innerHeight - MENU_ESTIMATED_HEIGHT - VIEWPORT_PADDING)
+
+  return {
+    left: Math.min(Math.max(x, VIEWPORT_PADDING), maxLeft),
+    top: Math.min(Math.max(y, VIEWPORT_PADDING), maxTop),
+  }
 }
 
 async function toggleLike(songId: number, like: boolean): Promise<void> {
@@ -40,31 +89,29 @@ async function toggleLike(songId: number, like: boolean): Promise<void> {
   }
 }
 
-function ContextMenuInner({ song }: { song: Song }) {
+function ContextMenuInner({ song, x, y, onClose }: ContextMenuInnerProps) {
   const router = useRouter()
   const { playSong, addToQueue } = usePlayerStore()
   const { isLoggedIn } = useUserStore()
   const { add: addToHistory } = useHistoryStore()
   const menuRef = useRef<HTMLDivElement>(null)
-
-  const [menu, setMenu] = useState<{ show: boolean; x: number; y: number }>({
-    show: true, x: 0, y: 0,
-  })
   const [fetchedLiked, setFetchedLiked] = useState(false)
   const isLiked = isLoggedIn && fetchedLiked
-
-  const handleClose = useCallback(() => setMenu((s) => ({ ...s, show: false })), [])
+  const position = getMenuPosition(x, y)
 
   useEffect(() => {
-    const close = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) handleClose()
+    const close = (event: MouseEvent) => {
+      if (menuRef.current?.contains(event.target as Node)) return
+      onClose()
     }
+
     window.addEventListener('mousedown', close)
     return () => window.removeEventListener('mousedown', close)
-  }, [handleClose])
+  }, [onClose])
 
   useEffect(() => {
     if (!isLoggedIn) return
+
     let cancelled = false
     ncmApi
       .songLikeCheck([song.id])
@@ -77,82 +124,140 @@ function ContextMenuInner({ song }: { song: Song }) {
       .catch(() => {
         if (!cancelled) setFetchedLiked(false)
       })
+
     return () => {
       cancelled = true
     }
   }, [isLoggedIn, song.id])
 
-  const maxY = window.innerHeight - 380
-  const maxX = window.innerWidth - 210
-
   const handleToggleLike = useCallback(() => {
     if (!isLoggedIn) {
       toast.error('请先登录')
-      handleClose()
+      onClose()
       return
     }
+
     const next = !isLiked
     setFetchedLiked(next)
     void toggleLike(song.id, next)
-    handleClose()
-  }, [isLoggedIn, isLiked, song.id, handleClose])
+    onClose()
+  }, [isLoggedIn, isLiked, song.id, onClose])
 
   const handleViewSimilar = useCallback(() => {
     router.push(`/song/${song.id}?tab=similar`)
-    handleClose()
-  }, [router, song.id, handleClose])
+    onClose()
+  }, [router, song.id, onClose])
+
+  const menuItems = [
+    {
+      icon: Play,
+      label: '立即播放',
+      action: () => {
+        addToHistory(song)
+        playSong(song)
+        onClose()
+      },
+    },
+    {
+      icon: ListPlus,
+      label: '添加到队列',
+      action: () => {
+        addToQueue(song)
+        onClose()
+      },
+    },
+    {
+      icon: isLiked ? HeartOff : Heart,
+      label: isLiked ? '取消收藏' : '收藏',
+      action: handleToggleLike,
+      disabled: !isLoggedIn,
+    },
+    { icon: Music, label: '查看相似歌曲', action: handleViewSimilar },
+    ...(song.al?.id
+      ? [
+          {
+            icon: Disc3,
+            label: '查看专辑',
+            action: () => {
+              router.push(`/album/${song.al!.id}`)
+              onClose()
+            },
+          },
+        ]
+      : []),
+    ...(song.ar?.[0]?.id
+      ? [
+          {
+            icon: User,
+            label: '查看歌手',
+            action: () => {
+              router.push(`/artist/${song.ar![0].id}`)
+              onClose()
+            },
+          },
+        ]
+      : []),
+    {
+      icon: Copy,
+      label: '复制歌名',
+      action: () => {
+        void navigator.clipboard?.writeText(song.name)
+        onClose()
+      },
+    },
+  ]
 
   return (
     <div
       ref={menuRef}
+      role="menu"
+      aria-label={`${song.name} 的操作菜单`}
       className="fixed z-[100] w-[210px] rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl py-1.5 animate-fade-in overflow-hidden backdrop-blur-xl"
-      style={{ left: Math.min(menu.x, maxX), top: Math.min(menu.y, maxY) }}
+      style={{ left: position.left, top: position.top }}
     >
       <button
-        onClick={handleClose}
-        className="absolute top-2 right-2 p-1 rounded-full hover:bg-[var(--bg-hover)] transition-colors"
+        type="button"
+        onClick={onClose}
+        aria-label="关闭歌曲操作菜单"
+        className="absolute top-2 right-2 p-1 rounded-full hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] transition-colors"
       >
-        <Copy className="w-3 h-3 rotate-45 text-[var(--text-tertiary)]" />
+        <Copy className="w-3 h-3 rotate-45 text-[var(--text-tertiary)]" aria-hidden="true" />
       </button>
       <div className="px-3 py-2 border-b border-[var(--border)] flex items-center gap-2.5">
         {song.al?.picUrl ? (
           <Image
             src={imageUrl(song.al.picUrl, 60)}
-            alt="Album cover"
+            alt={song.al.name ? `${song.al.name} 封面` : '专辑封面'}
             width={48}
             height={48}
             className="w-8 h-8 rounded object-cover"
           />
         ) : (
-          <div className="w-8 h-8 rounded bg-[var(--bg-elevated)] flex items-center justify-center">
+          <div className="w-8 h-8 rounded bg-[var(--bg-elevated)] flex items-center justify-center" aria-hidden="true">
             <Disc3 className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
           </div>
         )}
         <div className="min-w-0 flex-1 pr-4">
           <p className="text-xs font-medium truncate text-[var(--text-primary)]">{song.name}</p>
-          <p className="text-[10px] truncate text-[var(--text-tertiary)]">{song.ar?.map((a) => a.name).join(' / ')}</p>
+          <p className="text-[10px] truncate text-[var(--text-tertiary)]">
+            {song.ar?.map((artist) => artist.name).join(' / ')}
+          </p>
         </div>
       </div>
-      {[
-        { icon: Play, label: '立即播放', action: () => { addToHistory(song); playSong(song); handleClose() } },
-        { icon: ListPlus, label: '添加到队列', action: () => { addToQueue(song); handleClose() } },
-        { icon: isLiked ? HeartOff : Heart, label: isLiked ? '取消收藏' : '收藏', action: handleToggleLike, disabled: !isLoggedIn },
-        { icon: Music, label: '查看相似歌曲', action: handleViewSimilar },
-        ...(song.al?.id ? [{ icon: Disc3, label: '查看专辑', action: () => { router.push(`/album/${song.al!.id}`); handleClose() } }] : []),
-        ...(song.ar?.[0]?.id ? [{ icon: User, label: '查看歌手', action: () => { router.push(`/artist/${song.ar![0].id}`); handleClose() } }] : []),
-        { icon: Copy, label: '复制歌名', action: () => { navigator.clipboard?.writeText(song.name); handleClose() } },
-      ].map((item, idx) => (
+      {menuItems.map((item) => (
         <button
-          key={idx}
+          key={item.label}
+          type="button"
+          role="menuitem"
           disabled={item.disabled}
           onClick={item.action}
-          className={`w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors ${
+          className={`w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)] ${
             item.disabled
               ? 'text-[var(--text-tertiary)] cursor-not-allowed opacity-50'
-              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+              : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:bg-[var(--bg-hover)] focus-visible:text-[var(--text-primary)]'
           }`}
         >
-          <item.icon className="w-3.5 h-3.5 shrink-0" />
+          <item.icon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
           <span>{item.label}</span>
         </button>
       ))}
@@ -160,38 +265,33 @@ function ContextMenuInner({ song }: { song: Song }) {
   )
 }
 
-export function SongContextMenu({ children }: Omit<SongContextMenuProps, 'song'>) {
-  const [menu, setMenu] = useState<{ show: boolean; x: number; y: number; song: Song | null }>({
-    show: false, x: 0, y: 0, song: null,
+export function SongContextMenu({ children }: SongContextMenuProps) {
+  const [menu, setMenu] = useState<SongContextMenuState>({
+    isOpen: false,
+    x: 0,
+    y: 0,
+    song: null,
   })
 
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement
-      const row = target.closest('[data-song-id]') as HTMLElement
-      if (!row) return
-      e.preventDefault()
-      const s: Song = {
-        id: Number(row.dataset.songId),
-        name: row.dataset.songName || '',
-        ar: [{ id: 0, name: row.dataset.songArtist || '' }],
-        al: { id: 0, name: row.dataset.songAlbum || '', picUrl: row.dataset.songPic || '' },
-        dt: Number(row.dataset.songDuration) || 0,
-        publishTime: 0,
-        fee: 0,
-        noCopyrightRcmd: null,
-        mv: 0,
-      }
-      setMenu({ show: true, x: e.clientX, y: e.clientY, song: s })
-    }
-    window.addEventListener('contextmenu', handler)
-    return () => window.removeEventListener('contextmenu', handler)
+  const openMenu = useCallback((song: Song, x: number, y: number) => {
+    setMenu({ isOpen: true, x, y, song })
   }, [])
 
+  const closeMenu = useCallback(() => {
+    setMenu((current) => ({ ...current, isOpen: false }))
+  }, [])
+
+  const controller = useMemo(
+    () => ({ openMenu, closeMenu }),
+    [closeMenu, openMenu]
+  )
+
   return (
-    <>
+    <SongContextMenuContext.Provider value={controller}>
       {children}
-      {menu.show && menu.song && <ContextMenuInner song={menu.song} />}
-    </>
+      {menu.isOpen && menu.song && (
+        <ContextMenuInner song={menu.song} x={menu.x} y={menu.y} onClose={closeMenu} />
+      )}
+    </SongContextMenuContext.Provider>
   )
 }

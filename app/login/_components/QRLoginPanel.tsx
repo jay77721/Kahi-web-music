@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ncmApi } from '@/lib/api'
 import { useUserStore } from '@/stores/userStore'
-import { QRStatus, type UserProfile } from '@/types/api'
+import { QRStatus, type UserProfile } from '@/types/user'
 
 type QRViewStatus = 'loading' | 'ready' | 'scanned' | 'expired'
 

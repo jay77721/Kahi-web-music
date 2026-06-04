@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, afterEach } from 'vitest'
 import { render, fireEvent, cleanup } from '@testing-library/react'
 import { CommentItem } from '@/components/comment/CommentItem'
-import type { Comment } from '@/types/api'
+import type { Comment } from '@/types/comment'
 
 const baseComment: Comment = {
   commentId: 101,

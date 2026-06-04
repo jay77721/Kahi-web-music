@@ -22,25 +22,24 @@ import { SongTable } from '@/components/common/SongTable'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { ArtistHero } from '@/components/artist/ArtistHero'
-import { ncmApi, unwrapField } from '@/lib/api'
+import { ncmApi } from '@/lib/api'
+import {
+  normalizeArtistDetail,
+  type NormalizedArtistDetail,
+} from '@/lib/api-adapters'
 import { formatCount, imageUrl } from '@/lib/format'
 import { PlayerBar } from '@/components/player/PlayerBar'
 import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { usePlayerStore } from '@/stores/playerStore'
 import { cn } from '@/lib/utils'
-import type { Song, ArtistDetail, Album, Artist } from '@/types/api'
+import type { Album } from '@/types/album'
+import type { Artist } from '@/types/artist'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface ArtistPageData {
-  artist: Artist
-  songs: Song[]
-  albums: Album[]
-  desc: string
-  simiArtists: Artist[]
-}
+type ArtistPageData = NormalizedArtistDetail
 
 interface StatTile {
   icon: ReactNode
@@ -285,15 +284,6 @@ function SimilarArtists({ artists }: SimilarArtistsProps) {
 // Data loading
 // ---------------------------------------------------------------------------
 
-function unwrapData<T>(raw: T | { data?: T } | undefined | null, fallback: T): T {
-  if (raw === null || raw === undefined) return fallback
-  if (typeof raw === 'object' && 'data' in (raw as object)) {
-    const inner = (raw as { data?: T }).data
-    if (inner !== undefined && inner !== null) return inner
-  }
-  return raw as T
-}
-
 async function loadArtistPage(id: string): Promise<ArtistPageData> {
   const [detailRes, songsRes, albumsRes, descRes, simiRes] = await Promise.all([
     ncmApi.artistDetail(id),
@@ -303,25 +293,17 @@ async function loadArtistPage(id: string): Promise<ArtistPageData> {
     ncmApi.simiArtist(id).catch(() => null),
   ])
 
-  const detail = unwrapData<ArtistDetail>(
-    detailRes as ArtistDetail | { data?: ArtistDetail } | undefined,
-    {} as ArtistDetail
-  )
-  const songs = unwrapField<Song[]>(songsRes, 'songs') ?? []
-  const albums = unwrapField<Album[]>(albumsRes, 'hotAlbums') ?? []
-  const desc =
-    unwrapField<string>(descRes, 'briefDesc') ??
-    (typeof descRes === 'object' && descRes && 'briefDesc' in (descRes as object)
-      ? (descRes as { briefDesc?: string }).briefDesc ?? ''
-      : '')
-  const simiArtists = unwrapField<Artist[]>(simiRes, 'artists')?.slice(0, 6) ?? []
+  const normalized = normalizeArtistDetail({
+    detail: detailRes,
+    songs: songsRes,
+    albums: albumsRes,
+    desc: descRes,
+    simi: simiRes,
+  })
 
   return {
-    artist: detail.artist,
-    songs,
-    albums,
-    desc,
-    simiArtists,
+    ...normalized,
+    simiArtists: normalized.simiArtists.slice(0, 6),
   }
 }
 

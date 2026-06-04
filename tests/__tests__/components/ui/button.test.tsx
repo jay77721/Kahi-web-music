@@ -32,6 +32,7 @@ describe('Button', () => {
 
   test('renders as link when asChild is used', () => {
     render(
+      // @ts-expect-error - asChild from older shadcn/ui API, not in Base UI ButtonPrimitive.Props
       <Button asChild>
         <a href="/test">Link Button</a>
       </Button>

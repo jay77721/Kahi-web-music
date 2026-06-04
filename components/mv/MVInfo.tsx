@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Play, ThumbsUp, Share2, Clock } from 'lucide-react'
-import type { MV } from '@/types/api'
+import type { MV } from '@/types/mv'
 import { formatCount } from '@/lib/format'
 import { cn } from '@/lib/utils'
 

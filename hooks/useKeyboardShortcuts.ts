@@ -21,6 +21,11 @@ interface KeyboardShortcutsOptions {
   debug?: boolean
 }
 
+function normalizeKey(key: string): string {
+  const normalizedKey = key.toLowerCase()
+  return normalizedKey === ' ' || normalizedKey === 'space' ? 'space' : normalizedKey
+}
+
 /**
  * Registers global keyboard shortcuts with optional conditional activation.
  * All shortcuts are bound at the window level.
@@ -50,18 +55,30 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
         // Check if shortcut is currently active
         if (shortcut.when === false) continue
 
-        // Normalize the event key
-        const eventKey = event.key.length === 1 ? event.key.toLowerCase() : event.key
-        const shortcutKey = shortcut.key.length === 1 ? shortcut.key.toLowerCase() : shortcut.key
+        const parts = shortcut.key
+          .toLowerCase()
+          .split('+')
+          .map((part) => (part === ' ' ? part : part.trim()))
+        const baseKey = normalizeKey(parts[parts.length - 1] ?? '')
+        const eventKey = normalizeKey(event.key)
+        const wantsCtrl = parts.includes('control') || parts.includes('ctrl')
+        const wantsMeta = parts.includes('meta') || parts.includes('cmd') || parts.includes('command')
+        const wantsAlt = parts.includes('alt') || parts.includes('option')
+        const wantsShift = parts.includes('shift')
+        const hasExplicitModifier = wantsCtrl || wantsMeta || wantsAlt || wantsShift
 
-        const matches =
-          eventKey === shortcutKey ||
-          ((event.ctrlKey || event.metaKey) &&
-            eventKey === `Control+${shortcutKey}`) ||
-          (event.altKey &&
-            eventKey === `Alt+${shortcutKey}`) ||
-          (event.shiftKey &&
-            eventKey === `Shift+${shortcutKey}`)
+        const matchesBaseKey = eventKey === baseKey
+        const matches = hasExplicitModifier
+          ? matchesBaseKey &&
+            (!wantsCtrl || event.ctrlKey) &&
+            (!wantsMeta || event.metaKey) &&
+            (!wantsAlt || event.altKey) &&
+            (!wantsShift || event.shiftKey) &&
+            (wantsCtrl || !event.ctrlKey) &&
+            (wantsMeta || !event.metaKey) &&
+            (wantsAlt || !event.altKey) &&
+            (wantsShift || !event.shiftKey)
+          : matchesBaseKey
 
         if (matches) {
           if (shortcut.preventDefault !== false) {

@@ -82,7 +82,7 @@ vi.mock('next/image', () => ({
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeUiState(overrides: Partial<{ theme: 'dark' | 'light' | 'system' }> = {}) {
+function makeUiState(overrides: Partial<{ theme: 'dark' | 'light' | 'system'; setTheme: () => void }> = {}) {
   return {
     theme: 'dark' as 'dark' | 'light' | 'system',
     setTheme: vi.fn(),
@@ -90,7 +90,7 @@ function makeUiState(overrides: Partial<{ theme: 'dark' | 'light' | 'system' }> 
   }
 }
 
-function makePlayerState(overrides: Partial<{ playMode: PlayMode }> = {}) {
+function makePlayerState(overrides: Partial<{ playMode: PlayMode; setPlayMode: () => void }> = {}) {
   return {
     playMode: 'sequential' as PlayMode,
     setPlayMode: vi.fn(),

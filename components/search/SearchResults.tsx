@@ -1,17 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Music, ListMusic, User, Disc, Video } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import useSWR from 'swr'
 import { ncmApi } from '@/lib/api'
+import {
+  normalizeSearchResult,
+  type NormalizedSearchResult,
+} from '@/lib/api-adapters'
 import { SongTable } from '@/components/common/SongTable'
 import { PlaylistCard } from '@/components/common/PlaylistCard'
 import { imageUrl } from '@/lib/format'
 import { SearchEmptyState } from '@/components/search/SearchEmptyState'
 import { motion } from 'framer-motion'
-import type { Song, Playlist, Artist, Album, MV, SearchResponse } from '@/types/api'
+import type { Song } from '@/types/api'
+import type { Playlist } from '@/types/playlist'
+import type { Artist } from '@/types/artist'
+import type { Album } from '@/types/album'
+import type { MV } from '@/types/mv'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -58,12 +66,11 @@ export function SearchResults({ keywords }: SearchResultsProps) {
 }
 
 function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type: number; tabValue: 'songs' | 'artists' | 'albums' | 'playlists' | 'mvs' }) {
-  const { data, isLoading } = useSWR<SearchResponse>(
+  const { data, isLoading } = useSWR<NormalizedSearchResult>(
     keywords ? `search:${keywords}:${type}` : null,
-    async () => {
-      return await ncmApi.search(keywords, type, 30)
-    }
+    async () => normalizeSearchResult(await ncmApi.search(keywords, type, 30))
   )
+  const result = useMemo<NormalizedSearchResult>(() => data ?? normalizeSearchResult(null), [data])
 
   if (isLoading) {
     return <SearchSkeleton tabValue={tabValue} />
@@ -73,14 +80,14 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
     return <SearchEmptyState query={keywords} type={tabValue} />
   }
 
-  const countKeyMap: Record<string, keyof SearchResponse['result']> = {
+  const countKeyMap: Record<string, keyof NormalizedSearchResult> = {
     songs: 'songCount',
     artists: 'artistCount',
     albums: 'albumCount',
     playlists: 'playlistCount',
     mvs: 'mvCount',
   }
-  const count = data.result?.[countKeyMap[tabValue]] || 0
+  const count = result[countKeyMap[tabValue]] || 0
 
   if (count === 0) {
     return <SearchEmptyState query={keywords} type={tabValue as 'songs' | 'artists' | 'albums' | 'playlists' | 'mvs'} />
@@ -88,13 +95,13 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
 
   // Songs
   if (tabValue === 'songs') {
-    const songs: Song[] = data.result?.songs || []
+    const songs: Song[] = result.songs || []
     return <SongTable songs={songs} showIndex showAlbum />
   }
 
   // Playlists
   if (tabValue === 'playlists') {
-    const playlists: Playlist[] = data.result?.playlists || []
+    const playlists: Playlist[] = result.playlists || []
     return (
       <motion.div
         className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
@@ -118,7 +125,7 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
 
   // Artists
   if (tabValue === 'artists') {
-    const artists: Artist[] = data.result?.artists || []
+    const artists: Artist[] = result.artists || []
     return (
       <motion.div
         className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"
@@ -155,7 +162,7 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
 
   // Albums
   if (tabValue === 'albums') {
-    const albums: Album[] = data.result?.albums || []
+    const albums: Album[] = result.albums || []
     return (
       <motion.div
         className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
@@ -194,7 +201,7 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
 
   // MVs
   if (tabValue === 'mvs') {
-    const mvs: MV[] = data.result?.mvs || []
+    const mvs: MV[] = result.mvs || []
     return (
       <motion.div
         className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"

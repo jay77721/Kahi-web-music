@@ -19,13 +19,16 @@
 ## Commands
 
 ```bash
-pnpm dev          # Start dev server (port 3000)
-pnpm build        # Production build
-pnpm start        # Run production server
-pnpm lint         # ESLint
-pnpm test         # Vitest (watch mode)
-pnpm test:run     # Vitest (CI mode)
-pnpm test:e2e     # Playwright
+pnpm dev             # Start dev server (port 3001)
+pnpm build           # Production build
+pnpm start           # Run production server
+pnpm lint            # ESLint
+pnpm test            # Vitest (CI mode, no watch)
+pnpm test:watch      # Vitest (watch mode)
+pnpm test:coverage   # Vitest (CI mode with coverage)
+pnpm test:e2e        # Playwright
+pnpm test:e2e:ui     # Playwright (with UI)
+pnpm test:all        # Run all tests (unit + coverage + E2E)
 ```
 
 ## Project Structure

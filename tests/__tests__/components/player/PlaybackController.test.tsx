@@ -2,6 +2,8 @@ import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
 import { PlaybackController } from '@/components/player/PlaybackController'
 import { usePlayerStore } from '@/stores/playerStore'
+import { audioEngine } from '@/lib/audio'
+import { storage, STORAGE_KEYS } from '@/lib/storage'
 import { mockSong } from '@/tests/helpers/mock-data'
 
 // Build a real constructable Howl mock. The global howler mock in setup.ts
@@ -13,7 +15,7 @@ const howlMockState = vi.hoisted(() => {
 })
 
 const HowlCtor = vi.hoisted(() => {
-  return function Howl(_config: Record<string, unknown>) {
+  return function Howl() {
     const state = {
       playing: false,
       state: 'unloaded' as 'unloaded' | 'loading' | 'loaded',
@@ -88,6 +90,8 @@ vi.mock('@/lib/mediaSession', () => ({
 }))
 
 function resetStore() {
+  audioEngine.reset()
+  storage.clear()
   usePlayerStore.setState({
     currentTrack: null,
     isPlaying: false,
@@ -373,6 +377,74 @@ describe('PlaybackController', () => {
     loadSpy.mockRestore()
   })
 
+  test('syncs store volume to the audio engine after loading a track', async () => {
+    const setVolumeSpy = vi.spyOn(audioEngine, 'setVolume')
+    storage.set(STORAGE_KEYS.VOLUME, 0.31)
+    usePlayerStore.setState({
+      currentTrack: mockSong,
+      volume: 0.31,
+      isMuted: false,
+    })
+    await act(async () => {
+      render(<PlaybackController />)
+      await Promise.resolve()
+    })
+    expect(setVolumeSpy).toHaveBeenCalledWith(0.31)
+    setVolumeSpy.mockRestore()
+  })
+
+  test('applies muted volume after loading a track', async () => {
+    const setVolumeSpy = vi.spyOn(audioEngine, 'setVolume')
+    storage.set(STORAGE_KEYS.VOLUME, 0.31)
+    usePlayerStore.setState({
+      currentTrack: mockSong,
+      volume: 0.31,
+      isMuted: true,
+    })
+    await act(async () => {
+      render(<PlaybackController />)
+      await Promise.resolve()
+    })
+    expect(setVolumeSpy).toHaveBeenCalledWith(0)
+    setVolumeSpy.mockRestore()
+  })
+
+  test('falls back to the 128k stream on the first engine error', async () => {
+    const loadSpy = vi.spyOn(audioEngine, 'load')
+    usePlayerStore.setState({ currentTrack: mockSong, hasUserInteracted: true })
+    await act(async () => {
+      render(<PlaybackController />)
+      await Promise.resolve()
+    })
+
+    const onError = (audioEngine as unknown as {
+      onErrorCallback: (e: unknown) => void
+    }).onErrorCallback
+    act(() => onError(new Error('320k failed')))
+
+    expect(loadSpy).toHaveBeenCalledWith(`/api/song/stream?id=${mockSong.id}&br=320000`)
+    expect(loadSpy).toHaveBeenCalledWith(`/api/song/stream?id=${mockSong.id}&br=128000`)
+    expect(usePlayerStore.getState().playbackError).toBeNull()
+    loadSpy.mockRestore()
+  })
+
+  test('keeps a visible error after the fallback stream also fails', async () => {
+    usePlayerStore.setState({ currentTrack: mockSong, hasUserInteracted: true })
+    await act(async () => {
+      render(<PlaybackController />)
+      await Promise.resolve()
+    })
+
+    const onError = (audioEngine as unknown as {
+      onErrorCallback: (e: unknown) => void
+    }).onErrorCallback
+    act(() => onError(new Error('320k failed')))
+    act(() => onError(new Error('128k failed')))
+
+    expect(usePlayerStore.getState().playbackError).toBe('128k failed')
+    expect(usePlayerStore.getState().isPlaying).toBe(false)
+  })
+
   test('handles engine load error gracefully', async () => {
     // Stub the global fetch used by /api/song/stream to return ok=false
     const originalFetch = globalThis.fetch
@@ -418,6 +490,7 @@ describe('PlaybackController', () => {
     act(() => onPause?.())
     expect(usePlayerStore.getState().isPlaying).toBe(false)
 
+    act(() => onError?.(new Error('boom')))
     act(() => onError?.(new Error('boom')))
     expect(usePlayerStore.getState().playbackError).toBe('boom')
 
@@ -469,5 +542,36 @@ describe('PlaybackController', () => {
     render(<PlaybackController />)
     const calls = setPlaybackStateMock.mock.calls.map((c) => c[0])
     expect(calls).toContain('paused')
+  })
+
+  test('restarts the same track when repeat-one reaches the end', async () => {
+    const seekSpy = vi.spyOn(audioEngine, 'seek').mockImplementation(() => 0)
+    const playSpy = vi.spyOn(audioEngine, 'play').mockImplementation(() => {})
+    storage.set(STORAGE_KEYS.PLAY_QUEUE, [mockSong])
+    storage.set(STORAGE_KEYS.PLAY_INDEX, 0)
+    storage.set(STORAGE_KEYS.PLAY_MODE, 'repeat-one')
+    usePlayerStore.setState({
+      currentTrack: mockSong,
+      queue: [mockSong],
+      queueIndex: 0,
+      playMode: 'repeat-one',
+      hasUserInteracted: false,
+    })
+    await act(async () => {
+      render(<PlaybackController />)
+      await Promise.resolve()
+    })
+
+    const onEnd = (audioEngine as unknown as {
+      onEndCallback: () => void
+    }).onEndCallback
+    act(() => onEnd())
+
+    expect(seekSpy).toHaveBeenCalledWith(0)
+    expect(playSpy).toHaveBeenCalled()
+    expect(usePlayerStore.getState().currentTrack).toStrictEqual(mockSong)
+    expect(usePlayerStore.getState().isPlaying).toBe(true)
+    seekSpy.mockRestore()
+    playSpy.mockRestore()
   })
 })

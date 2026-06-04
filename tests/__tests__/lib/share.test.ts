@@ -5,20 +5,25 @@ import {
   getEmbedCode,
   getSharePath,
   getShareUrl,
+  type ShareableType,
 } from '@/lib/share'
+
+const types: Array<[ShareableType, string]> = [
+  ['playlist', '/playlist'],
+  ['album', '/album'],
+  ['leaderboard', '/leaderboard'],
+  ['song', '/song'],
+  ['artist', '/artist'],
+]
 
 describe('share utils', () => {
   describe('getSharePath', () => {
-    test('builds a path for a playlist id', () => {
-      expect(getSharePath('playlist', 123)).toBe('/playlist/123')
+    test.each(types)('builds a path for %s', (type, path) => {
+      expect(getSharePath(type, 123)).toBe(`${path}/123`)
     })
 
     test('encodes string ids', () => {
       expect(getSharePath('playlist', 'a b/c')).toBe('/playlist/a%20b%2Fc')
-    })
-
-    test('builds a path for an album id', () => {
-      expect(getSharePath('album', 7)).toBe('/album/7')
     })
   })
 
@@ -48,30 +53,33 @@ describe('share utils', () => {
       expect(code).toContain('title="KaHi Music - 歌单"')
     })
 
-    test('keeps the iframe structure intact for ids with special characters', () => {
+    test('escapes quote characters in the iframe src', () => {
       const code = getEmbedCode('playlist', 'a"b')
-      // The url inside the iframe src is properly quoted (encoded or escaped).
-      expect(code).toMatch(/<iframe src="[^"]*playlist\/a[^"]*" /)
-      // The opening quote of the src attribute is never followed by a raw unescaped quote.
-      expect(code).not.toMatch(/src="[^"]*"[^>]*src=/)
+      expect(code).toContain('src="/playlist/a%22b"')
+      expect(code).not.toContain('src="/playlist/a"b"')
     })
   })
 
   describe('buildWebShareData', () => {
     test('includes title, text and url', () => {
       const data = buildWebShareData('album', 3, 'Hello', 'https://x')
-      expect(data.title).toBe('Hello')
-      expect(data.text).toBe('Hello - KaHi Music')
-      expect(data.url).toBe('https://x/album/3')
+      expect(data).toEqual({
+        title: 'Hello',
+        text: 'Hello - KaHi Music',
+        url: 'https://x/album/3',
+      })
     })
   })
 
   describe('copyToClipboard', () => {
+    const originalExecCommand = document.execCommand
+
     beforeEach(() => {
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
         value: undefined,
       })
+      document.execCommand = vi.fn()
     })
 
     afterEach(() => {
@@ -79,12 +87,13 @@ describe('share utils', () => {
         configurable: true,
         value: undefined,
       })
+      document.execCommand = originalExecCommand
+      vi.restoreAllMocks()
     })
 
     test('returns unsupported for empty input', async () => {
       const result = await copyToClipboard('')
-      expect(result.ok).toBe(false)
-      expect(result.method).toBe('unsupported')
+      expect(result).toEqual({ ok: false, method: 'unsupported', error: 'empty' })
     })
 
     test('uses the modern clipboard API when available', async () => {
@@ -107,9 +116,28 @@ describe('share utils', () => {
       })
 
       const result = await copyToClipboard('hi')
-      expect(result.ok).toBe(false)
-      expect(result.method).toBe('clipboard')
-      expect(result.error).toBe('denied')
+      expect(result).toEqual({ ok: false, method: 'clipboard', error: 'denied' })
+    })
+
+    test('uses textarea fallback when clipboard API is unavailable', async () => {
+      vi.mocked(document.execCommand).mockReturnValue(true)
+
+      const result = await copyToClipboard('fallback')
+
+      expect(document.execCommand).toHaveBeenCalledWith('copy')
+      expect(result).toEqual({ ok: true, method: 'fallback' })
+    })
+
+    test('reports fallback failure', async () => {
+      vi.mocked(document.execCommand).mockReturnValue(false)
+
+      const result = await copyToClipboard('fallback')
+
+      expect(result).toEqual({
+        ok: false,
+        method: 'fallback',
+        error: 'execCommand-failed',
+      })
     })
   })
 })

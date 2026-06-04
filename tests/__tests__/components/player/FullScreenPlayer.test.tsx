@@ -54,7 +54,8 @@ vi.mock('@/stores/uiStore', () => ({
 }))
 
 // Stub the dynamic-color hook so we can assert what FullScreenPlayer feeds it
-const useDominantColorSpy = vi.fn(() => ({ color: null, isLoading: false, error: null }))
+const useDominantColorSpy = vi.fn<(_url?: string | null) => { color: { r: number; g: number; b: number; hex: string; oklch: string } | null; isLoading: boolean; error: Error | null }>()
+useDominantColorSpy.mockReturnValue({ color: null, isLoading: false, error: null })
 vi.mock('@/hooks/useDominantColor', () => ({
   useDominantColor: (url: string | null | undefined) => useDominantColorSpy(url),
 }))

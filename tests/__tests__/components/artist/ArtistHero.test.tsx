@@ -3,7 +3,7 @@
 import { describe, test, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import React from 'react'
-import type { Artist } from '@/types/api'
+import type { Artist } from '@/types/artist'
 
 // ---------------------------------------------------------------------------
 // Mocks

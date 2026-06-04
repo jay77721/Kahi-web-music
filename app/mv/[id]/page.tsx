@@ -9,55 +9,26 @@ import { CommentList } from '@/components/comment/CommentList'
 import { Skeleton } from '@/components/ui/skeleton'
 import { MVPlayer } from '@/components/mv/MVPlayer'
 import { MVInfo } from '@/components/mv/MVInfo'
-import { ncmApi, unwrapField } from '@/lib/api'
+import { ncmApi } from '@/lib/api'
+import { normalizeMvBundle, type NormalizedMvDetail } from '@/lib/api-adapters'
 import { imageUrl } from '@/lib/format'
 import { PlayerBar } from '@/components/player/PlayerBar'
 import { PlayerOverlays } from '@/components/player/PlayerOverlays'
-import type { MV, MVDetailInfoResponse, SimiMvResponse, MVDetailResponse } from '@/types/api'
-
-interface MVBundle {
-  url: string | null
-  mv: MV | null
-  info: MVDetailInfoResponse | null
-  simiMvs: MV[]
-}
+import type { SimiMvResponse, MVDetailResponse } from '@/types/api'
 
 export default function MVPage() {
   const params = useParams()
   const id = (params?.id as string | undefined) ?? ''
 
-  const { data, isLoading, error } = useSWR(id ? `mv-${id}` : null, async (): Promise<MVBundle> => {
+  const { data, isLoading, error } = useSWR(id ? `mv-${id}` : null, async (): Promise<NormalizedMvDetail> => {
     const [urlRes, detailRes, infoRes, simiRes] = await Promise.all([
       ncmApi.mvUrl(id).catch(() => null),
       ncmApi.mvDetail(id).catch(() => null) as Promise<MVDetailResponse | null | undefined>,
-      ncmApi.mvDetailInfo(id).catch(() => null) as Promise<MVDetailInfoResponse | null | undefined>,
+      ncmApi.mvDetailInfo(id).catch(() => null),
       ncmApi.simiMv(id).catch(() => null) as Promise<SimiMvResponse | null | undefined>,
     ])
 
-    // mvUrl and mvDetail both unwrap the `data` field through the api client,
-    // so the MV-level fields are now at the top level.
-    const urlString = unwrapField<string>(urlRes, 'url')
-      ?? unwrapField<{ url?: string }[]>(urlRes, 'urls')?.[0]?.url
-      ?? null
-    const mv: MV | null = detailRes
-      ? (() => {
-          const root = (detailRes as { mv?: MV }).mv
-          if (root) return root
-          const inner = unwrapField<MV>(detailRes, 'data')
-          if (inner) return inner
-          // The api client already unwrapped the inner data — treat detailRes
-          // itself as the MV object.
-          return detailRes as unknown as MV
-        })()
-      : null
-    const simiMvs = unwrapField<MV[]>(simiRes, 'mvs') || []
-
-    return {
-      url: urlString,
-      mv,
-      info: infoRes ?? null,
-      simiMvs,
-    }
+    return normalizeMvBundle(urlRes, detailRes, infoRes, simiRes)
   })
 
   if (isLoading) {
@@ -165,16 +136,11 @@ export default function MVPage() {
           </section>
         ) : null}
 
-        {data.url === null ? <NullHint /> : null}
       </div>
       <PlayerBar />
       <PlayerOverlays />
     </AppShell>
   )
-}
-
-function NullHint(): null {
-  return null
 }
 
 const TAG_PATTERN = /#([\p{L}\p{N}_-]+)/gu

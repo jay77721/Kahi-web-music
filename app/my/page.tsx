@@ -10,7 +10,12 @@ import { SongTable } from '@/components/common/SongTable'
 import { PlaylistGrid } from '@/components/playlist/PlaylistGrid'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { ncmApi, unwrapField } from '@/lib/api'
+import { ncmApi } from '@/lib/api'
+import {
+  normalizeIdList,
+  normalizePlaylistList,
+  normalizeSongList,
+} from '@/lib/api-adapters'
 import { PlayerBar } from '@/components/player/PlayerBar'
 import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { ProfileHeader } from '@/components/user/ProfileHeader'
@@ -21,10 +26,8 @@ import { useDominantColor } from '@/hooks/useDominantColor'
 import { imageUrl } from '@/lib/format'
 import { mutate as swrMutate } from 'swr'
 import { Heart, Clock, Cloud, ListMusic, Plus } from 'lucide-react'
-import type {
-  Song,
-  Playlist,
-} from '@/types/api'
+import type { Song } from '@/types/api'
+import type { Playlist } from '@/types/playlist'
 import type { DominantColor } from '@/lib/color'
 
 const FALLBACK_BG_OKLCH = 'oklch(0.18 0 0)'
@@ -68,19 +71,17 @@ function MyPageContent() {
       const uid = profile?.userId
       if (!uid) return []
       const res = await ncmApi.likelist(uid)
-      const ids = unwrapField<number[]>(res, 'ids') || []
+      const ids = normalizeIdList(res)
       if (ids.length === 0) return []
       const detail = await ncmApi.songDetail(ids.slice(0, 100).join(','))
-      return unwrapField<Song[]>(detail, 'songs') || []
+      return normalizeSongList(detail)
     }
   )
 
   const { data: recentSongs, isLoading: recentLoading } = useSWR<Song[]>(
     isLoggedIn && tab === 'recent' ? 'recent-songs' : null,
     async () => {
-      const res = await ncmApi.recordRecentSong(50)
-      const list = unwrapField<{ data: Song }[]>(res, 'list') || []
-      return list.map((item) => item.data)
+      return normalizeSongList(await ncmApi.recordRecentSong(50))
     }
   )
 
@@ -90,7 +91,7 @@ function MyPageContent() {
       const uid = profile?.userId
       if (!uid) return []
       const res = await ncmApi.userPlaylist(uid, 50)
-      return unwrapField<Playlist[]>(res, 'playlist') || []
+      return normalizePlaylistList(res)
     }
   )
 
@@ -109,9 +110,7 @@ function MyPageContent() {
   const { data: cloudSongs, isLoading: cloudLoading } = useSWR<Song[]>(
     isLoggedIn && tab === 'cloud' ? 'cloud-songs' : null,
     async () => {
-      const res = await ncmApi.userCloud(100)
-      const list = unwrapField<{ simpleSong: Song }[]>(res, 'list') || []
-      return list.map((item) => item.simpleSong)
+      return normalizeSongList(await ncmApi.userCloud(100))
     }
   )
 

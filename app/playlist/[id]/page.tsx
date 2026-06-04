@@ -14,7 +14,11 @@ import { Tag } from '@/components/common/Tag'
 import { ShareMenu } from '@/components/common/ShareMenu'
 import { MetadataBento, type BentoItem } from '@/components/playlist/MetadataBento'
 import { HeroBanner } from '@/components/playlist/HeroBanner'
-import { ncmApi, unwrapField } from '@/lib/api'
+import { ncmApi } from '@/lib/api'
+import {
+  normalizePlaylistDetail,
+  type NormalizedPlaylistDetail,
+} from '@/lib/api-adapters'
 import { formatCount, formatDate, imageUrl } from '@/lib/format'
 import { PlayerBar } from '@/components/player/PlayerBar'
 import { PlayerOverlays } from '@/components/player/PlayerOverlays'
@@ -31,7 +35,6 @@ import {
   HeartPlus,
 } from 'lucide-react'
 import type { Song } from '@/types/api'
-import type { Playlist } from '@/types/playlist'
 
 export default function PlaylistDetailPage() {
   const params = useParams()
@@ -39,17 +42,14 @@ export default function PlaylistDetailPage() {
   const { playQueue } = usePlayerStore()
   const [batchMode, setBatchMode] = useState<boolean>(false)
 
-  const { data, isLoading } = useSWR<{ playlist?: Playlist; tracks: Song[] }>(
+  const { data, isLoading } = useSWR<NormalizedPlaylistDetail>(
     id ? `playlist-detail-${id}` : null,
     async () => {
       const [detail, tracks] = await Promise.all([
         ncmApi.playlistDetail(id),
         ncmApi.playlistTrackAll(id, 100),
       ])
-      return {
-        playlist: unwrapField<Playlist>(detail, 'playlist'),
-        tracks: unwrapField<Song[]>(tracks, 'songs') || [],
-      }
+      return normalizePlaylistDetail(detail, tracks)
     }
   )
 

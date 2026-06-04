@@ -13,7 +13,7 @@ function fireTouch(
   type: 'touchstart' | 'touchmove' | 'touchend',
   touches: TouchInit[]
 ): void {
-  const event = new Event(type, { bubbles: true, cancelable: true }) as unknown as {
+  const event = new Event(type, { bubbles: true, cancelable: true }) as Event & {
     touches: ArrayLike<TouchInit>
     changedTouches: ArrayLike<TouchInit>
   }

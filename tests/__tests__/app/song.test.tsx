@@ -123,6 +123,7 @@ const FAKE_SONG: Song = {
   dt: 240000,
   mv: 0,
   publishTime: 1136044800000,
+  noCopyrightRcmd: null,
 }
 
 const FAKE_SIMI: Song[] = Array.from({ length: 12 }, (_, i) => ({
@@ -132,6 +133,8 @@ const FAKE_SIMI: Song[] = Array.from({ length: 12 }, (_, i) => ({
   al: { id: 400 + i, name: `Album ${i + 1}`, picUrl: `https://pics.example.com/al/${i}.jpg` },
   dt: 180000,
   mv: 0,
+  publishTime: 1136044800000,
+  noCopyrightRcmd: null,
 }))
 
 const FAKE_LYRICS: LyricLine[] = [

@@ -8,7 +8,8 @@ import { AppShell } from '@/components/layout/AppShell'
 import { SongTable } from '@/components/common/SongTable'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
-import { ncmApi, unwrapField } from '@/lib/api'
+import { ncmApi } from '@/lib/api'
+import { normalizeSongList } from '@/lib/api-adapters'
 import { PlayerBar } from '@/components/player/PlayerBar'
 import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { usePlayerStore } from '@/stores/playerStore'
@@ -56,9 +57,7 @@ export default function CloudPage() {
   const { data, isLoading, error, mutate } = useSWR<Song[]>(
     isLoggedIn ? 'cloud-songs' : null,
     async () => {
-      const res = await ncmApi.userCloud(100)
-      const list = unwrapField<{ simpleSong: Song }[]>(res, 'list') ?? []
-      return list.map((item) => item.simpleSong)
+      return normalizeSongList(await ncmApi.userCloud(100))
     }
   )
 

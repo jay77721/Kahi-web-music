@@ -1,7 +1,7 @@
 import { describe, test, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { HotCommentList } from '@/components/comment/HotCommentList'
-import type { Comment } from '@/types/api'
+import type { Comment } from '@/types/comment'
 
 function makeComment(id: number, likedCount: number, liked = false): Comment {
   return {

@@ -19,6 +19,13 @@ const IMAGE_CACHE = `img-cache-${CACHE_VERSION}`
 const API_CACHE = `kahi-api-${CACHE_VERSION}`
 
 const PRECACHE_URLS = ['/', '/offline', '/manifest.json']
+const PRIVATE_API_PATHS = [
+  '/api/user',
+  '/api/login',
+  '/api/likelist',
+  '/api/recommend/songs',
+  '/api/user/cloud',
+]
 
 /* ------------------------------------------------------------------ *
  * Install
@@ -78,6 +85,11 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
+  if (isPrivateApiRequest(url)) {
+    event.respondWith(networkOnly(request))
+    return
+  }
+
   if (isApiRequest(url)) {
     event.respondWith(networkFirst(request, API_CACHE, 5000))
     return
@@ -118,6 +130,14 @@ async function cacheFirst(request, cacheName) {
     return response
   } catch (err) {
     return cached || offlineFallback(request)
+  }
+}
+
+async function networkOnly(request) {
+  try {
+    return await fetch(request)
+  } catch (err) {
+    return new Response('', { status: 504, statusText: 'Offline' })
   }
 }
 
@@ -168,6 +188,15 @@ function isImageRequest(request) {
 
 function isApiRequest(url) {
   return url.pathname.startsWith('/api/')
+}
+
+function isPrivateApiRequest(url) {
+  return PRIVATE_API_PATHS.some((path) => {
+    if (path === '/api/likelist' || path === '/api/recommend/songs') {
+      return url.pathname === path
+    }
+    return url.pathname === path || url.pathname.startsWith(`${path}/`)
+  })
 }
 
 function isStaticAsset(request) {

@@ -107,7 +107,7 @@ beforeEach(() => {
   mockSearchEmptyState.mockImplementation(({ query, type }) => (
     <div data-testid="search-empty">No results for {query} (type={type})</div>
   ))
-  setSwrState({ data: { result: { songs: [] }, code: 200 }, isLoading: false })
+  setSwrState({ data: { songs: [], songCount: 0 }, isLoading: false })
 })
 
 afterEach(() => {
@@ -126,7 +126,7 @@ describe('LyricSearchResults', () => {
 
     test('renders result items with song metadata', async () => {
       setSwrState({
-        data: { result: { songs: [buildSong()], songCount: 1 }, code: 200 },
+        data: { songs: [buildSong()], songCount: 1 },
         isLoading: false,
       })
 
@@ -198,7 +198,7 @@ describe('LyricSearchResults', () => {
   describe('lyric fragments', () => {
     test('shows only lines that contain the query', () => {
       setSwrState({
-        data: { result: { songs: [buildSong()], songCount: 1 }, code: 200 },
+        data: { songs: [buildSong()], songCount: 1 },
         isLoading: false,
       })
 
@@ -227,7 +227,7 @@ describe('LyricSearchResults', () => {
   describe('empty state', () => {
     test('shows empty state when no songs returned', () => {
       setSwrState({
-        data: { result: { songs: [] }, code: 200 },
+        data: { songs: [], songCount: 0 },
         isLoading: false,
       })
 
@@ -252,7 +252,7 @@ describe('LyricSearchResults', () => {
   describe('playback', () => {
     test('clicking the play button calls playSong', () => {
       setSwrState({
-        data: { result: { songs: [buildSong()], songCount: 1 }, code: 200 },
+        data: { songs: [buildSong()], songCount: 1 },
         isLoading: false,
       })
 

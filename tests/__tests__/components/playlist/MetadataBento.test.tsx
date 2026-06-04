@@ -58,28 +58,22 @@ describe('MetadataBento', () => {
   })
 
   describe('size variants', () => {
-    test('applies sm grid classes for small items', () => {
+    test('marks small items with the sm size', () => {
       render(<MetadataBento items={baseItems} />)
       const smCard = screen.getByText('Creator').closest('[data-bento-size]')
       expect(smCard).toHaveAttribute('data-bento-size', 'sm')
-      expect(smCard).toHaveClass('col-span-6')
-      expect(smCard).toHaveClass('md:col-span-3')
     })
 
-    test('applies md grid classes for medium items', () => {
+    test('marks medium items with the md size', () => {
       render(<MetadataBento items={baseItems} />)
       const mdCard = screen.getByText('Favorites').closest('[data-bento-size]')
       expect(mdCard).toHaveAttribute('data-bento-size', 'md')
-      expect(mdCard).toHaveClass('md:col-span-4')
-      expect(mdCard).toHaveClass('row-span-2')
     })
 
-    test('applies lg grid classes for large items', () => {
+    test('marks large items with the lg size', () => {
       render(<MetadataBento items={baseItems} />)
       const lgCard = screen.getByText('Play Count').closest('[data-bento-size]')
       expect(lgCard).toHaveAttribute('data-bento-size', 'lg')
-      expect(lgCard).toHaveClass('md:col-span-6')
-      expect(lgCard).toHaveClass('row-span-2')
     })
 
     test('defaults to sm size when size prop is omitted', () => {
@@ -99,18 +93,18 @@ describe('MetadataBento', () => {
       expect(card).toHaveClass('bento-card')
     })
 
-    test('applies rounded-2xl and bg-white/5 base styles', () => {
+    test('applies compact rounded and translucent base styles', () => {
       render(<MetadataBento items={baseItems} />)
       const card = screen.getByText('Play Count').closest('[data-bento-size]')
-      expect(card).toHaveClass('rounded-2xl')
-      expect(card).toHaveClass('bg-white/5')
+      expect(card).toHaveClass('rounded-lg')
+      expect(card).toHaveClass('bg-white/[0.04]')
     })
 
     test('container has the bento-grid class', () => {
       const { container } = render(<MetadataBento items={baseItems} />)
       const grid = container.querySelector('.bento-grid')
       expect(grid).toBeTruthy()
-      expect(grid).toHaveClass('grid-cols-12')
+      expect(grid).toHaveClass('grid')
     })
   })
 

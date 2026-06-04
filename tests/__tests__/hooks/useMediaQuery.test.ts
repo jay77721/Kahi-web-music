@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { renderHook, act, cleanup } from '@testing-library/react'
 import { useMediaQuery, useIsMobile, useIsTablet, useIsDesktop } from '@/hooks/useMediaQuery'
 
-function createMedia(matches: boolean) {
+function createMedia(matches: boolean): MediaQueryList {
   const listeners: Set<(e: MediaQueryListEvent) => void> = new Set()
   return {
     matches,
@@ -16,7 +16,7 @@ function createMedia(matches: boolean) {
       listeners.forEach((cb) => cb(e))
       return true
     },
-  }
+  } as MediaQueryList
 }
 
 describe('useMediaQuery', () => {

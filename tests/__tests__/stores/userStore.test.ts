@@ -94,7 +94,7 @@ describe('userStore', () => {
       ).rejects.toThrow('登录失败，请检查手机号或验证码')
     })
 
-    test('updates state and persists on successful login', async () => {
+    test('updates state and relies on Set-Cookie instead of persisting login cookies', async () => {
       vi.spyOn(ncmApi, 'loginCellphone').mockResolvedValue({
         code: 200,
         profile: mockProfile,
@@ -105,9 +105,9 @@ describe('userStore', () => {
 
       expect(result).toEqual(mockProfile)
       expect(useUserStore.getState().isLoggedIn).toBe(true)
-      expect(useUserStore.getState().cookie).toBe('session_cookie_abc')
+      expect(useUserStore.getState().cookie).toBeNull()
       expect(storage.get(STORAGE_KEYS.USER_PROFILE, null)).toEqual(mockProfile)
-      expect(storage.get(STORAGE_KEYS.USER_COOKIE, '')).toBe('session_cookie_abc')
+      expect(storage.get(STORAGE_KEYS.USER_COOKIE, '')).toBe('')
     })
 
     test('succeeds without cookie when API omits it', async () => {

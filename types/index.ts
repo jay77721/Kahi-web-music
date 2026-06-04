@@ -1,5 +1,13 @@
-// Domain types are defined in their respective files.
-// Re-export everything from api for convenient single-import access.
+// Domain types — defined in their respective files
+export type { Artist, ArtistDetail } from './artist'
+export type { Album } from './album'
+export type { MV } from './mv'
+export type { Comment, CommentUser, CommentResponse } from './comment'
+export type { Playlist } from './playlist'
+export type { User, UserProfile, UserAccount, LoginQRKey, LoginQRCreate } from './user'
+export { QRStatus } from './user'
+
+// Shared types — defined in api.ts
 export type {
   Song,
   SongArtist,
@@ -8,23 +16,6 @@ export type {
   LyricLine,
   LyricSyllable,
   LyricData,
-  Artist,
-  ArtistDetail,
-  Album,
-  MV,
-  Playlist,
-  Comment,
-  CommentUser,
-  CommentResponse,
-  User,
-  UserProfile,
-  UserAccount,
-  LoginQRKey,
-  LoginQRCreate,
-  QRStatus,
-} from './api'
-
-export type {
   ApiResponse,
   PaginatedParams,
   PaginatedResponse,
@@ -52,6 +43,9 @@ export type {
   ToplistResponse,
   TopListResponse,
   SearchResponse,
+  LyricSearchSong,
+  LyricSearchResponse,
+  LyricSearchResult,
   SearchType,
   SearchTypeValue,
   PlayMode,

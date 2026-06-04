@@ -37,8 +37,8 @@ export function AppShell({ children }: AppShellProps) {
           id="main-content"
           className={cn(
             'flex-1 overflow-y-auto',
-            isMobile && currentTrack && 'pb-40',
-            isMobile && !currentTrack && 'pb-20',
+            isMobile && currentTrack && 'pb-32',
+            isMobile && !currentTrack && 'pb-16',
             !isMobile && 'pb-4'
           )}
         >

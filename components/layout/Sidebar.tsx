@@ -1,6 +1,5 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
@@ -38,8 +37,6 @@ export function Sidebar() {
   const pathname = usePathname()
   const { sidebarOpen, toggleSidebar } = useUIStore()
   const { isLoggedIn, profile } = useUserStore()
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => { setMounted(true) }, [])
 
   const navLink = (item: { href: string; label: string; icon: React.ElementType }) => {
     const Icon = item.icon
@@ -145,7 +142,7 @@ export function Sidebar() {
 
         {/* Bottom: user */}
         <div className="mt-auto">
-          {mounted && isLoggedIn && profile ? (
+          {isLoggedIn && profile ? (
             <Link
               href={`/user/${profile.userId}`}
               className="block p-2 rounded-2xl hover:bg-[var(--bg-hover)] transition-all duration-200"
@@ -280,7 +277,7 @@ export function Sidebar() {
 
         {/* User section */}
         <div className="mt-3 mb-4">
-          {mounted && isLoggedIn && profile ? (
+          {isLoggedIn && profile ? (
             <Link
               href={`/user/${profile.userId}`}
               className="flex items-center gap-3.5 px-3 py-2.5 rounded-2xl text-[14px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all duration-200"

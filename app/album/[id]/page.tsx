@@ -9,43 +9,25 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { HeroBanner } from '@/components/playlist/HeroBanner'
 import { ncmApi } from '@/lib/api'
+import {
+  normalizeAlbumDetail,
+  type NormalizedAlbumDetail,
+} from '@/lib/api-adapters'
 import { PlayerBar } from '@/components/player/PlayerBar'
 import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { usePlayerStore } from '@/stores/playerStore'
 import { Play } from 'lucide-react'
 import Link from 'next/link'
 import { ShareMenu } from '@/components/common/ShareMenu'
-import type { Song } from '@/types/song'
-
-interface AlbumData {
-  album: {
-    id: number | string
-    name: string
-    picUrl: string
-    artist?: { id: number | string; name: string }
-    publishTime: number
-    size: number
-    company: string
-    description?: string
-  }
-  songs: Song[]
-}
 
 export default function AlbumPage() {
   const params = useParams()
   const id = params.id as string
   const { playQueue } = usePlayerStore()
 
-  const { data, isLoading, error } = useSWR<AlbumData>(
+  const { data, isLoading, error } = useSWR<NormalizedAlbumDetail>(
     id ? `album-${id}` : null,
-    async (): Promise<AlbumData> => {
-      const res = await ncmApi.album(id)
-      const data = (res as unknown) as { album: Record<string, unknown>; songs?: Song[] }
-      return {
-        album: data.album as AlbumData['album'],
-        songs: (data.songs || []) as Song[],
-      }
-    }
+    async () => normalizeAlbumDetail(await ncmApi.album(id))
   )
 
   if (isLoading) {

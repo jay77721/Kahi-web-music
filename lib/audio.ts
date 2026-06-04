@@ -7,6 +7,7 @@ type AudioErrorCallback = (error: unknown) => void
 export class AudioEngine {
   private howl: Howl | null = null
   private currentUrl: string | null = null
+  private volume: number | null = null
   private _rafId: number | null = null
 
   private onPlayCallback: AudioEventCallback | null = null
@@ -35,7 +36,10 @@ export class AudioEngine {
       html5: true,
       preload: true,
       format: ['mp3'],
-      volume: 1,
+      volume: this.volume ?? 1,
+      onload: () => {
+        this.onLoadCallback?.()
+      },
       onloaderror: (_id: number, error: unknown) => {
         console.error('[AudioEngine] Load error:', error)
         this.onErrorCallback?.(error)
@@ -93,13 +97,15 @@ export class AudioEngine {
   }
 
   setVolume(vol: number): void {
+    const nextVolume = Math.max(0, Math.min(1, vol))
+    this.volume = nextVolume
     if (this.howl) {
-      this.howl.volume(Math.max(0, Math.min(1, vol)))
+      this.howl.volume(nextVolume)
     }
   }
 
   getVolume(): number {
-    if (!this.howl) return 0
+    if (!this.howl) return this.volume ?? 0
     return this.howl.volume()
   }
 
@@ -171,6 +177,7 @@ export class AudioEngine {
     this.onErrorCallback = null
     this.onTimeUpdateCallback = null
     this.onLoadCallback = null
+    this.volume = null
   }
 }
 

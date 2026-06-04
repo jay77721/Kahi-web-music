@@ -18,8 +18,6 @@ function createAnalyserMock(opts: AnalyserMockOptions): AnalyserNode & {
     return arr
   })
   const node = {
-    fftSize: 0,
-    smoothingTimeConstant: 0,
     frequencyBinCount: opts.frequencyBinCount,
     connect: vi.fn(),
     disconnect: vi.fn(),

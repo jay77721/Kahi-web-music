@@ -204,7 +204,7 @@ describe('SongTable', () => {
       mockStore.isPlaying = true
       const { container } = render(<SongTable songs={[currentSong]} />)
       const row = container.querySelector('[data-song-id="1"]')
-      expect(within(row!).queryByText('01')).not.toBeInTheDocument()
+      expect(within(row! as HTMLElement).queryByText('01')).not.toBeInTheDocument()
       const indicator = row!.querySelector('.playing-indicator')
       expect(indicator).toBeInTheDocument()
       expect(indicator).toHaveClass('playing-indicator--playing')
@@ -225,7 +225,7 @@ describe('SongTable', () => {
       mockStore.isPlaying = true
       const { container } = render(<SongTable songs={[currentSong]} />)
       const row = container.querySelector('[data-song-id="1"]')
-      expect(within(row!).getByText('01')).toBeInTheDocument()
+      expect(within(row! as HTMLElement).getByText('01')).toBeInTheDocument()
       expect(row!.querySelector('.playing-indicator')).not.toBeInTheDocument()
     })
 
