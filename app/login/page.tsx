@@ -1,0 +1,222 @@
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ArrowLeft, Music2, QrCode, Smartphone } from 'lucide-react'
+import { useUserStore } from '@/stores/userStore'
+import { useDominantColor } from '@/hooks/useDominantColor'
+import { PhoneLoginForm } from './_components/PhoneLoginForm'
+import { QRLoginPanel } from './_components/QRLoginPanel'
+
+type TabValue = 'phone' | 'qr'
+
+const TABS: ReadonlyArray<{ value: TabValue; label: string; icon: typeof Smartphone }> = [
+  { value: 'phone', label: '手机号登录', icon: Smartphone },
+  { value: 'qr', label: '扫码登录', icon: QrCode },
+]
+
+/** Fallback gradient when dominant-color extraction is unavailable. */
+const DEFAULT_ACCENT_OKLCH = 'oklch(0.78 0.18 145)'
+
+function useLoginBackground() {
+  // We have no logo image asset to sample from; pass null so the hook
+  // returns null and we fall back to the brand-green default.
+  const { color } = useDominantColor(null)
+  return useMemo(() => {
+    const accent = color?.oklch ?? DEFAULT_ACCENT_OKLCH
+    return {
+      background: `
+        radial-gradient(ellipse at 20% 50%, color-mix(in oklch, ${accent} 10%, transparent) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, color-mix(in oklch, ${accent} 6%, transparent) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(30, 150, 215, 0.04) 0%, transparent 50%),
+        #000000
+      `,
+    } as const
+  }, [color])
+}
+
+export default function LoginPage() {
+  const router = useRouter()
+  const isLoggedIn = useUserStore((s) => s.isLoggedIn)
+  const [activeTab, setActiveTab] = useState<TabValue>('phone')
+  const bgStyle = useLoginBackground()
+
+  useEffect(() => {
+    if (isLoggedIn) router.push('/my')
+  }, [isLoggedIn, router])
+
+  return (
+    <main
+      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden px-4"
+      style={bgStyle}
+      aria-labelledby="login-heading"
+    >
+      <FloatingOrbs />
+      <BackButton onClick={() => router.push('/')} />
+      <BrandHeader />
+
+      <motion.div
+        initial={{ opacity: 0, y: 30, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+        className="relative w-full max-w-md rounded-2xl border border-[var(--border)] overflow-hidden bg-white/5 backdrop-blur-xl"
+        style={{
+          boxShadow: '0 24px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
+        }}
+      >
+        <TabSwitcher activeTab={activeTab} onChange={setActiveTab} />
+        <div className="p-6">
+          <AnimatePresence mode="wait">
+            {activeTab === 'phone' ? (
+              <motion.div
+                key="phone"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+              >
+                <PhoneLoginForm />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="qr"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+              >
+                <QRLoginPanel />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+        <LegalFooter />
+      </motion.div>
+    </main>
+  )
+}
+
+function FloatingOrbs() {
+  return (
+    <>
+      <div
+        aria-hidden
+        className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full opacity-20 pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle, var(--accent) 0%, transparent 70%)',
+          filter: 'blur(80px)',
+        }}
+      />
+      <div
+        aria-hidden
+        className="absolute bottom-1/4 right-1/4 w-48 h-48 rounded-full opacity-10 pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle, #7850dc 0%, transparent 70%)',
+          filter: 'blur(60px)',
+        }}
+      />
+    </>
+  )
+}
+
+function BackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="返回首页"
+      className="fixed top-5 left-5 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-[var(--text-tertiary)] hover:text-white transition-all duration-200"
+    >
+      <ArrowLeft className="w-5 h-5" />
+    </button>
+  )
+}
+
+function BrandHeader() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+      className="relative text-center mb-8"
+    >
+      <div
+        className="w-16 h-16 rounded-2xl bg-[var(--accent)] flex items-center justify-center mx-auto mb-4"
+        style={{ boxShadow: '0 0 40px var(--accent-glow), 0 8px 32px rgba(0,0,0,0.5)' }}
+      >
+        <Music2 className="w-8 h-8 text-black" strokeWidth={2.5} />
+      </div>
+      <h1 id="login-heading" className="text-2xl font-bold tracking-tight text-white">
+        Kahi Music
+      </h1>
+      <p className="text-sm text-[var(--text-tertiary)] mt-1.5">登录后享受更多服务</p>
+    </motion.div>
+  )
+}
+
+interface TabSwitcherProps {
+  activeTab: TabValue
+  onChange: (next: TabValue) => void
+}
+
+function TabSwitcher({ activeTab, onChange }: TabSwitcherProps) {
+  return (
+    <div role="tablist" aria-label="登录方式" className="flex border-b border-[var(--border)]">
+      {TABS.map(({ value, label, icon: Icon }) => {
+        const isActive = activeTab === value
+        return (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            aria-controls={`tab-panel-${value}`}
+            onClick={() => onChange(value)}
+            className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-all duration-300 relative ${
+              isActive
+                ? 'text-white'
+                : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+            }`}
+          >
+            {isActive && (
+              <motion.div
+                layoutId="activeTab"
+                className="absolute inset-0 bg-[var(--accent)]"
+                style={{ borderRadius: 0 }}
+                transition={{ type: 'spring', bounce: 0.2, duration: 0.5 }}
+              />
+            )}
+            <Icon className="w-4 h-4 relative z-10" />
+            <span className="relative z-10">{label}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function LegalFooter() {
+  return (
+    <div className="px-6 pb-5">
+      <p className="text-center text-[11px] text-[var(--text-quaternary)]">
+        登录即表示同意{' '}
+        <button
+          type="button"
+          className="text-[var(--text-tertiary)] hover:text-[var(--accent)] cursor-pointer transition-colors bg-transparent border-none p-0 text-[11px]"
+          aria-label="查看用户协议"
+        >
+          用户协议
+        </button>{' '}
+        和{' '}
+        <button
+          type="button"
+          className="text-[var(--text-tertiary)] hover:text-[var(--accent)] cursor-pointer transition-colors bg-transparent border-none p-0 text-[11px]"
+          aria-label="查看隐私政策"
+        >
+          隐私政策
+        </button>
+      </p>
+    </div>
+  )
+}

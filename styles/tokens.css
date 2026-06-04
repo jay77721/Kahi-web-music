@@ -1,0 +1,191 @@
+/* ============================================================================
+ * Kahi Music — Design Tokens
+ * ----------------------------------------------------------------------------
+ * Single source of truth for ALL design tokens (colors, spacing, radii,
+ * shadows, easings, durations, z-index, layout sizes). Consumed by:
+ *   - app/globals.css     (reset, utilities, component classes, keyframes)
+ *   - styles/layout.css   (sidebar, header, main grid, page chrome)
+ *   - styles/player.css   (player bar, fullscreen, lyrics, equalizer)
+ *   - styles/cards.css    (song card, playlist card, skeleton)
+ *
+ * Editing tokens here propagates everywhere. Keep token names stable —
+ * components and tailwind utilities depend on them.
+ * ========================================================================== */
+
+/* ---------- Tailwind v4 theme (exposed as utility classes) ---------------- */
+@theme {
+  --color-background: #000000;
+  --color-foreground: #ffffff;
+  --color-muted: #0a0a0a;
+  --color-muted-foreground: rgba(255, 255, 255, 0.5);
+  --color-accent: #1ed760;
+  --color-accent-foreground: #000000;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-ring: rgba(30, 215, 96, 0.5);
+  --color-input: #0a0a0a;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 1.5rem;
+}
+
+/* ---------- :root — runtime CSS custom properties ------------------------ */
+:root {
+  /* ── Backgrounds ── */
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-surface: #111111;
+  --bg-elevated: #1a1a1a;
+  --bg-overlay: #242424;
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --bg-active: rgba(255, 255, 255, 0.08);
+  --bg-accent-subtle: rgba(30, 215, 96, 0.08);
+  --bg-accent-hover: rgba(30, 215, 96, 0.15);
+
+  /* ── Foreground / text ── */
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-tertiary: rgba(255, 255, 255, 0.5);
+  --text-quaternary: rgba(255, 255, 255, 0.3);
+  --text-inverse: #000000;
+
+  /* ── Brand / accent (Spotify-green) ── */
+  --accent: #1ed760;
+  --accent-hover: #1fdf64;
+  --accent-glow: rgba(30, 215, 96, 0.3);
+  --accent-subtle: rgba(30, 215, 96, 0.1);
+
+  /* ── Borders ── */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-light: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --border-accent: rgba(30, 215, 96, 0.3);
+
+  /* Dynamic background — overwritten at runtime by `useDominantColor`
+     in <FullScreenPlayer />. Defaults to a neutral dark so the page
+     never looks unstyled. */
+  --color-dynamic-bg: oklch(0.18 0 0);
+
+  /* ── Spacing scale ── */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+
+  /* ── Border radii ── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+  /* ── Shadows ── */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.8);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.9);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.95);
+  --shadow-glow: 0 0 20px rgba(30, 215, 96, 0.15);
+  --shadow-glow-lg: 0 0 40px rgba(30, 215, 96, 0.2);
+
+  /* ── Easings ── */
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ── Durations (bare ms; pair with an --ease-* token) ── */
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+
+  /* ── Composite transitions (duration + easing, ready to use) ── */
+  --transition-fast: var(--duration-fast) var(--ease-in-out);
+  --transition-normal: var(--duration-normal) var(--ease-in-out);
+  --transition-slow: var(--duration-slow) var(--ease-out);
+  --transition-spring: var(--duration-slow) var(--ease-spring);
+
+  /* ── Z-index scale ── */
+  --z-base: 1;
+  --z-sticky: 100;
+  --z-overlay: 200;
+  --z-player: 300;
+  --z-modal: 1000;
+  --z-toast: 9999;
+
+  /* ── Typography ── */
+  --font-sans: "SF Pro Display", -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+  --font-display: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "SF Mono", "Fira Code", "JetBrains Mono", monospace;
+
+  /* ── Hero / player-specific layout sizes ──
+     Hero banner height — used by playlist / album detail pages.
+     Clamped so it scales between 280px (mobile) and 360px (large desktop). */
+  --hero-height: clamp(280px, 20vw, 360px);
+
+  /* Vinyl disc size on the fullscreen player cover. */
+  --vinyl-size: clamp(220px, 60vmin, 420px);
+
+  /* Fixed bottom player bar height — used to pad main content. */
+  --player-bar-height: 88px;
+}
+
+/* ---------- Light theme override --------------------------------------------
+   Applied via `[data-theme="light"]` on <html>. Every variable below is the
+   light-mode counterpart of the matching dark token in :root, so components
+   that reference the CSS variable keep working without per-component changes.
+   Non-color tokens (spacing, radius, easing, durations, z-index, typography,
+   layout sizes) are inherited from :root and intentionally not duplicated. */
+[data-theme="light"] {
+  /* ── Backgrounds ── */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f7f9;
+  --bg-surface: #f0f2f5;
+  --bg-elevated: #ffffff;
+  --bg-overlay: #e8eaee;
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-active: rgba(0, 0, 0, 0.08);
+  --bg-accent-subtle: rgba(30, 167, 96, 0.1);
+  --bg-accent-hover: rgba(30, 167, 96, 0.18);
+
+  /* ── Foreground / text ── */
+  --text-primary: #111418;
+  --text-secondary: rgba(17, 20, 24, 0.7);
+  --text-tertiary: rgba(17, 20, 24, 0.5);
+  --text-quaternary: rgba(17, 20, 24, 0.3);
+  --text-inverse: #ffffff;
+
+  /* ── Brand / accent (slightly deeper for AA contrast on white) ── */
+  --accent: #1ea755;
+  --accent-hover: #189a4a;
+  --accent-glow: rgba(30, 167, 96, 0.28);
+  --accent-subtle: rgba(30, 167, 96, 0.12);
+
+  /* ── Borders ── */
+  --border: rgba(17, 20, 24, 0.08);
+  --border-subtle: rgba(17, 20, 24, 0.06);
+  --border-light: rgba(17, 20, 24, 0.12);
+  --border-strong: rgba(17, 20, 24, 0.2);
+  --border-accent: rgba(30, 167, 96, 0.32);
+
+  /* Dynamic background — overwritten at runtime by `useDominantColor`. The
+     light theme default is a soft warm grey so the page never looks
+     unstyled and the gradients stay subtle against a white surface. */
+  --color-dynamic-bg: oklch(0.92 0 0);
+
+  /* ── Shadows (softer, slightly larger for separation on white) ── */
+  --shadow-xs: 0 1px 2px rgba(17, 20, 24, 0.06);
+  --shadow-sm: 0 2px 8px rgba(17, 20, 24, 0.08);
+  --shadow-md: 0 4px 16px rgba(17, 20, 24, 0.1);
+  --shadow-lg: 0 8px 32px rgba(17, 20, 24, 0.14);
+  --shadow-xl: 0 16px 48px rgba(17, 20, 24, 0.18);
+  --shadow-glow: 0 0 20px rgba(30, 167, 96, 0.18);
+  --shadow-glow-lg: 0 0 40px rgba(30, 167, 96, 0.22);
+}

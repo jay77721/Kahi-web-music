@@ -1,0 +1,324 @@
+/* ========== CARD COMPONENT STYLES ========== */
+
+/* Base card */
+.card {
+  position: relative;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition: all var(--transition-normal) var(--ease-out-expo);
+}
+
+.card-hover {
+  transition: transform var(--transition-fast), box-shadow var(--transition-normal), border-color var(--transition-normal);
+}
+
+.card-hover:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg), 0 0 30px rgba(30, 215, 96, 0.08);
+  border-color: var(--border-light);
+}
+
+.card-hover:active {
+  transform: translateY(-4px) scale(0.99);
+}
+
+/* Card variants */
+.card-glass {
+  background: rgba(10, 10, 10, 0.7);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid var(--border);
+}
+
+.card-elevated {
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md);
+}
+
+.card-accent {
+  border-color: var(--border-accent);
+  box-shadow: 0 0 20px var(--accent-glow);
+}
+
+.card-accent:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 30px var(--accent-glow), 0 0 60px rgba(30, 215, 96, 0.1);
+}
+
+/* Card image container */
+.card-image {
+  position: relative;
+  width: 100%;
+  padding-top: 100%;
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+
+.card-image img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-slow) var(--ease-out-expo);
+}
+
+.card-hover:hover .card-image img {
+  transform: scale(1.08);
+}
+
+/* Play button overlay */
+.card-play-overlay {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  border-radius: 50%;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: all var(--transition-normal) var(--ease-out-expo);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.card-hover:hover .card-play-overlay {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.card-play-overlay:hover {
+  transform: scale(1.1) !important;
+  background: var(--accent-hover);
+}
+
+.card-play-overlay:active {
+  transform: scale(0.95) !important;
+}
+
+/* Card content */
+.card-content {
+  padding: 12px;
+}
+
+.card-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Song card specific */
+.song-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.song-card:hover {
+  background: var(--bg-hover);
+}
+
+.song-card:active {
+  background: var(--bg-active);
+  transform: scale(0.99);
+}
+
+.song-card-image {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.song-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.song-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.song-card-title {
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.song-card-artist {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.song-card-playing {
+  color: var(--accent);
+}
+
+/* Playlist card */
+.playlist-card {
+  position: relative;
+  padding: 16px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  transition: all var(--transition-normal) var(--ease-out-expo);
+}
+
+.playlist-card:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-light);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+.playlist-card-cover {
+  position: relative;
+  width: 100%;
+  padding-top: 100%;
+  margin-bottom: 12px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--bg-elevated);
+}
+
+.playlist-card-cover img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.playlist-card-play {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  border-radius: 50%;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: all var(--transition-normal) var(--ease-out-expo);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.playlist-card:hover .playlist-card-play {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.playlist-card-play:hover {
+  transform: scale(1.1) !important;
+  background: var(--accent-hover);
+}
+
+.playlist-card-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playlist-card-count {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+/* Card shine effect */
+.card-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-shine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.05),
+    transparent
+  );
+  transition: left 0.6s ease;
+}
+
+.card-shine:hover::before {
+  left: 100%;
+}
+
+/* Skeleton card */
+.skeleton-card {
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.skeleton-card-image {
+  width: 100%;
+  padding-top: 100%;
+  background: var(--bg-elevated);
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-card-content {
+  padding: 12px;
+}
+
+.skeleton-card-title {
+  height: 1rem;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-xs);
+  margin-bottom: 8px;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-card-subtitle {
+  height: 0.8rem;
+  width: 60%;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-xs);
+  animation: shimmer 1.5s ease-in-out infinite;
+}
