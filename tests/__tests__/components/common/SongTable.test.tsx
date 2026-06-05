@@ -1,7 +1,7 @@
 'use client'
 
-import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, within, waitFor, act, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SongTable } from '@/components/common/SongTable'
 import { makeMockSong as makeSong } from '@/tests/helpers/mock-data'
@@ -51,6 +51,10 @@ describe('SongTable', () => {
 
   beforeEach(() => {
     resetMockPlayerStore(mockStore)
+  })
+
+  afterEach(() => {
+    cleanup()
   })
 
   describe('empty state', () => {
