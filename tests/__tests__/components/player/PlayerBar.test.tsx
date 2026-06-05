@@ -193,6 +193,18 @@ describe('PlayerBar', () => {
     expect(src).toContain('param=56y56')
   })
 
+  test('marks the desktop artwork as paused or playing', () => {
+    usePlayerStore.setState({ currentTrack: mockSong, isPlaying: false })
+    const { rerender } = render(<PlayerBar />)
+    expect(screen.getByTestId('now-playing-artwork')).toHaveClass('now-playing-artwork--paused')
+    expect(screen.getByTestId('now-playing-artwork')).toHaveAttribute('data-playing', 'false')
+
+    usePlayerStore.setState({ isPlaying: true })
+    rerender(<PlayerBar />)
+    expect(screen.getByTestId('now-playing-artwork')).toHaveClass('now-playing-artwork--playing')
+    expect(screen.getByTestId('now-playing-artwork')).toHaveAttribute('data-playing', 'true')
+  })
+
   test('renders without album art when al.picUrl is missing', () => {
     usePlayerStore.setState({
       currentTrack: { ...mockSong, al: { id: 1, name: 'NoCover', picUrl: '' } },

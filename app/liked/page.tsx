@@ -1,18 +1,17 @@
 'use client'
 
-import { useEffect, useMemo, useCallback, type CSSProperties } from 'react'
-import { useRouter } from 'next/navigation'
+import { useMemo, useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import useSWR from 'swr'
 import { Heart, Play, Shuffle, RefreshCw, AlertCircle } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { SongTable } from '@/components/common/SongTable'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
+import { useRequireSession } from '@/hooks/useRequireSession'
 import { ncmApi } from '@/lib/api'
 import { normalizeIdList } from '@/lib/api-adapters'
 import { fetchSongDetailsByIds } from '@/lib/song-details'
 import { usePlayerStore } from '@/stores/playerStore'
-import { useUserStore } from '@/stores/userStore'
 import { useDominantColor } from '@/hooks/useDominantColor'
 import { imageUrl } from '@/lib/format'
 import type { Song } from '@/types/api'
@@ -25,6 +24,24 @@ const LIKED_BACKGROUND_STYLE: CSSProperties = {
   `,
 }
 const EMPTY_SONGS: Song[] = []
+const EMPTY_IDS: number[] = []
+const LIKED_PAGE_SIZE = 50
+
+type LikedDetailState = {
+  idsKey: string
+  songs: Song[]
+  loadedCount: number
+  isLoading: boolean
+  error: unknown
+}
+
+const EMPTY_DETAIL_STATE: LikedDetailState = {
+  idsKey: '',
+  songs: EMPTY_SONGS,
+  loadedCount: 0,
+  isLoading: false,
+  error: null,
+}
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
@@ -42,10 +59,15 @@ function shuffle<T>(input: ReadonlyArray<T>): T[] {
   return arr
 }
 
+function appendSongs(previous: readonly Song[], next: readonly Song[]): Song[] {
+  return [...previous, ...next]
+}
+
 export default function LikedPage() {
-  const router = useRouter()
-  const { isLoggedIn, profile, hasRestoredSession } = useUserStore()
+  const { isLoggedIn, profile, isRestoringSession } = useRequireSession()
   const { playQueue, setPlayMode } = usePlayerStore()
+  const [detailState, setDetailState] = useState<LikedDetailState>(EMPTY_DETAIL_STATE)
+  const detailRequestRef = useRef(0)
 
   const sampledAvatar = profile ? imageUrl(profile.avatarUrl, 120) : null
   const { color } = useDominantColor(sampledAvatar, { timeoutMs: 4000 })
@@ -62,36 +84,219 @@ export default function LikedPage() {
     }
   }, [color])
 
-  useEffect(() => {
-    if (hasRestoredSession && !isLoggedIn) router.replace('/login')
-  }, [hasRestoredSession, isLoggedIn, router])
-
-  const { data, isLoading, error, mutate } = useSWR<Song[]>(
-    isLoggedIn && profile?.userId ? 'liked-songs' : null,
+  const { data: likedIds, isLoading: isLoadingIds, error: idsError, mutate } = useSWR<number[]>(
+    isLoggedIn && profile?.userId ? `liked-song-ids-${profile.userId}` : null,
     async () => {
       const uid = profile?.userId
       if (!uid) return []
-      const ids = normalizeIdList(await ncmApi.likelist(uid))
-      if (ids.length === 0) return []
-      return fetchSongDetailsByIds(ids)
+      return normalizeIdList(await ncmApi.likelist(uid))
     }
   )
-  const songs = data ?? EMPTY_SONGS
-  const total = songs.length
+  const ids = likedIds ?? EMPTY_IDS
+  const idsKey = useMemo(() => likedIds?.join(',') ?? '', [likedIds])
+  const isDetailStateCurrent = detailState.idsKey === idsKey
+  const songs = isDetailStateCurrent ? detailState.songs : EMPTY_SONGS
+  const loadedCount = isDetailStateCurrent ? detailState.loadedCount : 0
+  const isLoadingDetails = isDetailStateCurrent
+    ? detailState.isLoading
+    : Boolean(likedIds && ids.length > 0)
+  const detailsError = isDetailStateCurrent ? detailState.error : null
+  const total = ids.length
+  const hasMore = loadedCount < total
+
+  const loadDetailsPage = useCallback(
+    async (startIndex: number, mode: 'replace' | 'append') => {
+      if (ids.length === 0) return []
+
+      const pageIds = ids.slice(startIndex, startIndex + LIKED_PAGE_SIZE)
+      if (pageIds.length === 0) return []
+
+      const requestId = detailRequestRef.current + 1
+      detailRequestRef.current = requestId
+      setDetailState((previous) => ({
+        idsKey,
+        songs: mode === 'append' && previous.idsKey === idsKey ? previous.songs : EMPTY_SONGS,
+        loadedCount: mode === 'append' && previous.idsKey === idsKey ? previous.loadedCount : 0,
+        isLoading: true,
+        error: null,
+      }))
+
+      try {
+        const pageSongs = await fetchSongDetailsByIds(pageIds, LIKED_PAGE_SIZE)
+        if (detailRequestRef.current !== requestId) return []
+
+        setDetailState((previous) => {
+          const previousSongs =
+            mode === 'append' && previous.idsKey === idsKey ? previous.songs : EMPTY_SONGS
+
+          return {
+            idsKey,
+            songs: mode === 'replace' ? pageSongs : [...previousSongs, ...pageSongs],
+            loadedCount: Math.min(startIndex + pageIds.length, ids.length),
+            isLoading: false,
+            error: null,
+          }
+        })
+        return pageSongs
+      } catch (error) {
+        if (detailRequestRef.current === requestId) {
+          setDetailState((previous) => ({
+            idsKey,
+            songs: previous.idsKey === idsKey ? previous.songs : EMPTY_SONGS,
+            loadedCount: previous.idsKey === idsKey ? previous.loadedCount : 0,
+            isLoading: false,
+            error,
+          }))
+        }
+        return []
+      }
+    },
+    [ids, idsKey]
+  )
+
+  useEffect(() => {
+    if (!likedIds || likedIds.length === 0) return
+
+    const requestId = detailRequestRef.current + 1
+    detailRequestRef.current = requestId
+    const pageIds = likedIds.slice(0, LIKED_PAGE_SIZE)
+
+    const loadInitialDetails = async () => {
+      try {
+        const pageSongs = await fetchSongDetailsByIds(pageIds, LIKED_PAGE_SIZE)
+        if (detailRequestRef.current !== requestId) return
+
+        setDetailState({
+          idsKey,
+          songs: pageSongs,
+          loadedCount: Math.min(pageIds.length, likedIds.length),
+          isLoading: false,
+          error: null,
+        })
+      } catch (error) {
+        if (detailRequestRef.current !== requestId) return
+
+        setDetailState({
+          idsKey,
+          songs: EMPTY_SONGS,
+          loadedCount: 0,
+          isLoading: false,
+          error,
+        })
+      }
+    }
+
+    void loadInitialDetails()
+    return () => {
+      detailRequestRef.current += 1
+    }
+  }, [idsKey, likedIds])
+
+  const loadMore = useCallback(() => {
+    if (isLoadingDetails || !hasMore) return
+    void loadDetailsPage(loadedCount, 'append')
+  }, [hasMore, isLoadingDetails, loadedCount, loadDetailsPage])
+
+  const ensureAllSongsLoaded = useCallback(async () => {
+    if (ids.length === 0) return EMPTY_SONGS
+    if (loadedCount >= ids.length) return songs
+
+    if (ids.slice(loadedCount).length === 0) return songs
+
+    const requestId = detailRequestRef.current + 1
+    detailRequestRef.current = requestId
+    setDetailState((previous) => ({
+      idsKey,
+      songs: previous.idsKey === idsKey ? previous.songs : songs,
+      loadedCount: previous.idsKey === idsKey ? previous.loadedCount : loadedCount,
+      isLoading: true,
+      error: null,
+    }))
+
+    try {
+      let nextSongs = songs
+      for (let startIndex = loadedCount; startIndex < ids.length; startIndex += LIKED_PAGE_SIZE) {
+        const pageIds = ids.slice(startIndex, startIndex + LIKED_PAGE_SIZE)
+        const pageSongs = await fetchSongDetailsByIds(pageIds, LIKED_PAGE_SIZE)
+        if (detailRequestRef.current !== requestId) return null
+
+        nextSongs = appendSongs(nextSongs, pageSongs)
+        const nextLoadedCount = Math.min(startIndex + pageIds.length, ids.length)
+        setDetailState({
+          idsKey,
+          songs: nextSongs,
+          loadedCount: nextLoadedCount,
+          isLoading: nextLoadedCount < ids.length,
+          error: null,
+        })
+      }
+      return nextSongs
+    } catch (error) {
+      if (detailRequestRef.current === requestId) {
+        setDetailState((previous) => ({
+          idsKey,
+          songs: previous.idsKey === idsKey ? previous.songs : songs,
+          loadedCount: previous.idsKey === idsKey ? previous.loadedCount : loadedCount,
+          isLoading: false,
+          error,
+        }))
+      }
+      return null
+    }
+  }, [ids, idsKey, loadedCount, songs])
 
   const handlePlayAll = useCallback(() => {
-    if (songs.length === 0) return
-    setPlayMode('sequential')
-    playQueue(songs, 0)
-  }, [songs, playQueue, setPlayMode])
+    if (isLoadingDetails) return
+    void (async () => {
+      const queue = await ensureAllSongsLoaded()
+      if (!queue || queue.length === 0) return
+      setPlayMode('sequential')
+      playQueue(queue, 0)
+    })()
+  }, [ensureAllSongsLoaded, isLoadingDetails, playQueue, setPlayMode])
 
   const handleShuffle = useCallback(() => {
-    if (songs.length === 0) return
-    setPlayMode('shuffle')
-    playQueue(shuffle(songs), 0)
-  }, [songs, playQueue, setPlayMode])
+    if (isLoadingDetails) return
+    void (async () => {
+      const queue = await ensureAllSongsLoaded()
+      if (!queue || queue.length === 0) return
+      setPlayMode('shuffle')
+      playQueue(shuffle(queue), 0)
+    })()
+  }, [ensureAllSongsLoaded, isLoadingDetails, playQueue, setPlayMode])
 
-  if (!hasRestoredSession || !isLoggedIn) return null
+  const handleRetry = useCallback(() => {
+    if (idsError) {
+      void mutate()
+      return
+    }
+    void loadDetailsPage(0, 'replace')
+  }, [idsError, loadDetailsPage, mutate])
+
+  const isInitialDetailsLoading = ids.length > 0 && songs.length === 0 && isLoadingDetails
+  const isLoading = isLoadingIds || isInitialDetailsLoading
+  const error = idsError ?? (songs.length === 0 ? detailsError : null)
+
+  if (isRestoringSession) {
+    return (
+      <AppShell>
+        <section
+          data-testid="liked-session-loading"
+          className="min-h-full p-4 md:p-6"
+          style={backgroundStyle}
+        >
+          <Skeleton className="h-16 w-64 rounded-2xl" />
+          <div className="mt-6 space-y-2">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full rounded-lg bg-[var(--bg-elevated)]" />
+            ))}
+          </div>
+        </section>
+      </AppShell>
+    )
+  }
+
+  if (!isLoggedIn) return null
 
   return (
     <AppShell>
@@ -125,6 +330,7 @@ export default function LikedPage() {
             <Button
               size="sm"
               onClick={handlePlayAll}
+              disabled={isLoadingDetails}
               data-testid="liked-play-all"
               className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-black font-semibold rounded-full px-6 py-2 transition-all duration-200 hover:shadow-[0_0_20px_var(--accent-glow)]"
             >
@@ -135,6 +341,7 @@ export default function LikedPage() {
               size="sm"
               variant="ghost"
               onClick={handleShuffle}
+              disabled={isLoadingDetails}
               data-testid="liked-shuffle"
               className="text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-full px-5"
             >
@@ -163,7 +370,7 @@ export default function LikedPage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => void mutate()}
+              onClick={handleRetry}
               className="text-[var(--accent-text)] hover:bg-[var(--bg-hover)]"
             >
               <RefreshCw className="w-4 h-4 mr-1.5" aria-hidden="true" />
@@ -171,11 +378,27 @@ export default function LikedPage() {
             </Button>
           </div>
         ) : total > 0 ? (
-          <SongTable
-            songs={songs}
-            onPlayAll={handlePlayAll}
-            animated={false}
-          />
+          <>
+            <SongTable
+              songs={songs}
+              onPlayAll={handlePlayAll}
+              animated={false}
+            />
+            {hasMore ? (
+              <div className="mt-6 flex justify-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={loadMore}
+                  disabled={isLoadingDetails}
+                  data-testid="liked-load-more"
+                  className="rounded-full px-5 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                >
+                  {isLoadingDetails ? '加载中...' : `加载更多 (${songs.length}/${total})`}
+                </Button>
+              </div>
+            ) : null}
+          </>
         ) : (
           <div
             data-testid="liked-empty"

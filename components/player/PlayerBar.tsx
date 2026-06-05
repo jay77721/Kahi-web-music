@@ -1,15 +1,15 @@
 'use client'
 
 import { useCallback } from 'react'
-import Image from 'next/image'
 import { Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Shuffle, Volume2, VolumeX, List } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
+import { NowPlayingArtwork } from '@/components/player/NowPlayingArtwork'
 import { usePlayerStore } from '@/stores/playerStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { audioEngine } from '@/lib/audio'
-import { formatTime, formatArtists, imageUrl } from '@/lib/format'
+import { formatTime, formatArtists } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 export function PlayerBar() {
@@ -79,13 +79,12 @@ function PlayerBarContent() {
       {/* Track info */}
       <div className="flex items-center gap-3 w-[240px] min-w-[180px]">
         {currentTrack.al?.picUrl && (
-          <Image
-            src={imageUrl(currentTrack.al.picUrl, 56)}
+          <NowPlayingArtwork
+            coverUrl={currentTrack.al.picUrl}
             alt={currentTrack.name}
-            width={48}
-            height={48}
-            className="w-12 h-12 rounded-lg object-cover"
-            style={{ boxShadow: 'var(--shadow-md)' }}
+            size={48}
+            imageSize={56}
+            isPlaying={isPlaying}
           />
         )}
         <div className="min-w-0 flex-1">

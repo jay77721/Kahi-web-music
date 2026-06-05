@@ -108,7 +108,7 @@ User clicks SongTable row
         └─ ncmApi.songLyric(id) → parseLyricResponse → setLyrics()
 
 AudioEngine events → playerStore.setIsPlaying / next
-useAudioAnalyser rAF loop → reads frequency bins from Howler.masterGain
+useAudioAnalyser → taps Howler.masterGain, optionally runs a frequency-data rAF loop
 SpectrumVisualizer paints 64 bars on canvas
 ```
 
@@ -257,10 +257,10 @@ Taps the Web Audio API:
 Howler.ctx (AudioContext)
   └─ Howler.masterGain (GainNode)
        └─ analyserNode (AnalyserNode, fftSize = 256)
-            └─ rAF tick → getByteFrequencyData()
+            └─ optional rAF tick → getByteFrequencyData()
 ```
 
-The hook returns the `AnalyserNode` and a `frequencyData` buffer. `SpectrumVisualizer` paints the bars; the analyser reference can also be reused for future visualizers.
+The hook returns the `AnalyserNode` and, by default, a `frequencyData` buffer. `SpectrumVisualizer` paints the bars from the analyser directly, so full-screen playback passes `collectFrequencyData: false` to avoid a second rAF sampling loop.
 
 ---
 

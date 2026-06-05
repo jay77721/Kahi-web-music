@@ -78,6 +78,18 @@ describe('MiniPlayer', () => {
     expect(document.querySelector('img')).toBeNull()
   })
 
+  test('marks the mini artwork as paused or playing', () => {
+    usePlayerStore.setState({ currentTrack: mockSong, isPlaying: false })
+    const { rerender } = render(<MiniPlayer />)
+    expect(screen.getByTestId('now-playing-artwork')).toHaveClass('now-playing-artwork--paused')
+    expect(screen.getByTestId('now-playing-artwork')).toHaveAttribute('data-playing', 'false')
+
+    usePlayerStore.setState({ isPlaying: true })
+    rerender(<MiniPlayer />)
+    expect(screen.getByTestId('now-playing-artwork')).toHaveClass('now-playing-artwork--playing')
+    expect(screen.getByTestId('now-playing-artwork')).toHaveAttribute('data-playing', 'true')
+  })
+
   test('renders a play button when paused', () => {
     usePlayerStore.setState({ currentTrack: mockSong, isPlaying: false })
     render(<MiniPlayer />)

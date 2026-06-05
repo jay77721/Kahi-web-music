@@ -1,17 +1,16 @@
 'use client'
 
-import { useEffect, useMemo, type CSSProperties } from 'react'
-import { useRouter } from 'next/navigation'
+import { useMemo, type CSSProperties } from 'react'
 import useSWR from 'swr'
 import { Cloud, RefreshCw, AlertCircle } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { SongTable } from '@/components/common/SongTable'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
+import { useRequireSession } from '@/hooks/useRequireSession'
 import { ncmApi } from '@/lib/api'
 import { normalizeSongList } from '@/lib/api-adapters'
 import { usePlayerStore } from '@/stores/playerStore'
-import { useUserStore } from '@/stores/userStore'
 import { useDominantColor } from '@/hooks/useDominantColor'
 import { imageUrl } from '@/lib/format'
 import type { Song } from '@/types/api'
@@ -30,8 +29,7 @@ function getErrorMessage(error: unknown): string {
 }
 
 export default function CloudPage() {
-  const router = useRouter()
-  const { isLoggedIn, profile, hasRestoredSession } = useUserStore()
+  const { isLoggedIn, profile, isRestoringSession } = useRequireSession()
   const { playQueue } = usePlayerStore()
 
   const sampledAvatar = profile ? imageUrl(profile.avatarUrl, 120) : null
@@ -48,10 +46,6 @@ export default function CloudPage() {
     }
   }, [color])
 
-  useEffect(() => {
-    if (hasRestoredSession && !isLoggedIn) router.replace('/login')
-  }, [hasRestoredSession, isLoggedIn, router])
-
   const { data, isLoading, error, mutate } = useSWR<Song[]>(
     isLoggedIn ? 'cloud-songs' : null,
     async () => {
@@ -59,7 +53,26 @@ export default function CloudPage() {
     }
   )
 
-  if (!hasRestoredSession || !isLoggedIn) return null
+  if (isRestoringSession) {
+    return (
+      <AppShell>
+        <section
+          data-testid="cloud-session-loading"
+          className="min-h-full p-4 md:p-6"
+          style={backgroundStyle}
+        >
+          <Skeleton className="h-16 w-56 rounded-2xl" />
+          <div className="mt-6 space-y-2">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full rounded-lg bg-[var(--bg-elevated)]" />
+            ))}
+          </div>
+        </section>
+      </AppShell>
+    )
+  }
+
+  if (!isLoggedIn) return null
 
   const songs = data ?? []
   const total = songs.length

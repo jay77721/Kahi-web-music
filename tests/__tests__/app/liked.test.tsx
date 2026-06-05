@@ -1,7 +1,7 @@
 'use client'
 
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, act } from '@testing-library/react'
+import { render, screen, cleanup, act, fireEvent, waitFor, within } from '@testing-library/react'
 import React from 'react'
 import type { UserProfile } from '@/types/user'
 
@@ -16,6 +16,11 @@ const mockUsePlayerStore = vi.fn()
 const mockUseDominantColor = vi.fn()
 const mockUseSWR = vi.fn()
 const mockMutate = vi.fn()
+const mockRestoreSession = vi.fn()
+const mockNcmApi = vi.hoisted(() => ({
+  likelist: vi.fn(),
+  songDetail: vi.fn(),
+}))
 
 vi.mock('next/navigation', async () => {
   const actual = await vi.importActual<typeof import('next/navigation')>('next/navigation')
@@ -45,8 +50,8 @@ vi.mock('@/stores/playerStore', () => ({
 
 vi.mock('@/lib/api', () => ({
   ncmApi: {
-    likelist: vi.fn(),
-    songDetail: vi.fn(),
+    likelist: mockNcmApi.likelist,
+    songDetail: mockNcmApi.songDetail,
   },
 }))
 
@@ -90,9 +95,16 @@ function makeUserStore(
     isLoggedIn: boolean
     profile: UserProfile | null
     hasRestoredSession: boolean
+    restore: () => void
   }> = {}
 ) {
-  return { isLoggedIn: true, profile: FAKE_PROFILE, hasRestoredSession: true, ...overrides }
+  return {
+    isLoggedIn: true,
+    profile: FAKE_PROFILE,
+    hasRestoredSession: true,
+    restore: mockRestoreSession,
+    ...overrides,
+  }
 }
 
 function makePlayerStore() {
@@ -118,6 +130,41 @@ function makeSongList() {
   ]
 }
 
+function makeSong(id: number) {
+  return {
+    id,
+    name: `Fav Song ${id}`,
+    ar: [{ id, name: `Artist ${id}` }],
+    al: { id, name: `Album ${id}`, picUrl: `https://example.com/${id}.jpg` },
+    dt: 195000,
+  }
+}
+
+function makeIds(count: number) {
+  return Array.from({ length: count }, (_, index) => index + 1)
+}
+
+function usePlayerStoreFixture() {
+  const playerStore = makePlayerStore()
+  mockUsePlayerStore.mockImplementation((selector) =>
+    selector
+      ? selector(playerStore as unknown as Record<string, unknown>)
+      : playerStore
+  )
+  return playerStore
+}
+
+function expectFullQueue(playerStore: ReturnType<typeof makePlayerStore>) {
+  expect(playerStore.playQueue).toHaveBeenCalledTimes(1)
+  const [queue, startIndex] = playerStore.playQueue.mock.calls[0] as [
+    ReturnType<typeof makeSong>[],
+    number,
+  ]
+  expect(queue).toHaveLength(60)
+  expect(startIndex).toBe(0)
+  return queue
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -131,6 +178,9 @@ describe('LikedPage', () => {
     mockUseDominantColor.mockReset()
     mockUseSWR.mockReset()
     mockMutate.mockReset()
+    mockRestoreSession.mockReset()
+    mockNcmApi.likelist.mockReset()
+    mockNcmApi.songDetail.mockReset()
 
     mockUseUserStore.mockImplementation((selector) =>
       selector
@@ -149,6 +199,9 @@ describe('LikedPage', () => {
       error: undefined,
       mutate: mockMutate,
     })
+    mockNcmApi.songDetail.mockImplementation(async (ids: string) => ({
+      songs: ids.split(',').filter(Boolean).map((id) => makeSong(Number(id))),
+    }))
   })
 
   afterEach(() => {
@@ -173,6 +226,33 @@ describe('LikedPage', () => {
     })
 
     expect(mockRouterReplace).toHaveBeenCalledWith('/login')
+    expect(screen.queryByTestId('liked-page')).not.toBeInTheDocument()
+  })
+
+  test('renders the session restore skeleton before redirecting or fetching liked songs', async () => {
+    mockUseUserStore.mockImplementation((selector) => {
+      const restoringStore = makeUserStore({
+        isLoggedIn: false,
+        profile: null,
+        hasRestoredSession: false,
+      })
+
+      return selector
+        ? selector(restoringStore as unknown as Record<string, unknown>)
+        : restoringStore
+    })
+
+    const { default: LikedPage } = await import('@/app/liked/page')
+    render(<LikedPage />)
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(screen.getByTestId('liked-session-loading')).toBeInTheDocument()
+    expect(mockRestoreSession).toHaveBeenCalledTimes(1)
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+    expect(mockUseSWR.mock.calls[0]?.[0]).toBeNull()
     expect(screen.queryByTestId('liked-page')).not.toBeInTheDocument()
   })
 
@@ -235,7 +315,7 @@ describe('LikedPage', () => {
 
   test('renders song table and action buttons when songs are loaded', async () => {
     mockUseSWR.mockReturnValue({
-      data: makeSongList(),
+      data: makeSongList().map((song) => song.id),
       isLoading: false,
       error: undefined,
       mutate: mockMutate,
@@ -244,11 +324,148 @@ describe('LikedPage', () => {
     const { default: LikedPage } = await import('@/app/liked/page')
     render(<LikedPage />)
 
-    expect(screen.getByTestId('song-table')).toBeInTheDocument()
-    expect(screen.getByTestId('song-table').textContent).toBe('songs:2')
+    await waitFor(() => {
+      expect(screen.getByTestId('song-table').textContent).toBe('songs:2')
+    })
     expect(screen.getByTestId('liked-play-all')).toBeInTheDocument()
     expect(screen.getByTestId('liked-shuffle')).toBeInTheDocument()
     expect(screen.getByText(/共 2 首/)).toBeInTheDocument()
     expect(screen.queryByTestId('liked-empty')).not.toBeInTheDocument()
+  })
+
+  test('loads liked song details one page at a time', async () => {
+    mockUseSWR.mockReturnValue({
+      data: makeIds(60),
+      isLoading: false,
+      error: undefined,
+      mutate: mockMutate,
+    })
+
+    const { default: LikedPage } = await import('@/app/liked/page')
+    render(<LikedPage />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('song-table').textContent).toBe('songs:50')
+    })
+
+    expect(mockNcmApi.songDetail).toHaveBeenCalledTimes(1)
+    expect(mockNcmApi.songDetail).toHaveBeenLastCalledWith(makeIds(50).join(','))
+
+    fireEvent.click(screen.getByTestId('liked-load-more'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('song-table').textContent).toBe('songs:60')
+    })
+
+    expect(mockNcmApi.songDetail).toHaveBeenCalledTimes(2)
+    expect(mockNcmApi.songDetail).toHaveBeenLastCalledWith(makeIds(60).slice(50).join(','))
+    expect(screen.queryByTestId('liked-load-more')).not.toBeInTheDocument()
+  })
+
+  test('liked-play-all fetches remaining liked songs before playing the full queue', async () => {
+    const playerStore = usePlayerStoreFixture()
+    const ids = makeIds(60)
+    mockUseSWR.mockReturnValue({
+      data: ids,
+      isLoading: false,
+      error: undefined,
+      mutate: mockMutate,
+    })
+
+    const { default: LikedPage } = await import('@/app/liked/page')
+    render(<LikedPage />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('song-table').textContent).toBe('songs:50')
+    })
+    expect(mockNcmApi.songDetail).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByTestId('liked-play-all'))
+
+    await waitFor(() => {
+      expect(playerStore.playQueue).toHaveBeenCalledTimes(1)
+    })
+
+    expect(mockNcmApi.songDetail).toHaveBeenCalledTimes(2)
+    expect(mockNcmApi.songDetail).toHaveBeenNthCalledWith(2, ids.slice(50).join(','))
+    expect(mockNcmApi.songDetail.mock.invocationCallOrder[1]).toBeLessThan(
+      playerStore.setPlayMode.mock.invocationCallOrder[0]
+    )
+    expect(playerStore.setPlayMode).toHaveBeenCalledWith('sequential')
+    expect(playerStore.setPlayMode.mock.invocationCallOrder[0]).toBeLessThan(
+      playerStore.playQueue.mock.invocationCallOrder[0]
+    )
+    const queue = expectFullQueue(playerStore)
+    expect(queue.map((song) => song.id)).toEqual(ids)
+  })
+
+  test('liked-shuffle fetches remaining liked songs before shuffling the full queue', async () => {
+    const playerStore = usePlayerStoreFixture()
+    const ids = makeIds(60)
+    mockUseSWR.mockReturnValue({
+      data: ids,
+      isLoading: false,
+      error: undefined,
+      mutate: mockMutate,
+    })
+
+    const { default: LikedPage } = await import('@/app/liked/page')
+    render(<LikedPage />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('song-table').textContent).toBe('songs:50')
+    })
+    expect(mockNcmApi.songDetail).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(screen.getByTestId('liked-shuffle'))
+
+    await waitFor(() => {
+      expect(playerStore.playQueue).toHaveBeenCalledTimes(1)
+    })
+
+    expect(mockNcmApi.songDetail).toHaveBeenCalledTimes(2)
+    expect(mockNcmApi.songDetail).toHaveBeenNthCalledWith(2, ids.slice(50).join(','))
+    expect(mockNcmApi.songDetail.mock.invocationCallOrder[1]).toBeLessThan(
+      playerStore.setPlayMode.mock.invocationCallOrder[0]
+    )
+    expect(playerStore.setPlayMode).toHaveBeenCalledWith('shuffle')
+    expect(playerStore.setPlayMode.mock.invocationCallOrder[0]).toBeLessThan(
+      playerStore.playQueue.mock.invocationCallOrder[0]
+    )
+    const queue = expectFullQueue(playerStore)
+    expect(queue.map((song) => song.id).sort((a, b) => a - b)).toEqual(ids)
+  })
+
+  test('retries song detail failure and renders songs after retry succeeds', async () => {
+    mockUseSWR.mockReturnValue({
+      data: [11, 22],
+      isLoading: false,
+      error: undefined,
+      mutate: mockMutate,
+    })
+    mockNcmApi.songDetail
+      .mockRejectedValueOnce(new Error('Detail exploded'))
+      .mockImplementation(async (ids: string) => ({
+        songs: ids.split(',').filter(Boolean).map((id) => makeSong(Number(id))),
+      }))
+
+    const { default: LikedPage } = await import('@/app/liked/page')
+    render(<LikedPage />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('liked-error')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Detail exploded')).toBeInTheDocument()
+    expect(screen.queryByTestId('song-table')).not.toBeInTheDocument()
+
+    fireEvent.click(within(screen.getByTestId('liked-error')).getByRole('button'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('song-table').textContent).toBe('songs:2')
+    })
+
+    expect(mockNcmApi.songDetail).toHaveBeenCalledTimes(2)
+    expect(mockNcmApi.songDetail).toHaveBeenLastCalledWith('11,22')
+    expect(screen.queryByTestId('liked-error')).not.toBeInTheDocument()
   })
 })

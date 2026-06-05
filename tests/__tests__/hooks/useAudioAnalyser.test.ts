@@ -180,6 +180,22 @@ describe('useAudioAnalyser', () => {
     expect(mock.analyser.getByteFrequencyData).toHaveBeenCalled()
   })
 
+  it('can expose only the analyser without scheduling a sampling rAF loop', async () => {
+    const mock = createContextMock(128)
+    currentCtx = mock.ctx
+    currentGain = mock.gain
+
+    const { result } = renderHook(() => useAudioAnalyser({ collectFrequencyData: false }))
+
+    await act(async () => { await Promise.resolve() })
+
+    expect(result.current.analyser).toBe(mock.analyser)
+    expect(result.current.frequencyData).toBeNull()
+    expect(result.current.isActive).toBe(false)
+    expect(rafCallbacks).toHaveLength(0)
+    expect(mock.analyser.getByteFrequencyData).not.toHaveBeenCalled()
+  })
+
   it('cancels rAF on unmount', async () => {
     const mock = createContextMock(128)
     currentCtx = mock.ctx

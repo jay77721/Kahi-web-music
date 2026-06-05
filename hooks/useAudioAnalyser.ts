@@ -8,6 +8,8 @@ export interface UseAudioAnalyserOptions {
   fftSize?: number
   /** Smoothing time constant 0..1 (default 0.8). */
   smoothingTimeConstant?: number
+  /** When false, only expose the AnalyserNode and skip the hook-owned rAF sampler. */
+  collectFrequencyData?: boolean
   /** Optional externally provided AnalyserNode; if given, the hook
    *  will not create one. Useful for testing. */
   externalAnalyser?: AnalyserNode | null
@@ -46,12 +48,13 @@ export function useAudioAnalyser(
   const {
     fftSize = 256,
     smoothingTimeConstant = 0.8,
+    collectFrequencyData = true,
     externalAnalyser = null,
   } = options
 
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(externalAnalyser)
   const [frequencyData, setFrequencyData] = useState<Uint8Array<ArrayBuffer> | null>(
-    externalAnalyser
+    externalAnalyser && collectFrequencyData
       ? new Uint8Array(new ArrayBuffer(externalAnalyser.frequencyBinCount))
       : null
   )
@@ -83,7 +86,9 @@ export function useAudioAnalyser(
       analyserNode.smoothingTimeConstant = smoothingTimeConstant
     }
 
-    const data = new Uint8Array(new ArrayBuffer(analyserNode.frequencyBinCount))
+    const data = collectFrequencyData
+      ? new Uint8Array(new ArrayBuffer(analyserNode.frequencyBinCount))
+      : null
     dataRef.current = data
 
     // Defer the synchronous setStates to a microtask so the "no setState in
@@ -92,16 +97,18 @@ export function useAudioAnalyser(
     Promise.resolve().then(() => {
       setFrequencyData(data)
       setAnalyser(analyserNode)
-      setIsActive(true)
+      setIsActive(collectFrequencyData)
     })
 
-    const tick = (): void => {
-      if (analyserNode && dataRef.current) {
-        analyserNode.getByteFrequencyData(dataRef.current)
+    if (collectFrequencyData) {
+      const tick = (): void => {
+        if (analyserNode && dataRef.current) {
+          analyserNode.getByteFrequencyData(dataRef.current)
+        }
+        rafIdRef.current = requestAnimationFrame(tick)
       }
       rafIdRef.current = requestAnimationFrame(tick)
     }
-    rafIdRef.current = requestAnimationFrame(tick)
 
     return () => {
       if (rafIdRef.current !== null) {
@@ -119,7 +126,7 @@ export function useAudioAnalyser(
       }
       setIsActive(false)
     }
-  }, [fftSize, smoothingTimeConstant, externalAnalyser])
+  }, [fftSize, smoothingTimeConstant, collectFrequencyData, externalAnalyser])
 
   return { analyser, frequencyData, isActive }
 }

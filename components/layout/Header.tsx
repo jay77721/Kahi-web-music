@@ -39,6 +39,8 @@ export function Header() {
       <form
         role="search"
         aria-label="站内搜索"
+        action="/search"
+        method="get"
         onSubmit={handleSearch}
         className="min-w-0 flex-1 md:max-w-[420px]"
       >
@@ -46,6 +48,7 @@ export function Header() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
           <Input
             type="search"
+            name="q"
             placeholder="你想听什么？"
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}

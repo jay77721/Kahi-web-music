@@ -93,7 +93,7 @@
 | `color?` | `string` | Defaults to `var(--accent)`. |
 | `className?` | `string` | Forwarded. |
 
-- Canvas-based 64-bar FFT visualizer.
+- Canvas-based 64-bar FFT visualizer; it reads the analyser itself, so callers that only need the visualizer can pass `collectFrequencyData: false` to `useAudioAnalyser`.
 - When `isPlaying` is false, frames decay exponentially to a flat line.
 
 ### `<PlayQueue />`

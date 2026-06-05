@@ -14,9 +14,16 @@ import { useUserStore } from '@/stores/userStore'
  * storage). Safe to call multiple times — `restore()` always marks the
  * restoration pass complete, even when no persisted session is present.
  */
-export function UserSessionRestorer(): null {
+export function UserSessionRestorer() {
   useEffect(() => {
     void useUserStore.getState().restore()
   }, [])
-  return null
+
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="user-session-restorer"
+      style={{ position: 'fixed', width: 0, height: 0, overflow: 'hidden' }}
+    />
+  )
 }

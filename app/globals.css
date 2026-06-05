@@ -206,6 +206,56 @@ body::before {
 .animate-vinyl { animation: spinSlow 6s linear infinite; }
 .animate-vinyl.paused { animation-play-state: paused; }
 
+.now-playing-artwork {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 9999px;
+  background: radial-gradient(circle at center, #181818 0%, #0b0b0b 68%, #050505 100%);
+  box-shadow:
+    var(--shadow-md),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 0 18px rgba(0, 0, 0, 0.6);
+  will-change: transform;
+}
+
+.now-playing-artwork::before,
+.now-playing-artwork::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.now-playing-artwork::before {
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(circle at center, transparent 0 26%, rgba(0, 0, 0, 0.34) 27% 31%, transparent 32%),
+    repeating-radial-gradient(circle at center, transparent 0 7px, rgba(255, 255, 255, 0.08) 8px, transparent 9px);
+}
+
+.now-playing-artwork::after {
+  z-index: 2;
+  width: 18%;
+  height: 18%;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.now-playing-artwork__image {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.now-playing-artwork--playing { animation: vinyl-spin 2.4s linear infinite; }
+.now-playing-artwork--paused { animation: vinyl-spin 2.4s linear infinite paused; }
+
 /* ── Vinyl disc easter egg (FullScreenPlayer) ──
    The disc itself is one CSS class. We rely on pseudo-elements for the
    concentric groove rings, which keeps the React tree minimal and lets
@@ -630,6 +680,8 @@ input[type="range"]:focus-visible::-moz-range-thumb { opacity: 1; transform: sca
   .animate-breathe,
   .animate-shimmer,
   .skeleton,
+  .now-playing-artwork--playing,
+  .now-playing-artwork--paused,
   .vinyl-disc--playing,
   .vinyl-disc--paused,
   .equalizer span,

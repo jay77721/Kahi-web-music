@@ -1,13 +1,13 @@
 'use client'
 
-import { useCallback, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useCallback } from 'react'
 import useSWR from 'swr'
 import { AppShell } from '@/components/layout/AppShell'
 import { FMMainPlayer } from '@/components/fm/FMMainPlayer'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useRequireSession } from '@/hooks/useRequireSession'
 import { ncmApi } from '@/lib/api'
 import { normalizeSongList } from '@/lib/api-adapters'
-import { useUserStore } from '@/stores/userStore'
 import { Radio } from 'lucide-react'
 import type { Song } from '@/types/song'
 
@@ -17,14 +17,7 @@ import type { Song } from '@/types/song'
  * `<FMMainPlayer />`; this page is a thin SWR + auth shell.
  */
 export default function FMPage() {
-  const router = useRouter()
-  const { isLoggedIn, hasRestoredSession } = useUserStore()
-
-  useEffect(() => {
-    if (hasRestoredSession && !isLoggedIn) {
-      router.replace('/login')
-    }
-  }, [hasRestoredSession, isLoggedIn, router])
+  const { isLoggedIn, isRestoringSession } = useRequireSession()
 
   const { data: fmSongs, mutate, error } = useSWR<Song[]>(
     isLoggedIn ? 'personal-fm' : null,
@@ -53,7 +46,25 @@ export default function FMPage() {
     void mutate()
   }, [mutate])
 
-  if (!hasRestoredSession || !isLoggedIn) return null
+  if (isRestoringSession) {
+    return (
+      <AppShell>
+        <div className="flex flex-col w-full" data-testid="fm-session-loading">
+          <header className="flex items-center gap-2 px-6 pt-6 pb-2">
+            <Radio className="w-4 h-4 text-[var(--accent)]" aria-hidden />
+            <h1 className="text-sm uppercase tracking-[0.18em] text-[var(--text-tertiary)] font-medium">
+              私人 FM
+            </h1>
+          </header>
+          <div className="flex flex-1 items-center justify-center p-6">
+            <Skeleton className="aspect-square w-full max-w-[360px] rounded-full" />
+          </div>
+        </div>
+      </AppShell>
+    )
+  }
+
+  if (!isLoggedIn) return null
 
   const current = fmSongs?.[0] ?? null
   const isInitialLoading = !fmSongs && !error

@@ -1,25 +1,23 @@
 'use client'
 
-import { useEffect, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useMemo } from 'react'
 import useSWR from 'swr'
 import { Play, RefreshCw } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { SongTable } from '@/components/common/SongTable'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
+import { useRequireSession } from '@/hooks/useRequireSession'
 import { DailyHero } from '@/components/discover/DailyHero'
 import { ncmApi } from '@/lib/api'
 import { normalizeSongList } from '@/lib/api-adapters'
 import { usePlayerStore } from '@/stores/playerStore'
-import { useUserStore } from '@/stores/userStore'
 import type { Song } from '@/types/song'
 
 const DAILY_LIMIT = 30
 
 export default function DailyPage() {
-  const router = useRouter()
-  const { isLoggedIn, hasRestoredSession } = useUserStore()
+  const { isLoggedIn, isRestoringSession } = useRequireSession()
   const { playQueue } = usePlayerStore()
 
   const { data, isLoading, error, mutate } = useSWR<Song[]>(
@@ -39,11 +37,22 @@ export default function DailyPage() {
     [data]
   )
 
-  useEffect(() => {
-    if (hasRestoredSession && !isLoggedIn) router.replace('/login')
-  }, [hasRestoredSession, isLoggedIn, router])
+  if (isRestoringSession) {
+    return (
+      <AppShell>
+        <div className="px-4 md:px-6 py-6 max-w-6xl mx-auto" data-testid="daily-session-loading">
+          <Skeleton className="h-40 w-full rounded-2xl" />
+          <div className="mt-6 space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+      </AppShell>
+    )
+  }
 
-  if (!hasRestoredSession || !isLoggedIn) return null
+  if (!isLoggedIn) return null
 
   return (
     <AppShell>

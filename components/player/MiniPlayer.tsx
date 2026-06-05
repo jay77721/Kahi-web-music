@@ -1,12 +1,12 @@
 'use client'
 
 import { useCallback } from 'react'
-import Image from 'next/image'
 import { Play, Pause } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { NowPlayingArtwork } from '@/components/player/NowPlayingArtwork'
 import { usePlayerStore } from '@/stores/playerStore'
 import { useUIStore } from '@/stores/uiStore'
-import { formatArtists, imageUrl } from '@/lib/format'
+import { formatArtists } from '@/lib/format'
 
 export function MiniPlayer() {
   const isMobile = useUIStore((state) => state.isMobile)
@@ -45,13 +45,12 @@ function MiniPlayerContent() {
         aria-label={`打开全屏播放器：${currentTrack.name}`}
       >
         {currentTrack.al?.picUrl && (
-          <Image
-            src={imageUrl(currentTrack.al.picUrl, 48)}
+          <NowPlayingArtwork
+            coverUrl={currentTrack.al.picUrl}
             alt=""
-            width={40}
-            height={40}
-            className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
-            style={{ boxShadow: 'var(--shadow-md)' }}
+            size={40}
+            imageSize={48}
+            isPlaying={isPlaying}
           />
         )}
         <span className="flex-1 min-w-0">

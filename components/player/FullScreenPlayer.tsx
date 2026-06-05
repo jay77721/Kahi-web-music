@@ -105,7 +105,7 @@ function FullScreenPlayerContent() {
 
   const coverUrl = stableUrl ? imageUrl(stableUrl, 224) : null
   const { color } = useDominantColor(coverUrl, { timeoutMs: 5000 })
-  const { analyser } = useAudioAnalyser()
+  const { analyser } = useAudioAnalyser({ collectFrequencyData: false })
 
   // Responsive vinyl sizing — use a small/medium breakpoint similar to Tailwind's `sm`.
   const [vinylSize, setVinylSize] = useState(VINYL_SIZE_MOBILE)
