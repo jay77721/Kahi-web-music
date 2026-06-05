@@ -1,11 +1,10 @@
 'use client'
 
-import { type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import useSWR from 'swr'
 import Image from 'next/image'
-import { motion, type Variants } from 'framer-motion'
 import {
   Music,
   Disc3,
@@ -38,6 +37,8 @@ import type { Artist } from '@/types/artist'
 // ---------------------------------------------------------------------------
 
 type ArtistPageData = NormalizedArtistDetail
+type ArtistPrimaryData = Pick<ArtistPageData, 'artist' | 'songs'>
+type ArtistDeferredData = Pick<ArtistPageData, 'albums' | 'desc' | 'simiArtists'>
 
 interface StatTile {
   icon: ReactNode
@@ -51,24 +52,8 @@ interface StatTile {
 // Tunables
 // ---------------------------------------------------------------------------
 
-const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1]
 const UNKNOWN_ARTIST = '未知艺人'
 const UNKNOWN_ALBUM = '未知专辑'
-
-const sectionVariants: Variants = {
-  hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: EASE_OUT_EXPO } },
-}
-
-const statsContainer: Variants = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.05 } },
-}
-
-const statsItem: Variants = {
-  hidden: { opacity: 0, y: 12, scale: 0.96 },
-  show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: EASE_OUT_EXPO } },
-}
 
 function getRouteId(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value[0] ?? '' : value ?? ''
@@ -135,27 +120,22 @@ interface StatsBentoProps {
 
 function StatsBento({ tiles }: StatsBentoProps) {
   return (
-    <motion.div
+    <div
       role="list"
       aria-label="Artist stats"
-      variants={statsContainer}
-      initial="hidden"
-      animate="show"
-      className="grid grid-cols-12 gap-3 md:gap-4 mb-6"
+      className="grid grid-cols-12 gap-3 md:gap-4 mb-6 stagger-children"
     >
       {tiles.map((tile, idx) => {
         const isLg = tile.size === 'lg'
         return (
-          <motion.div
+          <div
             key={`${tile.label}-${idx}`}
             role="listitem"
-            variants={statsItem}
-            whileHover={{ scale: 1.02, y: -2 }}
             className={cn(
               'bento-card relative flex flex-col justify-between overflow-hidden',
-              'rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm',
+              'rounded-2xl border border-white/10 bg-white/5',
               'p-4 md:p-5 min-h-[120px] md:min-h-[140px]',
-              'transition-colors duration-200 hover:bg-white/10',
+              'transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:bg-white/10',
               isLg
                 ? 'col-span-12 md:col-span-6 md:row-span-2 min-h-[200px] md:min-h-[296px]'
                 : 'col-span-6 md:col-span-3'
@@ -179,10 +159,10 @@ function StatsBento({ tiles }: StatsBentoProps) {
             >
               {tile.value}
             </div>
-          </motion.div>
+          </div>
         )
       })}
-    </motion.div>
+    </div>
   )
 }
 
@@ -193,13 +173,7 @@ interface AlbumsRailProps {
 function AlbumsRail({ albums }: AlbumsRailProps) {
   if (albums.length === 0) return null
   return (
-    <motion.div
-      variants={sectionVariants}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: '-80px' }}
-      className="mb-6"
-    >
+    <div className="mb-6 section-enter">
       <SectionHeader
         icon={<Disc3 className="w-5 h-5" />}
         title="专辑"
@@ -237,7 +211,7 @@ function AlbumsRail({ albums }: AlbumsRailProps) {
           )
         })}
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -248,13 +222,7 @@ interface SimilarArtistsProps {
 function SimilarArtists({ artists }: SimilarArtistsProps) {
   if (artists.length === 0) return null
   return (
-    <motion.div
-      variants={sectionVariants}
-      initial="hidden"
-      whileInView="show"
-      viewport={{ once: true, margin: '-80px' }}
-      className="mb-6"
-    >
+    <div className="mb-6 section-enter">
       <SectionHeader
         icon={<TrendingUp className="w-5 h-5" />}
         title="相似艺人"
@@ -292,7 +260,7 @@ function SimilarArtists({ artists }: SimilarArtistsProps) {
           )
         })}
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -300,25 +268,39 @@ function SimilarArtists({ artists }: SimilarArtistsProps) {
 // Data loading
 // ---------------------------------------------------------------------------
 
-async function loadArtistPage(id: string): Promise<ArtistPageData> {
-  const [detailRes, songsRes, albumsRes, descRes, simiRes] = await Promise.all([
+async function loadArtistPrimary(id: string): Promise<ArtistPrimaryData> {
+  const [detailRes, songsRes] = await Promise.all([
     ncmApi.artistDetail(id).catch(() => null),
     ncmApi.artistSongs(id, 50).catch(() => null),
+  ])
+
+  const normalized = normalizeArtistDetail({
+    detail: detailRes,
+    songs: songsRes,
+  })
+
+  return {
+    artist: normalized.artist,
+    songs: normalized.songs,
+  }
+}
+
+async function loadArtistDeferred(id: string): Promise<ArtistDeferredData> {
+  const [albumsRes, descRes, simiRes] = await Promise.all([
     ncmApi.artistAlbum(id, 12).catch(() => null),
     ncmApi.artistDesc(id).catch(() => null),
     ncmApi.simiArtist(id).catch(() => null),
   ])
 
   const normalized = normalizeArtistDetail({
-    detail: detailRes,
-    songs: songsRes,
     albums: albumsRes,
     desc: descRes,
     simi: simiRes,
   })
 
   return {
-    ...normalized,
+    albums: normalized.albums,
+    desc: normalized.desc,
     simiArtists: normalized.simiArtists.slice(0, 6),
   }
 }
@@ -331,10 +313,47 @@ export default function ArtistPage() {
   const params = useParams()
   const id = getRouteId(params?.id as string | string[] | undefined)
   const { playQueue } = usePlayerStore()
+  const [deferredReadyId, setDeferredReadyId] = useState<string | null>(null)
 
-  const { data, isLoading } = useSWR<ArtistPageData>(
-    id ? `artist-page-${id}` : null,
-    () => loadArtistPage(id)
+  const { data: primaryData, isLoading } = useSWR<ArtistPrimaryData>(
+    id ? `artist-primary-${id}` : null,
+    () => loadArtistPrimary(id)
+  )
+
+  const artist = primaryData?.artist
+  const shouldScheduleDeferred = Boolean(id && artist && deferredReadyId !== id)
+
+  useEffect(() => {
+    if (!shouldScheduleDeferred) return
+
+    let active = true
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+    let idleId: number | null = null
+
+    const markReady = () => {
+      if (active) setDeferredReadyId(id)
+    }
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      idleId = window.requestIdleCallback(markReady, { timeout: 1800 })
+    } else {
+      timeoutId = setTimeout(markReady, 900)
+    }
+
+    return () => {
+      active = false
+      if (idleId !== null && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+        window.cancelIdleCallback(idleId)
+      }
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId)
+      }
+    }
+  }, [id, shouldScheduleDeferred])
+
+  const { data: deferredData, isLoading: isDeferredLoading, error: deferredError } = useSWR<ArtistDeferredData>(
+    id && deferredReadyId === id ? `artist-deferred-${id}` : null,
+    () => loadArtistDeferred(id)
   )
 
   if (isLoading) {
@@ -345,11 +364,10 @@ export default function ArtistPage() {
     )
   }
 
-  const artist = data?.artist
-  const songs = data?.songs ?? []
-  const albums = data?.albums ?? []
-  const desc = data?.desc ?? ''
-  const simiArtists = data?.simiArtists ?? []
+  const songs = primaryData?.songs ?? []
+  const albums = deferredData?.albums ?? []
+  const desc = deferredData?.desc ?? ''
+  const simiArtists = deferredData?.simiArtists ?? []
 
   if (!artist) {
     return (
@@ -366,6 +384,15 @@ export default function ArtistPage() {
 
   const hotSongs = songs.slice(0, 10)
   const fanCount = (artist as Artist & { fansCount?: number }).fansCount ?? 0
+  const deferredSettled =
+    deferredData !== undefined ||
+    Boolean(deferredError) ||
+    (deferredReadyId === id && !isDeferredLoading)
+  const showEmptyContent =
+    deferredSettled &&
+    albums.length === 0 &&
+    simiArtists.length === 0 &&
+    hotSongs.length === 0
 
   const statTiles: StatTile[] = [
     {
@@ -431,25 +458,19 @@ export default function ArtistPage() {
         </div>
 
         {/* Hot songs */}
-        <motion.section
-          variants={sectionVariants}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: '-80px' }}
-          className="mb-6"
-        >
+        <section className="mb-6 section-enter">
           <SectionHeader
             icon={<Music className="w-5 h-5" />}
             title="热门歌曲"
             count={hotSongs.length}
           />
           <SongTable songs={hotSongs} animated />
-        </motion.section>
+        </section>
 
         <AlbumsRail albums={albums} />
         <SimilarArtists artists={simiArtists} />
 
-        {albums.length === 0 && simiArtists.length === 0 && hotSongs.length === 0 && (
+        {showEmptyContent && (
           <div className="text-center py-12 text-sm text-[var(--text-tertiary)]">
             暂无内容
             <ChevronRight className="inline w-4 h-4 ml-1 align-text-bottom" />

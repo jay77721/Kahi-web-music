@@ -1,11 +1,14 @@
 'use client'
 
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, fireEvent } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import React from 'react'
 import type { Song } from '@/types/api'
 import type { Artist } from '@/types/artist'
 import type { Album } from '@/types/album'
+import { ncmApi } from '@/lib/api'
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -15,6 +18,7 @@ const mockUseParams = vi.fn()
 const mockUseSWR = vi.fn()
 const mockUsePlayerStore = vi.fn()
 const mockUseDominantColor = vi.fn()
+const ARTIST_PAGE_SOURCE = resolve(process.cwd(), 'app/artist/[id]/page.tsx')
 
 vi.mock('next/navigation', async () => {
   const actual = await vi.importActual<typeof import('next/navigation')>('next/navigation')
@@ -124,9 +128,45 @@ const FAKE_SIMI: Artist[] = Array.from({ length: 3 }, (_, i) => ({
   name: `Similar ${i + 1}`,
   picUrl: `https://pics.example.com/artist/${500 + i}.jpg`,
 }))
+type ArtistPrimaryData = {
+  artist: Artist | null
+  songs: Song[]
+}
+
+type ArtistDeferredData = {
+  albums: Album[]
+  desc: string
+  simiArtists: Artist[]
+}
+
+type SwrMockState = {
+  primary?: ArtistPrimaryData
+  deferred?: ArtistDeferredData
+  legacy?: ArtistPrimaryData & ArtistDeferredData
+  primaryLoading?: boolean
+  deferredLoading?: boolean
+  error?: unknown
+}
 
 function makePlayerStore() {
   return { playQueue: vi.fn() }
+}
+
+function makePrimaryData(overrides: Partial<ArtistPrimaryData> = {}): ArtistPrimaryData {
+  return {
+    artist: FAKE_ARTIST,
+    songs: FAKE_SONGS,
+    ...overrides,
+  }
+}
+
+function makeDeferredData(overrides: Partial<ArtistDeferredData> = {}): ArtistDeferredData {
+  return {
+    albums: FAKE_ALBUMS,
+    desc: '鍗庤娴佽闊充箰鏁欑埗',
+    simiArtists: FAKE_SIMI,
+    ...overrides,
+  }
 }
 
 function makeLoadedData() {
@@ -137,6 +177,81 @@ function makeLoadedData() {
     desc: '华语流行音乐教父',
     simiArtists: FAKE_SIMI,
   }
+}
+
+function stringifySWRKey(key: unknown): string {
+  if (typeof key === 'string') return key
+  if (key === null || key === undefined) return ''
+
+  try {
+    return JSON.stringify(key)
+  } catch {
+    return String(key)
+  }
+}
+
+function isArtistKey(key: unknown, kind: 'primary' | 'deferred') {
+  const keyText = stringifySWRKey(key).toLowerCase()
+  return keyText.includes('artist') && keyText.includes(kind)
+}
+
+function findArtistSWRCall(kind: 'primary' | 'deferred') {
+  return mockUseSWR.mock.calls.find(([key]) => isArtistKey(key, kind))
+}
+
+function mockArtistSWR({
+  primary = makePrimaryData(),
+  deferred = makeDeferredData({ desc: makeLoadedData().desc }),
+  legacy = makeLoadedData(),
+  primaryLoading = false,
+  deferredLoading = false,
+  error,
+}: SwrMockState = {}) {
+  mockUseSWR.mockImplementation((key: unknown) => {
+    if (!key) {
+      return { data: undefined, isLoading: false, error: undefined }
+    }
+
+    if (isArtistKey(key, 'primary')) {
+      return { data: primary, isLoading: primaryLoading, error }
+    }
+
+    if (isArtistKey(key, 'deferred')) {
+      return { data: deferred, isLoading: deferredLoading, error }
+    }
+
+    return {
+      data: legacy,
+      isLoading: primaryLoading || deferredLoading,
+      error,
+    }
+  })
+}
+
+function mockArtistApiResponses() {
+  const desc = makeLoadedData().desc
+
+  vi.mocked(ncmApi.artistDetail).mockResolvedValue({ artist: FAKE_ARTIST })
+  vi.mocked(ncmApi.artistSongs).mockResolvedValue({ songs: FAKE_SONGS })
+  vi.mocked(ncmApi.artistAlbum).mockResolvedValue({ hotAlbums: FAKE_ALBUMS })
+  vi.mocked(ncmApi.artistDesc).mockResolvedValue({ briefDesc: desc })
+  vi.mocked(ncmApi.simiArtist).mockResolvedValue({ artists: FAKE_SIMI })
+
+  return desc
+}
+
+function clearArtistApiMocks() {
+  vi.mocked(ncmApi.artistDetail).mockClear()
+  vi.mocked(ncmApi.artistSongs).mockClear()
+  vi.mocked(ncmApi.artistAlbum).mockClear()
+  vi.mocked(ncmApi.artistDesc).mockClear()
+  vi.mocked(ncmApi.simiArtist).mockClear()
+}
+
+async function flushDeferredArtistRequest() {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(900)
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -166,7 +281,16 @@ describe('ArtistPage', () => {
 
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
     vi.clearAllMocks()
+  })
+
+  test('does not import framer-motion in the artist page runtime', () => {
+    const source = readFileSync(ARTIST_PAGE_SOURCE, 'utf8')
+
+    expect(source).not.toMatch(/from ['"]framer-motion['"]/)
+    expect(source).not.toContain('AnimatePresence')
+    expect(source).not.toContain('motion.')
   })
 
   test('renders the loading skeleton while SWR is fetching', async () => {
@@ -186,10 +310,10 @@ describe('ArtistPage', () => {
   })
 
   test('renders the not-found state when the artist is missing', async () => {
-    mockUseSWR.mockReturnValue({
-      data: { artist: null, songs: [], albums: [], desc: '', simiArtists: [] },
-      isLoading: false,
-      error: undefined,
+    mockArtistSWR({
+      primary: makePrimaryData({ artist: null, songs: [] }),
+      deferred: makeDeferredData({ albums: [], desc: '', simiArtists: [] }),
+      legacy: { artist: null, songs: [], albums: [], desc: '', simiArtists: [] },
     })
 
     const { default: ArtistPage } = await import('@/app/artist/[id]/page')
@@ -202,11 +326,8 @@ describe('ArtistPage', () => {
   })
 
   test('renders hero, stats, hot songs, albums, and similar artists when loaded', async () => {
-    mockUseSWR.mockReturnValue({
-      data: makeLoadedData(),
-      isLoading: false,
-      error: undefined,
-    })
+    vi.useFakeTimers()
+    mockArtistSWR()
 
     const { default: ArtistPage } = await import('@/app/artist/[id]/page')
     render(<ArtistPage />)
@@ -218,6 +339,12 @@ describe('ArtistPage', () => {
     // Hero shows the artist name
     expect(screen.getByTestId('artist-hero')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '周杰伦' })).toBeInTheDocument()
+
+    expect(screen.queryByTestId('artist-description')).not.toBeInTheDocument()
+    expect(findArtistSWRCall('deferred')).toBeUndefined()
+
+    await flushDeferredArtistRequest()
+    expect(findArtistSWRCall('deferred')).toBeDefined()
 
     // Description is passed through
     expect(screen.getByTestId('artist-description')).toHaveTextContent('华语流行音乐教父')
@@ -252,11 +379,7 @@ describe('ArtistPage', () => {
   })
 
   test('truncates the hot songs list to 10 entries even when more are loaded', async () => {
-    mockUseSWR.mockReturnValue({
-      data: makeLoadedData(),
-      isLoading: false,
-      error: undefined,
-    })
+    mockArtistSWR()
 
     const { default: ArtistPage } = await import('@/app/artist/[id]/page')
     render(<ArtistPage />)
@@ -271,11 +394,7 @@ describe('ArtistPage', () => {
         ? selector({ playQueue } as unknown as Record<string, unknown>)
         : { playQueue }
     )
-    mockUseSWR.mockReturnValue({
-      data: makeLoadedData(),
-      isLoading: false,
-      error: undefined,
-    })
+    mockArtistSWR()
 
     const { default: ArtistPage } = await import('@/app/artist/[id]/page')
     render(<ArtistPage />)
@@ -288,16 +407,16 @@ describe('ArtistPage', () => {
   })
 
   test('omits the albums and similar artists sections when no data is available', async () => {
-    mockUseSWR.mockReturnValue({
-      data: {
+    mockArtistSWR({
+      primary: makePrimaryData({ songs: FAKE_SONGS.slice(0, 10) }),
+      deferred: makeDeferredData({ albums: [], desc: '', simiArtists: [] }),
+      legacy: {
         artist: FAKE_ARTIST,
         songs: FAKE_SONGS.slice(0, 10),
         albums: [],
         desc: '',
         simiArtists: [],
       },
-      isLoading: false,
-      error: undefined,
     })
 
     const { default: ArtistPage } = await import('@/app/artist/[id]/page')
@@ -310,20 +429,25 @@ describe('ArtistPage', () => {
   })
 
   test('shows the empty hint when there is no content at all', async () => {
-    mockUseSWR.mockReturnValue({
-      data: {
+    vi.useFakeTimers()
+    mockArtistSWR({
+      primary: makePrimaryData({ songs: [] }),
+      deferred: makeDeferredData({ albums: [], desc: '', simiArtists: [] }),
+      legacy: {
         artist: FAKE_ARTIST,
         songs: [],
         albums: [],
         desc: '',
         simiArtists: [],
       },
-      isLoading: false,
-      error: undefined,
     })
 
     const { default: ArtistPage } = await import('@/app/artist/[id]/page')
     render(<ArtistPage />)
+
+    expect(screen.queryByText('暂无内容')).not.toBeInTheDocument()
+
+    await flushDeferredArtistRequest()
 
     expect(screen.getByText('暂无内容')).toBeInTheDocument()
   })
@@ -337,5 +461,62 @@ describe('ArtistPage', () => {
     // The first arg of SWR is the key. We expect null/undefined so SWR skips fetching.
     const firstCall = mockUseSWR.mock.calls[0]
     expect(firstCall?.[0]).toBeFalsy()
+  })
+
+  test('uses a primary SWR key that only fetches artist detail and hot songs', async () => {
+    mockArtistSWR()
+    mockArtistApiResponses()
+
+    const { default: ArtistPage } = await import('@/app/artist/[id]/page')
+    render(<ArtistPage />)
+
+    const primaryCall = findArtistSWRCall('primary')
+    expect(primaryCall).toBeDefined()
+    expect(stringifySWRKey(primaryCall?.[0])).toContain('101')
+
+    if (!primaryCall || typeof primaryCall[1] !== 'function') {
+      throw new Error('Expected artist primary SWR call to include a fetcher')
+    }
+
+    clearArtistApiMocks()
+    const primaryData = (await primaryCall[1]()) as Partial<ArtistPrimaryData>
+
+    expect(ncmApi.artistDetail).toHaveBeenCalledWith('101')
+    expect(ncmApi.artistSongs).toHaveBeenCalledWith('101', 50)
+    expect(ncmApi.artistAlbum).not.toHaveBeenCalled()
+    expect(ncmApi.artistDesc).not.toHaveBeenCalled()
+    expect(ncmApi.simiArtist).not.toHaveBeenCalled()
+    expect(primaryData.artist).toEqual(FAKE_ARTIST)
+    expect(primaryData.songs).toEqual(FAKE_SONGS)
+  })
+
+  test('uses a deferred SWR key that fetches albums, description, and similar artists', async () => {
+    vi.useFakeTimers()
+    mockArtistSWR()
+    const desc = mockArtistApiResponses()
+
+    const { default: ArtistPage } = await import('@/app/artist/[id]/page')
+    render(<ArtistPage />)
+    await flushDeferredArtistRequest()
+
+    const deferredCall = findArtistSWRCall('deferred')
+    expect(deferredCall).toBeDefined()
+    expect(stringifySWRKey(deferredCall?.[0])).toContain('101')
+
+    if (!deferredCall || typeof deferredCall[1] !== 'function') {
+      throw new Error('Expected artist deferred SWR call to include a fetcher')
+    }
+
+    clearArtistApiMocks()
+    const deferredData = (await deferredCall[1]()) as Partial<ArtistDeferredData>
+
+    expect(ncmApi.artistDetail).not.toHaveBeenCalled()
+    expect(ncmApi.artistSongs).not.toHaveBeenCalled()
+    expect(ncmApi.artistAlbum).toHaveBeenCalledWith('101', 12)
+    expect(ncmApi.artistDesc).toHaveBeenCalledWith('101')
+    expect(ncmApi.simiArtist).toHaveBeenCalledWith('101')
+    expect(deferredData.albums).toEqual(FAKE_ALBUMS)
+    expect(deferredData.desc).toBe(desc)
+    expect(deferredData.simiArtists).toEqual(FAKE_SIMI)
   })
 })

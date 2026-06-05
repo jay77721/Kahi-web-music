@@ -1,5 +1,6 @@
 'use client'
 
+import { readFileSync } from 'node:fs'
 import { describe, test, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import type { Artist } from '@/types/artist'
@@ -31,6 +32,8 @@ const FAKE_ARTIST: Artist = {
   mvSize: 50,
 }
 
+const ARTIST_HERO_SOURCE = 'components/artist/ArtistHero.tsx'
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -44,9 +47,26 @@ describe('ArtistHero', () => {
   test('renders the artist name and a round avatar', () => {
     mockUseDominantColor.mockReturnValue({ color: null, isLoading: false, error: null })
     render(<ArtistHero artist={FAKE_ARTIST} />)
-    // framer-motion mock collapses motion.h1 to a div, so we use getByText.
     expect(screen.getByText('周杰伦')).toBeInTheDocument()
     expect(screen.getByAltText('周杰伦')).toBeInTheDocument()
+  })
+
+  test('uses CSS animation without framer-motion runtime markers', () => {
+    mockUseDominantColor.mockReturnValue({ color: null, isLoading: false, error: null })
+    const { container } = render(<ArtistHero artist={FAKE_ARTIST} />)
+
+    expect(screen.getByTestId('artist-hero')).toHaveClass('animate-fade-in')
+    expect(container.querySelector('.animate-scale-in')).toBeInTheDocument()
+    expect(container.querySelector('.animate-slide-up')).toBeInTheDocument()
+    expect(container.querySelector('[data-framer-motion]')).toBeNull()
+  })
+
+  test('does not import framer-motion', () => {
+    const source = readFileSync(ARTIST_HERO_SOURCE, 'utf8')
+
+    expect(source).not.toContain('framer-motion')
+    expect(source).not.toContain('motion.')
+    expect(source).not.toContain('Variants')
   })
 
   test('defers dominant color extraction until idle time', () => {

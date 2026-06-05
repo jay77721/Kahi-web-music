@@ -2,7 +2,6 @@
 
 import { useMemo, useState, type CSSProperties } from 'react'
 import Image from 'next/image'
-import { motion, type Variants } from 'framer-motion'
 import { ChevronDown, Users, Mic2 } from 'lucide-react'
 import { useDominantColor } from '@/hooks/useDominantColor'
 import { imageUrl, formatCount } from '@/lib/format'
@@ -28,21 +27,7 @@ export interface ArtistHeroProps {
 // ---------------------------------------------------------------------------
 
 const FALLBACK_OKLCH = 'oklch(0.22 0 0)'
-const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1]
 const UNKNOWN_ARTIST = '未知艺人'
-
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.06, delayChildren: 0.05 },
-  },
-}
-
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: EASE_OUT_EXPO } },
-}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -98,15 +83,12 @@ export function ArtistHero({
   const hasDescription = description.trim().length > 0
 
   return (
-    <motion.section
+    <section
       data-testid="artist-hero"
       className={cn(
-        'artist-hero relative overflow-hidden rounded-2xl mb-6',
+        'artist-hero relative overflow-hidden rounded-2xl mb-6 animate-fade-in',
         className
       )}
-      variants={containerVariants}
-      initial="hidden"
-      animate="show"
     >
       <div
         aria-hidden="true"
@@ -115,10 +97,7 @@ export function ArtistHero({
       />
 
       <div className="flex flex-col md:flex-row items-center md:items-end gap-6 p-5 md:p-8">
-        <motion.div
-          variants={itemVariants}
-          className="flex-shrink-0"
-        >
+        <div className="flex-shrink-0 animate-scale-in">
           <div className="artist-avatar-ring w-40 h-40 md:w-64 md:h-64 rounded-full overflow-hidden bg-[var(--bg-elevated)] flex items-center justify-center">
             {cover ? (
               <Image
@@ -133,44 +112,38 @@ export function ArtistHero({
               <Mic2 className="w-20 h-20 text-[var(--text-tertiary)]" aria-hidden="true" />
             )}
           </div>
-        </motion.div>
+        </div>
 
-        <div className="flex-1 min-w-0 text-center md:text-left flex flex-col gap-3">
-          <motion.span
-            variants={itemVariants}
+        <div className="flex-1 min-w-0 text-center md:text-left flex flex-col gap-3 animate-slide-up">
+          <span
             className="inline-flex self-center md:self-start text-[11px] uppercase tracking-[0.18em] text-[var(--accent-text)]"
           >
             艺人
-          </motion.span>
+          </span>
 
-          <motion.h1
-            variants={itemVariants}
+          <h1
             className="text-2xl md:text-4xl font-bold leading-tight text-[var(--text-primary)]"
           >
             {artistName}
-          </motion.h1>
+          </h1>
 
           {aliases.length > 0 && (
-            <motion.p
-              variants={itemVariants}
-              className="text-sm text-[var(--text-tertiary)]"
-            >
+            <p className="text-sm text-[var(--text-tertiary)]">
               {aliases.join(' · ')}
-            </motion.p>
+            </p>
           )}
 
           {fanCount !== undefined && fanCount > 0 && (
-            <motion.div
-              variants={itemVariants}
+            <div
               className="inline-flex self-center md:self-start items-center gap-1.5 text-sm text-[var(--text-secondary)]"
             >
               <Users className="w-4 h-4" aria-hidden="true" />
               <span>{formatCount(fanCount)} 粉丝</span>
-            </motion.div>
+            </div>
           )}
 
           {hasDescription && (
-            <motion.div variants={itemVariants} className="space-y-1">
+            <div className="space-y-1">
               <p
                 data-testid="artist-description"
                 className={cn(
@@ -195,10 +168,10 @@ export function ArtistHero({
                   aria-hidden="true"
                 />
               </button>
-            </motion.div>
+            </div>
           )}
         </div>
       </div>
-    </motion.section>
+    </section>
   )
 }
