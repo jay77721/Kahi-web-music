@@ -53,21 +53,24 @@ function PlaylistGridImpl({
       initial="hidden"
       animate="visible"
     >
-      {playlists.map((pl) => (
-        <motion.li
-          key={pl.id}
-          variants={itemVariants}
-          className="list-none"
-          data-playlist-id={pl.id}
-        >
-          <PlaylistCard
-            id={pl.id}
-            name={pl.name}
-            coverUrl={pl.coverImgUrl}
-            playCount={pl.playCount}
-          />
-        </motion.li>
-      ))}
+      {playlists.map((pl) => {
+        const name = pl.name?.trim() || '未命名歌单'
+        return (
+          <motion.li
+            key={pl.id}
+            variants={itemVariants}
+            className="list-none"
+            data-playlist-id={pl.id}
+          >
+            <PlaylistCard
+              id={pl.id}
+              name={name}
+              coverUrl={pl.coverImgUrl ?? ''}
+              playCount={pl.playCount ?? 0}
+            />
+          </motion.li>
+        )
+      })}
     </motion.ul>
   )
 }

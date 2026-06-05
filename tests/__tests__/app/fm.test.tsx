@@ -139,6 +139,7 @@ describe('FMPage', () => {
     mockPersonalFm.mockReset()
     mockFmTrash.mockReset()
 
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 1024 })
     mockUseReducedMotion.mockReturnValue(false)
     mockUseDominantColor.mockReturnValue({ color: null, isLoading: false, error: null })
     mockUsePlayerStore.mockImplementation((selector?: (s: Record<string, unknown>) => unknown) =>
@@ -208,6 +209,21 @@ describe('FMPage', () => {
     expect(screen.getByTestId('fm-next')).toBeInTheDocument()
     expect(screen.getByTestId('fm-like')).toBeInTheDocument()
     expect(screen.getByTestId('fm-progress')).toBeInTheDocument()
+  })
+
+  test('clamps cover size on narrow mobile viewports', async () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 320 })
+    mockLoggedIn()
+    mockUseSWR.mockReturnValue(swrState({ data: [FM_SONG] }))
+
+    const { default: FMPage } = await import('@/app/fm/page')
+    render(<FMPage />)
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(screen.getByTestId('fm-main-player')).toHaveAttribute('data-cover-size', '272')
   })
 
   test('dislike control invokes fmTrash and triggers a refresh', async () => {

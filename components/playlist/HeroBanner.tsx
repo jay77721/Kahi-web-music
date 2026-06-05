@@ -14,8 +14,8 @@ export interface HeroBannerMeta {
 }
 
 export interface HeroBannerProps {
-  cover: string
-  title: string
+  cover?: string | null
+  title?: string | null
   subtitle?: string
   meta?: HeroBannerMeta
   badge?: string
@@ -80,6 +80,7 @@ export const HeroBanner = memo(function HeroBanner({
   actions,
   className,
 }: HeroBannerProps) {
+  const titleText = title?.trim() || '未命名'
   const sampledUrl = cover ? imageUrl(cover, 160) : null
   const { color } = useDominantColor(sampledUrl, { timeoutMs: 5000 })
   const backgroundStyle = useMemo(() => buildBackgroundStyle(color), [color])
@@ -102,7 +103,7 @@ export const HeroBanner = memo(function HeroBanner({
         {cover ? (
           <Image
             src={imageUrl(cover, 240)}
-            alt={title}
+            alt={titleText}
             width={200}
             height={200}
             priority
@@ -122,7 +123,7 @@ export const HeroBanner = memo(function HeroBanner({
             </span>
           )}
           <h1 className="text-2xl md:text-4xl font-bold leading-tight text-[var(--text-primary)] line-clamp-2">
-            {title}
+            {titleText}
           </h1>
           {subtitle && (
             <p className="text-sm md:text-base text-[var(--text-tertiary)] line-clamp-2">

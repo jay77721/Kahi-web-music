@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Music2, QrCode, Smartphone } from 'lucide-react'
@@ -29,8 +29,8 @@ function useLoginBackground() {
       background: `
         radial-gradient(ellipse at 20% 50%, color-mix(in oklch, ${accent} 10%, transparent) 0%, transparent 50%),
         radial-gradient(ellipse at 80% 20%, color-mix(in oklch, ${accent} 6%, transparent) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 80%, rgba(30, 150, 215, 0.04) 0%, transparent 50%),
-        #000000
+        radial-gradient(ellipse at 50% 80%, color-mix(in oklch, var(--accent) 4%, transparent) 0%, transparent 50%),
+        var(--bg-primary)
       `,
     } as const
   }, [color])
@@ -41,17 +41,21 @@ export default function LoginPage() {
   const isLoggedIn = useUserStore((s) => s.isLoggedIn)
   const hasRestoredSession = useUserStore((s) => s.hasRestoredSession)
   const [activeTab, setActiveTab] = useState<TabValue>('phone')
+  const hasRedirectedRef = useRef(false)
   const bgStyle = useLoginBackground()
   const isRestoringSession = !hasRestoredSession
 
   useEffect(() => {
-    if (isLoggedIn) router.replace('/my')
+    if (!isLoggedIn || hasRedirectedRef.current) return
+
+    hasRedirectedRef.current = true
+    router.replace('/my')
   }, [isLoggedIn, router])
 
   if (isRestoringSession || isLoggedIn) {
     return (
       <main
-        className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 bg-black text-[var(--text-tertiary)]"
+        className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 bg-[var(--bg-primary)] text-[var(--text-tertiary)]"
         style={bgStyle}
       >
         <p role="status" aria-live="polite" className="text-sm">
@@ -63,7 +67,7 @@ export default function LoginPage() {
 
   return (
     <main
-      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden px-4"
+      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden px-4 bg-[var(--bg-primary)] text-[var(--text-primary)]"
       style={bgStyle}
       aria-labelledby="login-heading"
     >
@@ -75,17 +79,20 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 30, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-md rounded-2xl border border-[var(--border)] overflow-hidden bg-white/5 backdrop-blur-xl"
+        className="relative w-full max-w-md rounded-2xl border border-[var(--border)] overflow-hidden bg-[var(--bg-elevated)] backdrop-blur-xl"
         style={{
-          boxShadow: '0 24px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
+          boxShadow: 'var(--shadow-lg), inset 0 1px 0 var(--border-subtle)',
         }}
       >
         <TabSwitcher activeTab={activeTab} onChange={setActiveTab} />
         <div className="p-6">
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" initial={false}>
             {activeTab === 'phone' ? (
               <motion.div
                 key="phone"
+                id="tab-panel-phone"
+                role="tabpanel"
+                aria-labelledby="login-tab-phone"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}

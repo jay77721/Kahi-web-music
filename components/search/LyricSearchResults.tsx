@@ -24,13 +24,14 @@ const FRAGMENT_CONTEXT_CHARS = 30
 
 export function LyricSearchResults({ query }: LyricSearchResultsProps) {
   const playSong = usePlayerStore((state) => state.playSong)
-  const swrKey = query ? `lyric-search:${query}` : null
+  const trimmedQuery = query.trim()
+  const swrKey = trimmedQuery ? `lyric-search:${trimmedQuery}` : null
 
-  const { data, isLoading } = useSWR<unknown>(
+  const { data, isLoading } = useSWR<NormalizedSearchResult>(
     swrKey,
-    async () => normalizeSearchResult(await ncmApi.searchLyric(query, 30))
+    async () => normalizeSearchResult(await ncmApi.searchLyric(trimmedQuery, 30))
   )
-  const result = useMemo<NormalizedSearchResult>(() => normalizeSearchResult(data), [data])
+  const result = useMemo<NormalizedSearchResult>(() => data ?? normalizeSearchResult(null), [data])
 
   const items = useMemo<LyricSearchResult[]>(() => {
     const songs: LyricSearchSong[] = result.songs ?? []
@@ -50,7 +51,7 @@ export function LyricSearchResults({ query }: LyricSearchResultsProps) {
   }
 
   if (items.length === 0) {
-    return <SearchEmptyState query={query} type="songs" />
+    return <SearchEmptyState query={trimmedQuery} type="lyrics" />
   }
 
   return (
@@ -59,7 +60,7 @@ export function LyricSearchResults({ query }: LyricSearchResultsProps) {
         <LyricSearchItem
           key={item.id}
           item={item}
-          query={query}
+          query={trimmedQuery}
           index={index}
           onPlay={() => playSong(toSong(item))}
         />
@@ -103,7 +104,7 @@ function LyricSearchItem({
             'hover:scale-105 active:scale-95 transition-transform'
           )}
         >
-          <Music className="w-5 h-5" />
+          <Music className="w-5 h-5" aria-hidden="true" />
         </button>
 
         <div className="flex-1 min-w-0">
@@ -115,7 +116,7 @@ function LyricSearchItem({
               <HighlightedText text={artistNames} query={query} />
             </span>
             <span className="text-xs text-[var(--text-tertiary)] flex items-center gap-1 truncate">
-              <Disc3 className="w-3 h-3" />
+              <Disc3 className="w-3 h-3" aria-hidden="true" />
               <HighlightedText text={item.album.name} query={query} />
             </span>
           </div>
@@ -141,16 +142,18 @@ function LyricSearchItem({
 }
 
 function HighlightedText({ text, query }: { text: string; query: string }) {
-  if (!query) return <>{text}</>
+  const trimmedQuery = query.trim()
+  if (!trimmedQuery) return <>{text}</>
 
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const escaped = trimmedQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const regex = new RegExp(`(${escaped})`, 'gi')
   const parts = text.split(regex)
+  const lowerQuery = trimmedQuery.toLocaleLowerCase()
 
   return (
     <>
       {parts.map((part, i) =>
-        regex.test(part) ? (
+        part.toLocaleLowerCase() === lowerQuery ? (
           <mark
             key={i}
             className="bg-[var(--accent)]/25 text-[var(--accent)] rounded px-0.5"
@@ -166,22 +169,22 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
 }
 
 function extractFragments(lyric: string, query: string): string[] {
-  if (!lyric || !query) return []
+  const trimmedQuery = query.trim()
+  if (!lyric || !trimmedQuery) return []
   const lines = parseLRC(lyric).map((l) => l.text).filter(Boolean)
   if (lines.length === 0) return []
 
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const escaped = trimmedQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const regex = new RegExp(escaped, 'i')
   const matches = lines.filter((line) => regex.test(line))
-  const source = matches.length > 0 ? matches : lines
 
-  return source
+  return matches
     .slice(0, 2)
-    .map((line) => clipAround(line, query, FRAGMENT_CONTEXT_CHARS))
+    .map((line) => clipAround(line, trimmedQuery, FRAGMENT_CONTEXT_CHARS))
 }
 
 function clipAround(text: string, query: string, radius: number): string {
-  const idx = text.toLowerCase().indexOf(query.toLowerCase())
+  const idx = text.toLocaleLowerCase().indexOf(query.toLocaleLowerCase())
   if (idx < 0) {
     return text.length > radius * 2 ? `${text.slice(0, radius * 2)}…` : text
   }
@@ -206,7 +209,12 @@ function toSong(item: LyricSearchResult): Song {
 
 function LyricSearchSkeleton() {
   return (
-    <div className="space-y-3">
+    <div
+      className="space-y-3"
+      role="status"
+      aria-label="正在加载歌词搜索结果"
+      data-testid="lyric-search-loading"
+    >
       {Array.from({ length: 6 }).map((_, i) => (
         <div
           key={i}
