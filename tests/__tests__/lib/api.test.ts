@@ -271,6 +271,49 @@ describe('NcmApiClient', () => {
       expect(result).toEqual(mockSongUrls)
     })
 
+    test('djradio() uses the supported hot DJ endpoint and avoids the removed djradio route', async () => {
+      const mockResponse = { code: 200, djRadios: [] }
+      global.fetch = vi.fn().mockResolvedValue(createMockFetchResponse(mockResponse))
+
+      const result = await ncmApi.djradio(30, 0)
+
+      const calledUrl = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]
+      expect(calledUrl).toContain('/api/dj/hot')
+      expect(calledUrl).toContain('limit=30')
+      expect(calledUrl).toContain('offset=0')
+      expect(calledUrl).not.toContain('/api/djradio')
+      expect(result).toEqual(mockResponse)
+    })
+
+    test('djprogram() uses the supported radio program endpoint', async () => {
+      const mockResponse = { code: 200, programs: [] }
+      global.fetch = vi.fn().mockResolvedValue(createMockFetchResponse(mockResponse))
+
+      const result = await ncmApi.djprogram(336355127, 40)
+
+      const calledUrl = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]
+      expect(calledUrl).toContain('/api/dj/program?')
+      expect(calledUrl).toContain('rid=336355127')
+      expect(calledUrl).toContain('limit=40')
+      expect(calledUrl).not.toContain('/api/djprogram/detail')
+      expect(result).toEqual(mockResponse)
+    })
+
+    test('djprogramToplist() uses the supported radio program toplist endpoint', async () => {
+      const mockResponse = { code: 200, toplist: [] }
+      global.fetch = vi.fn().mockResolvedValue(createMockFetchResponse(mockResponse))
+
+      const result = await ncmApi.djprogramToplist(20, 0)
+
+      const calledUrl = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]
+      expect(calledUrl).toContain('/api/dj/program/toplist')
+      expect(calledUrl).toContain('limit=20')
+      expect(calledUrl).toContain('offset=0')
+      expect(calledUrl).not.toContain('/api/djprogram/toplist')
+      expect(calledUrl).not.toContain('rcmdLimit=')
+      expect(result).toEqual(mockResponse)
+    })
+
     test('djhot() uses the supported hot DJ endpoint with limit params', async () => {
       const mockResponse = { code: 200, djRadios: [] }
       global.fetch = vi.fn().mockResolvedValue(createMockFetchResponse(mockResponse))

@@ -364,10 +364,10 @@ class NcmApiClient {
   toplistDetail = () => this.request('/toplist/detail')
 
   // DJ / Radio
-  djradio = () => this.request('/djradio')
-  djprogram = (rid: number, limit = 10) => this.request('/djprogram/detail', { rid, limit })
-  djprogramToplist = (rcmdLimit = 20, lasttime?: number, total?: boolean) =>
-    this.request('/djprogram/toplist', { rcmdLimit, lasttime, total })
+  djradio = (limit = 30, offset = 0) => this.request('/dj/hot', { limit, offset })
+  djprogram = (rid: number, limit = 10) => this.request('/dj/program', { rid, limit })
+  djprogramToplist = (limit = 20, offset = 0) =>
+    this.request('/dj/program/toplist', { limit, offset })
   djhot = (limit = 12) => this.request('/dj/hot', { limit })
 
   // Cloud Disk

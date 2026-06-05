@@ -85,7 +85,11 @@ describe('RadioDetailPage', () => {
     const { default: RadioDetailPage } = await import('@/app/radio/[id]/page')
     render(<RadioDetailPage />)
 
-    expect(mockUseSWR).toHaveBeenCalledWith(null, expect.any(Function))
+    expect(mockUseSWR).toHaveBeenCalledWith(
+      null,
+      expect.any(Function),
+      expect.objectContaining({ shouldRetryOnError: false })
+    )
     expect(screen.getByTestId('radio-detail-error')).toBeInTheDocument()
   })
 
@@ -106,7 +110,11 @@ describe('RadioDetailPage', () => {
     const { default: RadioDetailPage } = await import('@/app/radio/[id]/page')
     render(<RadioDetailPage />)
 
-    expect(mockUseSWR).toHaveBeenCalledWith('djprogram-44', expect.any(Function))
+    expect(mockUseSWR).toHaveBeenCalledWith(
+      'djprogram-44',
+      expect.any(Function),
+      expect.objectContaining({ shouldRetryOnError: false })
+    )
     expect(screen.getByTestId('radio-detail-page')).toBeInTheDocument()
     expect(screen.getByTestId('radio-program-list')).toBeInTheDocument()
     expect(screen.getByTestId('radio-program-card-101')).toBeInTheDocument()
@@ -116,22 +124,24 @@ describe('RadioDetailPage', () => {
     const cover = screen.getByRole('img', { name: 'Late Night Episode' })
     expect(cover).toHaveAttribute('loading', 'lazy')
     expect(cover).toHaveAttribute('decoding', 'async')
+    expect(cover).toHaveAttribute('sizes', '56px')
+    expect(cover.getAttribute('src')).toContain('?param=80y80')
   })
 
   test('renders a lighter initial program list and expands on demand', async () => {
-    mockUseSWR.mockReturnValue({ data: makePrograms(14), isLoading: false, error: undefined })
+    mockUseSWR.mockReturnValue({ data: makePrograms(10), isLoading: false, error: undefined })
 
     const { default: RadioDetailPage } = await import('@/app/radio/[id]/page')
     render(<RadioDetailPage />)
 
     expect(screen.getByTestId('radio-program-card-1')).toBeInTheDocument()
-    expect(screen.getByTestId('radio-program-card-12')).toBeInTheDocument()
-    expect(screen.queryByTestId('radio-program-card-13')).not.toBeInTheDocument()
+    expect(screen.getByTestId('radio-program-card-8')).toBeInTheDocument()
+    expect(screen.queryByTestId('radio-program-card-9')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByTestId('radio-program-load-more'))
 
-    expect(screen.getByTestId('radio-program-card-13')).toBeInTheDocument()
-    expect(screen.getByTestId('radio-program-card-14')).toBeInTheDocument()
+    expect(screen.getByTestId('radio-program-card-9')).toBeInTheDocument()
+    expect(screen.getByTestId('radio-program-card-10')).toBeInTheDocument()
     expect(screen.queryByTestId('radio-program-load-more')).not.toBeInTheDocument()
   })
 })

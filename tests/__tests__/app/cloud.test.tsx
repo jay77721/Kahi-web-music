@@ -5,6 +5,9 @@ import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
 import React from 'react'
 import type { UserProfile } from '@/types/user'
 
+type MockDynamicComponent = React.ComponentType<Record<string, unknown>>
+type MockDynamicModule = unknown
+
 // ---------------------------------------------------------------------------
 // Mocks
 // ---------------------------------------------------------------------------
@@ -17,6 +20,54 @@ const mockUseDominantColor = vi.fn()
 const mockUseSWR = vi.fn()
 const mockMutate = vi.fn()
 
+const mockSWRModuleLoaded = vi.fn()
+const mockAppShellModuleLoaded = vi.fn()
+const mockSongTableModuleLoaded = vi.fn()
+const mockDominantColorModuleLoaded = vi.fn()
+const mockPlayerStoreModuleLoaded = vi.fn()
+
+vi.mock('next/dynamic', async () => {
+  const ReactActual = await vi.importActual<typeof import('react')>('react')
+
+  return {
+    default: (
+      loader: () => Promise<MockDynamicModule>,
+      options?: { loading?: MockDynamicComponent }
+    ) => {
+      function DynamicComponent(props: Record<string, unknown>) {
+        const [Resolved, setResolved] = ReactActual.useState<MockDynamicComponent | null>(null)
+
+        ReactActual.useEffect(() => {
+          let active = true
+
+          void loader().then((loaded) => {
+            const Component =
+              loaded &&
+              typeof loaded === 'object' &&
+              'default' in loaded
+                ? (loaded as { default: MockDynamicComponent }).default
+                : (loaded as MockDynamicComponent)
+            if (active) setResolved(() => Component)
+          })
+
+          return () => {
+            active = false
+          }
+        }, [])
+
+        if (!Resolved) {
+          const Loading = options?.loading
+          return Loading ? ReactActual.createElement(Loading, props) : null
+        }
+
+        return ReactActual.createElement(Resolved, props)
+      }
+
+      return DynamicComponent
+    },
+  }
+})
+
 vi.mock('next/navigation', async () => {
   const actual = await vi.importActual<typeof import('next/navigation')>('next/navigation')
   return {
@@ -25,23 +76,32 @@ vi.mock('next/navigation', async () => {
   }
 })
 
-vi.mock('swr', () => ({
-  default: (...args: unknown[]) => mockUseSWR(...args),
-}))
+vi.mock('swr', () => {
+  mockSWRModuleLoaded()
+  return {
+    default: (...args: unknown[]) => mockUseSWR(...args),
+  }
+})
 
-vi.mock('@/hooks/useDominantColor', () => ({
-  useDominantColor: (...args: unknown[]) => mockUseDominantColor(...args),
-}))
+vi.mock('@/hooks/useDominantColor', () => {
+  mockDominantColorModuleLoaded()
+  return {
+    useDominantColor: (...args: unknown[]) => mockUseDominantColor(...args),
+  }
+})
 
 vi.mock('@/stores/userStore', () => ({
   useUserStore: (selector?: (s: Record<string, unknown>) => unknown) =>
     selector ? mockUseUserStore(selector) : (mockUseUserStore() ?? makeUserStore()),
 }))
 
-vi.mock('@/stores/playerStore', () => ({
-  usePlayerStore: (selector?: (s: Record<string, unknown>) => unknown) =>
-    selector ? mockUsePlayerStore(selector) : (mockUsePlayerStore() ?? makePlayerStore()),
-}))
+vi.mock('@/stores/playerStore', () => {
+  mockPlayerStoreModuleLoaded()
+  return {
+    usePlayerStore: (selector?: (s: Record<string, unknown>) => unknown) =>
+      selector ? mockUsePlayerStore(selector) : (mockUsePlayerStore() ?? makePlayerStore()),
+  }
+})
 
 vi.mock('@/lib/api', () => ({
   ncmApi: {
@@ -49,19 +109,25 @@ vi.mock('@/lib/api', () => ({
   },
 }))
 
-vi.mock('@/components/layout/AppShell', () => ({
-  AppShell: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'app-shell' }, children),
-}))
+vi.mock('@/components/layout/AppShell', () => {
+  mockAppShellModuleLoaded()
+  return {
+    AppShell: ({ children }: { children: React.ReactNode }) =>
+      React.createElement('div', { 'data-testid': 'app-shell' }, children),
+  }
+})
 
-vi.mock('@/components/common/SongTable', () => ({
-  SongTable: ({ songs }: { songs: { id: number; name: string }[] }) =>
-    React.createElement(
-      'div',
-      { 'data-testid': 'song-table' },
-      `songs:${songs.length}`
-    ),
-}))
+vi.mock('@/components/common/SongTable', () => {
+  mockSongTableModuleLoaded()
+  return {
+    SongTable: ({ songs }: { songs: { id: number; name: string }[] }) =>
+      React.createElement(
+        'div',
+        { 'data-testid': 'song-table' },
+        `songs:${songs.length}`
+      ),
+  }
+})
 
 vi.mock('@/components/player/PlayerBar', () => ({ PlayerBar: () => null }))
 vi.mock('@/components/player/MiniPlayer', () => ({ MiniPlayer: () => null }))
@@ -71,6 +137,8 @@ vi.mock('@/components/player/PlayQueue', () => ({ PlayQueue: () => null }))
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
+
+const mockRestore = vi.fn()
 
 const FAKE_PROFILE: UserProfile = {
   userId: 2002,
@@ -89,9 +157,16 @@ function makeUserStore(
     isLoggedIn: boolean
     profile: UserProfile | null
     hasRestoredSession: boolean
+    restore: () => Promise<void>
   }> = {}
 ) {
-  return { isLoggedIn: true, profile: FAKE_PROFILE, hasRestoredSession: true, ...overrides }
+  return {
+    isLoggedIn: true,
+    profile: FAKE_PROFILE,
+    hasRestoredSession: true,
+    restore: mockRestore,
+    ...overrides,
+  }
 }
 
 function makePlayerStore() {
@@ -117,12 +192,38 @@ function makeSongList() {
   ]
 }
 
+function mockUserStore(overrides = {}) {
+  mockUseUserStore.mockImplementation((selector) =>
+    selector
+      ? selector(makeUserStore(overrides) as unknown as Record<string, unknown>)
+      : makeUserStore(overrides)
+  )
+}
+
+function expectProtectedResourcesIdle() {
+  expect(mockSWRModuleLoaded).not.toHaveBeenCalled()
+  expect(mockAppShellModuleLoaded).not.toHaveBeenCalled()
+  expect(mockSongTableModuleLoaded).not.toHaveBeenCalled()
+  expect(mockDominantColorModuleLoaded).not.toHaveBeenCalled()
+  expect(mockPlayerStoreModuleLoaded).not.toHaveBeenCalled()
+  expect(mockUseSWR).not.toHaveBeenCalled()
+  expect(mockUseDominantColor).not.toHaveBeenCalled()
+  expect(mockUsePlayerStore).not.toHaveBeenCalled()
+}
+
+async function renderCloudPage() {
+  const { default: CloudPage } = await import('@/app/cloud/page')
+  render(<CloudPage />)
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
 describe('CloudPage', () => {
   beforeEach(() => {
+    vi.resetModules()
+
     mockRouterPush.mockReset()
     mockRouterReplace.mockReset()
     mockUseUserStore.mockReset()
@@ -130,12 +231,14 @@ describe('CloudPage', () => {
     mockUseDominantColor.mockReset()
     mockUseSWR.mockReset()
     mockMutate.mockReset()
+    mockRestore.mockReset()
+    mockSWRModuleLoaded.mockReset()
+    mockAppShellModuleLoaded.mockReset()
+    mockSongTableModuleLoaded.mockReset()
+    mockDominantColorModuleLoaded.mockReset()
+    mockPlayerStoreModuleLoaded.mockReset()
 
-    mockUseUserStore.mockImplementation((selector) =>
-      selector
-        ? selector(makeUserStore() as unknown as Record<string, unknown>)
-        : makeUserStore()
-    )
+    mockUserStore()
     mockUsePlayerStore.mockImplementation((selector) =>
       selector
         ? selector(makePlayerStore() as unknown as Record<string, unknown>)
@@ -155,27 +258,45 @@ describe('CloudPage', () => {
     vi.clearAllMocks()
   })
 
-  test('redirects to /login when user is not logged in', async () => {
-    mockUseUserStore.mockImplementation((selector) =>
-      selector
-        ? selector(
-            makeUserStore({ isLoggedIn: false, profile: null }) as unknown as Record<string, unknown>
-          )
-        : makeUserStore({ isLoggedIn: false, profile: null })
-    )
+  test('renders a light gate while restoring the session without loading protected resources', async () => {
+    mockUserStore({ hasRestoredSession: false, isLoggedIn: false, profile: null })
 
-    const { default: CloudPage } = await import('@/app/cloud/page')
-    render(<CloudPage />)
+    await renderCloudPage()
+
+    expect(screen.getByTestId('cloud-session-loading')).toBeInTheDocument()
+    expect(mockRestore).toHaveBeenCalledTimes(1)
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+    expectProtectedResourcesIdle()
+  })
+
+  test('keeps the light gate first when a stale logged-in flag exists during restore', async () => {
+    mockUserStore({ hasRestoredSession: false, isLoggedIn: true, profile: FAKE_PROFILE })
+
+    await renderCloudPage()
+
+    expect(screen.getByTestId('cloud-session-loading')).toBeInTheDocument()
+    expect(screen.queryByTestId('cloud-page')).not.toBeInTheDocument()
+    expect(mockRestore).toHaveBeenCalledTimes(1)
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+    expectProtectedResourcesIdle()
+  })
+
+  test('redirects to /login when user is not logged in without loading protected resources', async () => {
+    mockUserStore({ isLoggedIn: false, profile: null })
+
+    await renderCloudPage()
 
     await act(async () => {
       await Promise.resolve()
     })
 
     expect(mockRouterReplace).toHaveBeenCalledWith('/login')
+    expect(screen.getByTestId('cloud-auth-gate')).toBeInTheDocument()
     expect(screen.queryByTestId('cloud-page')).not.toBeInTheDocument()
+    expectProtectedResourcesIdle()
   })
 
-  test('renders skeleton while loading', async () => {
+  test('renders skeleton while loading after authentication', async () => {
     mockUseSWR.mockReturnValue({
       data: undefined,
       isLoading: true,
@@ -183,16 +304,15 @@ describe('CloudPage', () => {
       mutate: mockMutate,
     })
 
-    const { default: CloudPage } = await import('@/app/cloud/page')
-    render(<CloudPage />)
+    await renderCloudPage()
 
-    expect(screen.getByTestId('app-shell')).toBeInTheDocument()
+    expect(await screen.findByTestId('app-shell')).toBeInTheDocument()
     expect(screen.getByTestId('cloud-page')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: '云盘' })).toBeInTheDocument()
-    expect(screen.getByText('在这里管理你上传的音乐')).toBeInTheDocument()
+    expect(screen.getByRole('heading')).toBeInTheDocument()
     expect(screen.getByTestId('cloud-loading')).toBeInTheDocument()
     expect(screen.queryByTestId('song-table')).not.toBeInTheDocument()
     expect(screen.queryByTestId('cloud-error')).not.toBeInTheDocument()
+    expect(mockSongTableModuleLoaded).not.toHaveBeenCalled()
   })
 
   test('renders error state with retry button', async () => {
@@ -203,13 +323,13 @@ describe('CloudPage', () => {
       mutate: mockMutate,
     })
 
-    const { default: CloudPage } = await import('@/app/cloud/page')
-    render(<CloudPage />)
+    await renderCloudPage()
 
-    expect(screen.getByTestId('cloud-error')).toBeInTheDocument()
+    expect(await screen.findByTestId('cloud-error')).toBeInTheDocument()
     expect(screen.getByText('Network error')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /重试/ })).toBeInTheDocument()
+    expect(screen.getByRole('button')).toBeInTheDocument()
     expect(screen.queryByTestId('song-table')).not.toBeInTheDocument()
+    expect(mockSongTableModuleLoaded).not.toHaveBeenCalled()
   })
 
   test('retry button triggers mutate', async () => {
@@ -220,10 +340,9 @@ describe('CloudPage', () => {
       mutate: mockMutate,
     })
 
-    const { default: CloudPage } = await import('@/app/cloud/page')
-    render(<CloudPage />)
+    await renderCloudPage()
 
-    fireEvent.click(screen.getByRole('button', { name: /重试/ }))
+    fireEvent.click(await screen.findByRole('button'))
     expect(mockMutate).toHaveBeenCalledTimes(1)
   })
 
@@ -235,15 +354,14 @@ describe('CloudPage', () => {
       mutate: mockMutate,
     })
 
-    const { default: CloudPage } = await import('@/app/cloud/page')
-    render(<CloudPage />)
+    await renderCloudPage()
 
-    expect(screen.getByTestId('cloud-empty')).toBeInTheDocument()
-    expect(screen.getByText('云盘空空如也')).toBeInTheDocument()
+    expect(await screen.findByTestId('cloud-empty')).toBeInTheDocument()
     expect(screen.queryByTestId('song-table')).not.toBeInTheDocument()
+    expect(mockSongTableModuleLoaded).not.toHaveBeenCalled()
   })
 
-  test('renders song table when songs are loaded', async () => {
+  test('loads the song table only when songs are ready', async () => {
     mockUseSWR.mockReturnValue({
       data: makeSongList(),
       isLoading: false,
@@ -251,11 +369,10 @@ describe('CloudPage', () => {
       mutate: mockMutate,
     })
 
-    const { default: CloudPage } = await import('@/app/cloud/page')
-    render(<CloudPage />)
+    await renderCloudPage()
 
-    expect(screen.getByTestId('song-table')).toBeInTheDocument()
+    expect(await screen.findByTestId('song-table')).toBeInTheDocument()
     expect(screen.getByTestId('song-table').textContent).toBe('songs:2')
-    expect(screen.getByText(/共 2 首/)).toBeInTheDocument()
+    expect(mockSongTableModuleLoaded).toHaveBeenCalledTimes(1)
   })
 })

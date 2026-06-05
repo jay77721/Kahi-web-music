@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ncmApi } from '@/lib/api'
-import { normalizeDjHotList, normalizeDjProgramToplist, normalizeDjRadioList } from '@/lib/api-adapters'
+import { normalizeDjHotList, normalizeDjProgramList } from '@/lib/api-adapters'
 import { formatCount, imageUrl, formatRelativeTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { fadeIn, staggerContainer, staggerItem, hoverLift } from '@/lib/animations'
@@ -20,16 +20,43 @@ import type { DjRadio, DjRadioHot, DjProgramToplistItem } from '@/types/dj'
 type TabType = 'all' | 'hot' | 'toplist'
 
 const RADIO_GRID_CLASS = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4'
-const RADIO_CARD_SKELETON_COUNT = 12
-const INITIAL_RADIO_VISIBLE_COUNT = 24
-const RADIO_VISIBLE_INCREMENT = 24
-const HOT_RADIO_SWR_OPTIONS = { shouldRetryOnError: false } as const
+const HOT_RADIO_FETCH_LIMIT = 18
+const HOT_RADIO_INITIAL_VISIBLE_COUNT = 6
+const HOT_RADIO_VISIBLE_INCREMENT = 6
+const ALL_RADIO_FETCH_LIMIT = 24
+const ALL_RADIO_INITIAL_VISIBLE_COUNT = 12
+const ALL_RADIO_VISIBLE_INCREMENT = 12
+const TOPLIST_SOURCE_RADIO_LIMIT = 1
+const TOPLIST_PROGRAM_FETCH_LIMIT = 20
+const RADIO_CARD_IMAGE_SIZE = 180
+const TOPLIST_COVER_IMAGE_SIZE = 64
+const RADIO_CARD_IMAGE_SIZES =
+  '(min-width: 1280px) 12vw, (min-width: 1024px) 16vw, (min-width: 768px) 22vw, (min-width: 640px) 30vw, 45vw'
+const RADIO_SWR_OPTIONS = { shouldRetryOnError: false } as const
 
 const tabs: { key: TabType; label: string; icon: ReactNode }[] = [
   { key: 'all', label: '全部电台', icon: <Radio className="w-4 h-4" /> },
   { key: 'hot', label: '热门电台', icon: <Headphones className="w-4 h-4" /> },
   { key: 'toplist', label: '精品节目', icon: <Play className="w-4 h-4" /> },
 ]
+
+async function fetchHotRadios(limit: number): Promise<DjRadioHot[]> {
+  const result = await ncmApi.djhot(limit)
+  return normalizeDjHotList(result)
+}
+
+async function fetchProgramToplistFallback(): Promise<DjProgramToplistItem[]> {
+  const radios = await fetchHotRadios(TOPLIST_SOURCE_RADIO_LIMIT)
+  const sourceRadio = radios[0]
+  if (!sourceRadio) return []
+
+  const result = await ncmApi.djprogram(sourceRadio.id, TOPLIST_PROGRAM_FETCH_LIMIT)
+  return normalizeDjProgramList(result).map((program, index) => ({
+    ...program,
+    rank: index + 1,
+    radioId: program.radioId ?? sourceRadio.id,
+  }))
+}
 
 export default function RadioPage() {
   const [activeTab, setActiveTab] = useState<TabType>('hot')
@@ -90,7 +117,7 @@ export default function RadioPage() {
         {/* Content sections */}
         <div className="px-4 md:px-6 pb-8">
           <AnimatePresence mode="wait">
-            {activeTab === 'hot' && <HotRadioSection key="hot" />}
+            {activeTab === 'hot' && <HotRadioSection key="hot" onBrowseAll={() => setActiveTab('all')} />}
             {activeTab === 'all' && <AllRadioSection key="all" />}
             {activeTab === 'toplist' && <ProgramToplistSection key="toplist" />}
           </AnimatePresence>
@@ -102,11 +129,10 @@ export default function RadioPage() {
 
 // ── Hot Radio Section ──────────────────────────────────────────────────────
 
-function HotRadioSection() {
+function HotRadioSection({ onBrowseAll }: { onBrowseAll: () => void }) {
   const { data, error, isLoading } = useSWR<DjRadioHot[]>('djradio-hot', async () => {
-    const result = await ncmApi.djhot(12)
-    return normalizeDjHotList(result)
-  }, HOT_RADIO_SWR_OPTIONS)
+    return fetchHotRadios(HOT_RADIO_FETCH_LIMIT)
+  }, RADIO_SWR_OPTIONS)
 
   if (error) {
     return <RadioErrorState />
@@ -117,18 +143,24 @@ function HotRadioSection() {
       title="热门电台"
       badge={<Badge variant="secondary" className="text-xs">HOT</Badge>}
       action={
-        <Link
-          href="#"
+        <button
+          type="button"
+          data-testid="radio-hot-view-all"
+          onClick={onBrowseAll}
           className="flex items-center gap-1 text-xs text-[var(--text-tertiary)] hover:text-[var(--accent-text)] transition-colors"
         >
           查看全部 <ChevronRight className="w-3.5 h-3.5" />
-        </Link>
+        </button>
       }
     >
       {isLoading ? (
-        <RadioCardGridSkeleton />
+        <RadioCardGridSkeleton count={HOT_RADIO_INITIAL_VISIBLE_COUNT} />
       ) : data?.length ? (
-        <RadioCardGrid radios={data} />
+        <RadioCardGrid
+          radios={data}
+          initialVisibleCount={HOT_RADIO_INITIAL_VISIBLE_COUNT}
+          visibleIncrement={HOT_RADIO_VISIBLE_INCREMENT}
+        />
       ) : (
         <RadioEmptyState title="暂无热门电台" />
       )}
@@ -139,10 +171,9 @@ function HotRadioSection() {
 // ── All Radio Section ──────────────────────────────────────────────────────
 
 function AllRadioSection() {
-  const { data, error, isLoading } = useSWR<DjRadio[]>('djradio-all', async () => {
-    const result = await ncmApi.djradio()
-    return normalizeDjRadioList(result)
-  })
+  const { data, error, isLoading } = useSWR<DjRadioHot[]>('djradio-all', async () => {
+    return fetchHotRadios(ALL_RADIO_FETCH_LIMIT)
+  }, RADIO_SWR_OPTIONS)
 
   if (error) {
     return <RadioErrorState />
@@ -158,9 +189,13 @@ function AllRadioSection() {
       }
     >
       {isLoading ? (
-        <RadioCardGridSkeleton />
+        <RadioCardGridSkeleton count={ALL_RADIO_INITIAL_VISIBLE_COUNT} />
       ) : data?.length ? (
-        <RadioCardGrid radios={data} />
+        <RadioCardGrid
+          radios={data}
+          initialVisibleCount={ALL_RADIO_INITIAL_VISIBLE_COUNT}
+          visibleIncrement={ALL_RADIO_VISIBLE_INCREMENT}
+        />
       ) : (
         <RadioEmptyState title="暂无电台内容" />
       )}
@@ -172,9 +207,8 @@ function AllRadioSection() {
 
 function ProgramToplistSection() {
   const { data, error, isLoading } = useSWR<DjProgramToplistItem[]>('djprogram-toplist', async () => {
-    const result = await ncmApi.djprogramToplist(20)
-    return normalizeDjProgramToplist(result)
-  })
+    return fetchProgramToplistFallback()
+  }, RADIO_SWR_OPTIONS)
 
   if (error) {
     return <RadioErrorState />
@@ -206,10 +240,12 @@ function ProgramToplistSection() {
               {/* Cover */}
               <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 shadow-md">
                 <Image
-                  src={imageUrl(program.coverUrl, 80)}
+                  src={imageUrl(program.coverUrl, TOPLIST_COVER_IMAGE_SIZE)}
                   alt={program.name}
                   width={48}
                   height={48}
+                  sizes="48px"
+                  quality={55}
                   className="w-full h-full object-cover"
                   loading="lazy"
                   decoding="async"
@@ -306,8 +342,16 @@ function RadioErrorState() {
   )
 }
 
-function RadioCardGrid({ radios }: { radios: readonly (DjRadio | DjRadioHot)[] }) {
-  const [visibleCount, setVisibleCount] = useState(INITIAL_RADIO_VISIBLE_COUNT)
+function RadioCardGrid({
+  radios,
+  initialVisibleCount,
+  visibleIncrement,
+}: {
+  radios: readonly (DjRadio | DjRadioHot)[]
+  initialVisibleCount: number
+  visibleIncrement: number
+}) {
+  const [visibleCount, setVisibleCount] = useState(initialVisibleCount)
   const effectiveVisibleCount = Math.min(visibleCount, radios.length)
   const visibleRadios = useMemo(
     () => radios.slice(0, effectiveVisibleCount),
@@ -334,7 +378,7 @@ function RadioCardGrid({ radios }: { radios: readonly (DjRadio | DjRadioHot)[] }
             data-testid="radio-load-more"
             aria-label={`显示更多电台，已显示 ${effectiveVisibleCount} / ${radios.length}`}
             onClick={() =>
-              setVisibleCount((count) => Math.min(count + RADIO_VISIBLE_INCREMENT, radios.length))
+              setVisibleCount((count) => Math.min(count + visibleIncrement, radios.length))
             }
           >
             显示更多 ({remainingCount})
@@ -365,10 +409,12 @@ function RadioCard({ radio }: RadioCardProps) {
         {/* Cover image */}
         <div className="relative aspect-square overflow-hidden">
           <Image
-            src={imageUrl(radio.picUrl, 300)}
+            src={imageUrl(radio.picUrl, RADIO_CARD_IMAGE_SIZE)}
             alt={radio.name}
-            width={300}
-            height={300}
+            width={RADIO_CARD_IMAGE_SIZE}
+            height={RADIO_CARD_IMAGE_SIZE}
+            sizes={RADIO_CARD_IMAGE_SIZES}
+            quality={60}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
             loading="lazy"
             decoding="async"
@@ -449,10 +495,10 @@ function RadioCardSkeleton() {
   )
 }
 
-function RadioCardGridSkeleton() {
+function RadioCardGridSkeleton({ count }: { count: number }) {
   return (
     <div className={RADIO_GRID_CLASS}>
-      {Array.from({ length: RADIO_CARD_SKELETON_COUNT }).map((_, index) => (
+      {Array.from({ length: count }).map((_, index) => (
         <RadioCardSkeleton key={index} />
       ))}
     </div>

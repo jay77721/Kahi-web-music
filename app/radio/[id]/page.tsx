@@ -15,9 +15,11 @@ import { normalizeDjProgramList } from '@/lib/api-adapters'
 import { formatRelativeTime, imageUrl } from '@/lib/format'
 import type { DjProgram } from '@/types/dj'
 
-const INITIAL_PROGRAM_VISIBLE_COUNT = 12
-const PROGRAM_VISIBLE_INCREMENT = 12
+const INITIAL_PROGRAM_VISIBLE_COUNT = 8
+const PROGRAM_VISIBLE_INCREMENT = 8
+const PROGRAM_COVER_IMAGE_SIZE = 80
 const EMPTY_PROGRAMS: DjProgram[] = []
+const RADIO_DETAIL_SWR_OPTIONS = { shouldRetryOnError: false } as const
 
 function getRouteId(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value[0] ?? '' : value ?? ''
@@ -38,7 +40,8 @@ export default function RadioDetailPage() {
 
   const { data, isLoading, error } = useSWR<DjProgram[]>(
     hasValidId ? `djprogram-${radioId}` : null,
-    async () => normalizeDjProgramList(await ncmApi.djprogram(radioId, 30))
+    async () => normalizeDjProgramList(await ncmApi.djprogram(radioId, 30)),
+    RADIO_DETAIL_SWR_OPTIONS
   )
   const [visibleState, setVisibleState] = useState({
     radioId,
@@ -60,7 +63,7 @@ export default function RadioDetailPage() {
         <div className="p-4 md:p-6" data-testid="radio-detail-loading">
           <Skeleton className="mb-6 h-28 w-full rounded-2xl" />
           <div className="space-y-2">
-            {Array.from({ length: 6 }).map((_, index) => (
+            {Array.from({ length: 4 }).map((_, index) => (
               <Skeleton key={index} className="h-20 w-full rounded-xl" />
             ))}
           </div>
@@ -179,10 +182,12 @@ function ProgramRow({ program, index }: { program: DjProgram; index: number }) {
 
       <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-[var(--bg-overlay)]">
         <Image
-          src={imageUrl(program.coverUrl, 120)}
+          src={imageUrl(program.coverUrl, PROGRAM_COVER_IMAGE_SIZE)}
           alt={program.name}
           width={56}
           height={56}
+          sizes="56px"
+          quality={55}
           className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
           decoding="async"

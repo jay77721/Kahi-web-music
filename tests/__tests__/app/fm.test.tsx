@@ -4,6 +4,9 @@ import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, act, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 
+type MockDynamicComponent = React.ComponentType<Record<string, unknown>>
+type MockDynamicModule = unknown
+
 // ---------------------------------------------------------------------------
 // Mocks
 // ---------------------------------------------------------------------------
@@ -16,8 +19,58 @@ const mockUsePlayerStore = vi.fn()
 const mockUseDominantColor = vi.fn()
 const mockUseReducedMotion = vi.fn()
 
+const mockSWRModuleLoaded = vi.fn()
+const mockAppShellModuleLoaded = vi.fn()
+const mockFMMainPlayerModuleLoaded = vi.fn()
+const mockPlayerStoreModuleLoaded = vi.fn()
+const mockDominantColorModuleLoaded = vi.fn()
+const mockReducedMotionModuleLoaded = vi.fn()
+
 const mockPersonalFm = vi.fn()
 const mockFmTrash = vi.fn()
+const mockRestore = vi.fn()
+
+vi.mock('next/dynamic', async () => {
+  const ReactActual = await vi.importActual<typeof import('react')>('react')
+
+  return {
+    default: (
+      loader: () => Promise<MockDynamicModule>,
+      options?: { loading?: MockDynamicComponent }
+    ) => {
+      function DynamicComponent(props: Record<string, unknown>) {
+        const [Resolved, setResolved] = ReactActual.useState<MockDynamicComponent | null>(null)
+
+        ReactActual.useEffect(() => {
+          let active = true
+
+          void loader().then((loaded) => {
+            const Component =
+              loaded &&
+              typeof loaded === 'object' &&
+              'default' in loaded
+                ? (loaded as { default: MockDynamicComponent }).default
+                : (loaded as MockDynamicComponent)
+            if (active) setResolved(() => Component)
+          })
+
+          return () => {
+            active = false
+          }
+        }, [])
+
+        if (!Resolved) {
+          const Loading = options?.loading
+          return Loading ? ReactActual.createElement(Loading, props) : null
+        }
+
+        return ReactActual.createElement(Resolved, props)
+      }
+
+      return DynamicComponent
+    },
+  }
+})
 
 vi.mock('next/navigation', async () => {
   const actual = await vi.importActual<typeof import('next/navigation')>('next/navigation')
@@ -27,27 +80,39 @@ vi.mock('next/navigation', async () => {
   }
 })
 
-vi.mock('swr', () => ({
-  default: (...args: unknown[]) => mockUseSWR(...args),
-}))
+vi.mock('swr', () => {
+  mockSWRModuleLoaded()
+  return {
+    default: (...args: unknown[]) => mockUseSWR(...args),
+  }
+})
 
-vi.mock('@/hooks/useDominantColor', () => ({
-  useDominantColor: (...args: unknown[]) => mockUseDominantColor(...args),
-}))
+vi.mock('@/hooks/useDominantColor', () => {
+  mockDominantColorModuleLoaded()
+  return {
+    useDominantColor: (...args: unknown[]) => mockUseDominantColor(...args),
+  }
+})
 
-vi.mock('@/hooks/useReducedMotion', () => ({
-  useReducedMotion: () => mockUseReducedMotion(),
-}))
+vi.mock('@/hooks/useReducedMotion', () => {
+  mockReducedMotionModuleLoaded()
+  return {
+    useReducedMotion: () => mockUseReducedMotion(),
+  }
+})
 
 vi.mock('@/stores/userStore', () => ({
   useUserStore: (selector?: (s: Record<string, unknown>) => unknown) =>
     selector ? mockUseUserStore(selector) : mockUseUserStore(),
 }))
 
-vi.mock('@/stores/playerStore', () => ({
-  usePlayerStore: (selector?: (s: Record<string, unknown>) => unknown) =>
-    selector ? mockUsePlayerStore(selector) : mockUsePlayerStore(),
-}))
+vi.mock('@/stores/playerStore', () => {
+  mockPlayerStoreModuleLoaded()
+  return {
+    usePlayerStore: (selector?: (s: Record<string, unknown>) => unknown) =>
+      selector ? mockUsePlayerStore(selector) : mockUsePlayerStore(),
+  }
+})
 
 vi.mock('@/lib/api', () => ({
   ncmApi: {
@@ -56,10 +121,18 @@ vi.mock('@/lib/api', () => ({
   },
 }))
 
-vi.mock('@/components/layout/AppShell', () => ({
-  AppShell: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('div', { 'data-testid': 'app-shell' }, children),
-}))
+vi.mock('@/components/layout/AppShell', () => {
+  mockAppShellModuleLoaded()
+  return {
+    AppShell: ({ children }: { children: React.ReactNode }) =>
+      React.createElement('div', { 'data-testid': 'app-shell' }, children),
+  }
+})
+
+vi.mock('@/components/fm/FMMainPlayer', async (importOriginal) => {
+  mockFMMainPlayerModuleLoaded()
+  return await importOriginal<typeof import('@/components/fm/FMMainPlayer')>()
+})
 
 vi.mock('@/components/player/PlayerBar', () => ({
   PlayerBar: () => React.createElement('div', { 'data-testid': 'player-bar' }),
@@ -80,8 +153,12 @@ const FM_SONG = {
   mv: 0,
 }
 
-function makeUserStore(overrides: { isLoggedIn?: boolean; hasRestoredSession?: boolean } = {}) {
-  return { isLoggedIn: true, hasRestoredSession: true, ...overrides }
+function makeUserStore(overrides: {
+  isLoggedIn?: boolean
+  hasRestoredSession?: boolean
+  restore?: () => Promise<void>
+} = {}) {
+  return { isLoggedIn: true, hasRestoredSession: true, restore: mockRestore, ...overrides }
 }
 
 function makePlayerStore() {
@@ -117,15 +194,30 @@ function mockLoggedOut() {
 function mockRestoringSession() {
   mockUseUserStore.mockImplementation((selector?: (s: Record<string, unknown>) => unknown) =>
     selector
-      ? selector(makeUserStore({ hasRestoredSession: false }) as unknown as Record<string, unknown>)
-      : makeUserStore({ hasRestoredSession: false })
+      ? selector(makeUserStore({ hasRestoredSession: false, isLoggedIn: false }) as unknown as Record<string, unknown>)
+      : makeUserStore({ hasRestoredSession: false, isLoggedIn: false })
   )
 }
 
+function expectAuthShellIdle() {
+  expect(mockSWRModuleLoaded).not.toHaveBeenCalled()
+  expect(mockAppShellModuleLoaded).not.toHaveBeenCalled()
+  expect(mockUseSWR).not.toHaveBeenCalled()
+}
+
 function expectPlayerResourcesIdle() {
+  expect(mockFMMainPlayerModuleLoaded).not.toHaveBeenCalled()
+  expect(mockPlayerStoreModuleLoaded).not.toHaveBeenCalled()
+  expect(mockDominantColorModuleLoaded).not.toHaveBeenCalled()
+  expect(mockReducedMotionModuleLoaded).not.toHaveBeenCalled()
   expect(mockUsePlayerStore).not.toHaveBeenCalled()
   expect(mockUseDominantColor).not.toHaveBeenCalled()
   expect(mockUseReducedMotion).not.toHaveBeenCalled()
+}
+
+async function renderFMPage() {
+  const { default: FMPage } = await import('@/app/fm/page')
+  render(<FMPage />)
 }
 
 // ---------------------------------------------------------------------------
@@ -134,6 +226,8 @@ function expectPlayerResourcesIdle() {
 
 describe('FMPage', () => {
   beforeEach(() => {
+    vi.resetModules()
+
     mockUseSWR.mockReset()
     mockRouterPush.mockReset()
     mockRouterReplace.mockReset()
@@ -143,6 +237,13 @@ describe('FMPage', () => {
     mockUseReducedMotion.mockReset()
     mockPersonalFm.mockReset()
     mockFmTrash.mockReset()
+    mockRestore.mockReset()
+    mockSWRModuleLoaded.mockReset()
+    mockAppShellModuleLoaded.mockReset()
+    mockFMMainPlayerModuleLoaded.mockReset()
+    mockPlayerStoreModuleLoaded.mockReset()
+    mockDominantColorModuleLoaded.mockReset()
+    mockReducedMotionModuleLoaded.mockReset()
 
     Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 1024 })
     mockUseReducedMotion.mockReturnValue(false)
@@ -157,32 +258,52 @@ describe('FMPage', () => {
     vi.clearAllMocks()
   })
 
-  test('redirects to /login when not authenticated', async () => {
+  test('redirects to /login when not authenticated without loading protected resources', async () => {
     mockLoggedOut()
     mockUseSWR.mockReturnValue(swrState())
 
-    const { default: FMPage } = await import('@/app/fm/page')
-    render(<FMPage />)
+    await renderFMPage()
 
     await act(async () => {
       await Promise.resolve()
     })
 
     expect(mockRouterReplace).toHaveBeenCalledWith('/login')
+    expect(screen.getByTestId('fm-auth-gate')).toBeInTheDocument()
     expect(screen.queryByTestId('fm-page')).not.toBeInTheDocument()
+    expectAuthShellIdle()
+    expectPlayerResourcesIdle()
   })
 
   test('keeps the FM request disabled while the session is restoring', async () => {
     mockRestoringSession()
     mockUseSWR.mockReturnValue(swrState())
 
-    const { default: FMPage } = await import('@/app/fm/page')
-    render(<FMPage />)
+    await renderFMPage()
 
     expect(screen.getByTestId('fm-session-loading')).toBeInTheDocument()
     expect(screen.getByTestId('fm-session-loading-cover')).not.toHaveClass('animate-pulse')
-    expect(mockUseSWR.mock.calls[0]?.[0]).toBeNull()
+    expect(mockRestore).toHaveBeenCalledTimes(1)
     expect(mockRouterReplace).not.toHaveBeenCalled()
+    expectAuthShellIdle()
+    expectPlayerResourcesIdle()
+  })
+
+  test('keeps the light gate first when a stale logged-in flag exists during restore', async () => {
+    mockUseUserStore.mockImplementation((selector?: (s: Record<string, unknown>) => unknown) =>
+      selector
+        ? selector(makeUserStore({ hasRestoredSession: false, isLoggedIn: true }) as unknown as Record<string, unknown>)
+        : makeUserStore({ hasRestoredSession: false, isLoggedIn: true })
+    )
+    mockUseSWR.mockReturnValue(swrState())
+
+    await renderFMPage()
+
+    expect(screen.getByTestId('fm-session-loading')).toBeInTheDocument()
+    expect(screen.queryByTestId('fm-page')).not.toBeInTheDocument()
+    expect(mockRestore).toHaveBeenCalledTimes(1)
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+    expectAuthShellIdle()
     expectPlayerResourcesIdle()
   })
 
@@ -190,11 +311,10 @@ describe('FMPage', () => {
     mockLoggedIn()
     mockUseSWR.mockReturnValue(swrState({ isLoading: true }))
 
-    const { default: FMPage } = await import('@/app/fm/page')
-    render(<FMPage />)
+    await renderFMPage()
 
-    expect(screen.getByTestId('app-shell')).toBeInTheDocument()
-    expect(screen.getByTestId('fm-skeleton')).toBeInTheDocument()
+    expect(await screen.findByTestId('app-shell')).toBeInTheDocument()
+    expect(await screen.findByTestId('fm-skeleton')).toBeInTheDocument()
     expect(screen.getByTestId('fm-skeleton-cover')).toBeInTheDocument()
     expect(screen.getByTestId('fm-skeleton-cover')).not.toHaveClass('animate-pulse')
     expectPlayerResourcesIdle()
@@ -204,10 +324,9 @@ describe('FMPage', () => {
     mockLoggedIn()
     mockUseSWR.mockReturnValue(swrState({ error: new Error('boom') }))
 
-    const { default: FMPage } = await import('@/app/fm/page')
-    render(<FMPage />)
+    await renderFMPage()
 
-    expect(screen.getByTestId('fm-error')).toBeInTheDocument()
+    expect(await screen.findByTestId('fm-error')).toBeInTheDocument()
     expect(screen.getByTestId('fm-retry')).toBeInTheDocument()
     expectPlayerResourcesIdle()
   })
@@ -216,10 +335,9 @@ describe('FMPage', () => {
     mockLoggedIn()
     mockUseSWR.mockReturnValue(swrState({ data: [] }))
 
-    const { default: FMPage } = await import('@/app/fm/page')
-    render(<FMPage />)
+    await renderFMPage()
 
-    expect(screen.getByTestId('fm-skeleton')).toBeInTheDocument()
+    expect(await screen.findByTestId('fm-skeleton')).toBeInTheDocument()
     expect(screen.queryByTestId('fm-main-player')).not.toBeInTheDocument()
     expectPlayerResourcesIdle()
   })
@@ -228,11 +346,11 @@ describe('FMPage', () => {
     mockLoggedIn()
     mockUseSWR.mockReturnValue(swrState({ data: [FM_SONG] }))
 
-    const { default: FMPage } = await import('@/app/fm/page')
-    render(<FMPage />)
+    await renderFMPage()
 
+    expect(await screen.findByTestId('fm-main-player')).toBeInTheDocument()
+    expect(mockFMMainPlayerModuleLoaded).toHaveBeenCalledTimes(1)
     expect(screen.getByTestId('fm-page')).toBeInTheDocument()
-    expect(screen.getByTestId('fm-main-player')).toBeInTheDocument()
     expect(screen.getByTestId('fm-track-title')).toHaveTextContent('FM Track')
     expect(screen.getByTestId('fm-track-artist')).toHaveTextContent('Artist A / Artist B')
     expect(mockUseDominantColor).toHaveBeenCalledWith(
@@ -243,7 +361,6 @@ describe('FMPage', () => {
     expect(coverImg).toHaveAttribute('src', 'https://example.com/fm.jpg?param=93y93')
     expect(screen.getByTestId('fm-vinyl')).toHaveClass('vinyl-disc--paused')
 
-    // The five controls are keyboard-reachable buttons.
     expect(screen.getByTestId('fm-dislike')).toBeInTheDocument()
     expect(screen.getByTestId('fm-prev')).toBeInTheDocument()
     expect(screen.getByTestId('fm-prev')).toBeDisabled()
@@ -258,8 +375,7 @@ describe('FMPage', () => {
     mockLoggedIn()
     mockUseSWR.mockReturnValue(swrState({ data: [FM_SONG] }))
 
-    const { default: FMPage } = await import('@/app/fm/page')
-    render(<FMPage />)
+    await renderFMPage()
 
     await waitFor(() => {
       expect(screen.getByTestId('fm-main-player')).toHaveAttribute('data-cover-size', '272')
@@ -275,10 +391,9 @@ describe('FMPage', () => {
         : { ...makePlayerStore(), currentTrack: FM_SONG, isPlaying: true }
     )
 
-    const { default: FMPage } = await import('@/app/fm/page')
-    render(<FMPage />)
+    await renderFMPage()
 
-    expect(screen.getByTestId('fm-main-player')).toHaveAttribute('data-playing', 'true')
+    expect(await screen.findByTestId('fm-main-player')).toHaveAttribute('data-playing', 'true')
     expect(screen.getByTestId('fm-vinyl')).toHaveClass('vinyl-disc--playing')
   })
 
@@ -290,10 +405,9 @@ describe('FMPage', () => {
       swrState({ data: [FM_SONG], mutate })
     )
 
-    const { default: FMPage } = await import('@/app/fm/page')
-    render(<FMPage />)
+    await renderFMPage()
 
-    const dislike = screen.getByTestId('fm-dislike')
+    const dislike = await screen.findByTestId('fm-dislike')
     expect(dislike).toBeInTheDocument()
 
     fireEvent.click(dislike)
@@ -311,10 +425,9 @@ describe('FMPage', () => {
     const mutate = vi.fn()
     mockUseSWR.mockReturnValue(swrState({ data: [FM_SONG], mutate }))
 
-    const { default: FMPage } = await import('@/app/fm/page')
-    render(<FMPage />)
+    await renderFMPage()
 
-    fireEvent.click(screen.getByTestId('fm-next'))
+    fireEvent.click(await screen.findByTestId('fm-next'))
 
     expect(mockFmTrash).not.toHaveBeenCalled()
     expect(mutate).toHaveBeenCalledTimes(1)
@@ -325,10 +438,9 @@ describe('FMPage', () => {
     const mutate = vi.fn()
     mockUseSWR.mockReturnValue(swrState({ data: [FM_SONG], mutate }))
 
-    const { default: FMPage } = await import('@/app/fm/page')
-    render(<FMPage />)
+    await renderFMPage()
 
-    const like = screen.getByTestId('fm-like')
+    const like = await screen.findByTestId('fm-like')
     expect(like).toHaveAttribute('aria-pressed', 'false')
 
     fireEvent.click(like)
@@ -349,10 +461,9 @@ describe('FMPage', () => {
         : { ...makePlayerStore(), playSong, currentTrack: null }
     )
 
-    const { default: FMPage } = await import('@/app/fm/page')
-    render(<FMPage />)
+    await renderFMPage()
 
-    fireEvent.click(screen.getByTestId('fm-play'))
+    fireEvent.click(await screen.findByTestId('fm-play'))
 
     expect(playSong).toHaveBeenCalledWith(FM_SONG)
   })
@@ -369,10 +480,9 @@ describe('FMPage', () => {
         : { ...makePlayerStore(), seek, currentTrack: FM_SONG, currentTime: 12, duration: 200 }
     )
 
-    const { default: FMPage } = await import('@/app/fm/page')
-    render(<FMPage />)
+    await renderFMPage()
 
-    const slider = screen.getByTestId('fm-progress-input') as HTMLInputElement
+    const slider = await screen.findByTestId('fm-progress-input') as HTMLInputElement
     expect(slider.value).toBe('12')
     fireEvent.change(slider, { target: { value: '88' } })
 
