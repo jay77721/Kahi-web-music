@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { act, cleanup, render, waitFor } from '@testing-library/react'
+import { act, cleanup, render } from '@testing-library/react'
 import type { RegisterOptions } from '@/lib/sw-register'
 import { ServiceWorkerRegistrar } from '@/components/common/ServiceWorkerRegistrar'
 
@@ -86,6 +86,7 @@ describe('ServiceWorkerRegistrar', () => {
   })
 
   test('uses requestIdleCallback when it is available', async () => {
+    vi.useRealTimers()
     let idleCallback: IdleRequestCallback | undefined
     const requestIdleCallback = vi.fn((callback: IdleRequestCallback) => {
       idleCallback = callback
@@ -104,9 +105,11 @@ describe('ServiceWorkerRegistrar', () => {
 
     render(<ServiceWorkerRegistrar />)
 
-    await waitFor(() => {
-      expect(requestIdleCallback).toHaveBeenCalledWith(expect.any(Function), { timeout: 3000 })
+    await act(async () => {
+      await Promise.resolve()
     })
+
+    expect(requestIdleCallback).toHaveBeenCalledWith(expect.any(Function), { timeout: 3000 })
     expect(mocks.registerServiceWorker).not.toHaveBeenCalled()
 
     act(() => {

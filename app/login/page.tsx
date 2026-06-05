@@ -103,6 +103,9 @@ export default function LoginPage() {
             ) : (
               <motion.div
                 key="qr"
+                id="tab-panel-qr"
+                role="tabpanel"
+                aria-labelledby="login-tab-qr"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
@@ -148,7 +151,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       aria-label="返回首页"
-      className="fixed top-5 left-5 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-[var(--text-tertiary)] hover:text-white transition-all duration-200"
+      className="fixed top-5 left-5 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-all duration-200"
     >
       <ArrowLeft className="w-5 h-5" />
     </button>
@@ -165,11 +168,11 @@ function BrandHeader() {
     >
       <div
         className="w-16 h-16 rounded-2xl bg-[var(--accent)] flex items-center justify-center mx-auto mb-4"
-        style={{ boxShadow: '0 0 40px var(--accent-glow), 0 8px 32px rgba(0,0,0,0.5)' }}
+        style={{ boxShadow: '0 0 40px var(--accent-glow), var(--shadow-lg)' }}
       >
-        <Music2 className="w-8 h-8 text-black" strokeWidth={2.5} />
+        <Music2 className="w-8 h-8 text-[var(--accent-foreground)]" strokeWidth={2.5} />
       </div>
-      <h1 id="login-heading" className="text-2xl font-bold tracking-tight text-white">
+      <h1 id="login-heading" className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
         Kahi Music
       </h1>
       <p className="text-sm text-[var(--text-tertiary)] mt-1.5">登录后享受更多服务</p>

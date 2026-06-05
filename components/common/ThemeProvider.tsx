@@ -1,7 +1,10 @@
 'use client'
 
 import { useEffect, type ReactNode } from 'react'
+import { STORAGE_KEYS } from '@/lib/storage'
 import { useUIStore } from '@/stores/uiStore'
+
+const THEME_STORAGE_EVENT_KEY = `kahi-web-music:${STORAGE_KEYS.THEME}`
 
 /**
  * Theme attributes written to <html>. Kept as a string union to prevent
@@ -35,12 +38,12 @@ function useThemeAttribute(): void {
   }, [])
 
   useEffect(() => {
-    if (typeof document === 'undefined') return
+    if (typeof window === 'undefined' || typeof document === 'undefined') return
     const root = document.documentElement
     const media = window.matchMedia('(prefers-color-scheme: dark)')
 
-    const apply = (): void => {
-      const attr = resolveTheme(theme, media.matches)
+    const apply = (nextTheme = theme): void => {
+      const attr = resolveTheme(nextTheme, media.matches)
       root.setAttribute('data-theme', attr)
     }
 
@@ -48,7 +51,10 @@ function useThemeAttribute(): void {
     media.addEventListener('change', apply)
 
     const onStorage = (event: StorageEvent): void => {
-      if (event.key === 'kahi-web-music:ui:theme') apply()
+      if (event.key === THEME_STORAGE_EVENT_KEY) {
+        useUIStore.getState().restoreTheme()
+        apply(useUIStore.getState().theme)
+      }
     }
     window.addEventListener('storage', onStorage)
 
