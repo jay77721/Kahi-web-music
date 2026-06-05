@@ -38,7 +38,6 @@ export function useIntersectionObserver(
 
   const [isIntersecting, setIsIntersecting] = useState(false)
   const [entry, setEntry] = useState<IntersectionObserverEntry | null>(null)
-  const nodeRef = useRef<Element | null>(null)
   const observerRef = useRef<IntersectionObserver | null>(null)
   const hasTriggeredRef = useRef(false)
 
@@ -48,17 +47,11 @@ export function useIntersectionObserver(
       observerRef.current.disconnect()
     }
 
-    nodeRef.current = node
     hasTriggeredRef.current = false
 
     if (!node) {
       setIsIntersecting(false)
       setEntry(null)
-      return
-    }
-
-    if (triggerOnce && hasTriggeredRef.current) {
-      setIsIntersecting(true)
       return
     }
 

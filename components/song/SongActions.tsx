@@ -90,6 +90,7 @@ function SongActionsImpl({ song, className }: SongActionsProps) {
   const { isLoggedIn } = useUserStore()
 
   const isCurrent = currentTrack?.id === song.id
+  const shareTitle = song.name?.trim() || '未知歌曲'
 
   const handlePlay = useCallback(() => {
     if (isCurrent) {
@@ -124,7 +125,7 @@ function SongActionsImpl({ song, className }: SongActionsProps) {
     const url = getShareUrl('song', song.id)
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
-        await navigator.share(buildWebShareData('song', song.id, song.name))
+        await navigator.share(buildWebShareData('song', song.id, shareTitle))
         toast.success('已分享')
         return
       } catch (error: unknown) {
@@ -138,7 +139,7 @@ function SongActionsImpl({ song, className }: SongActionsProps) {
     } else {
       toast.error('复制失败，请手动复制')
     }
-  }, [song.id, song.name])
+  }, [song.id, shareTitle])
 
   return (
     <div

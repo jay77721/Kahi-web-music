@@ -31,6 +31,15 @@ interface SongBundle {
 
 const SIMI_LIMIT = 10
 const MIN_LYRIC_LENGTH = 1
+const UNKNOWN_ALBUM = '未知专辑'
+const UNKNOWN_ARTIST = '未知艺人'
+const UNKNOWN_SONG = '未知歌曲'
+const EMPTY_LYRICS: LyricLine[] = []
+const EMPTY_SONGS: Song[] = []
+
+function getRouteId(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? value[0] ?? '' : value ?? ''
+}
 
 // ---------------------------------------------------------------------------
 // Page
@@ -38,8 +47,11 @@ const MIN_LYRIC_LENGTH = 1
 
 export default function SongDetailPage() {
   const params = useParams()
-  const id = (params?.id as string | undefined) ?? ''
-  const { playQueue, seek, currentTrack, currentTime } = usePlayerStore()
+  const id = getRouteId(params?.id as string | string[] | undefined)
+  const playQueue = usePlayerStore((state) => state.playQueue)
+  const seek = usePlayerStore((state) => state.seek)
+  const currentTrackId = usePlayerStore((state) => state.currentTrack?.id ?? null)
+  const currentTime = usePlayerStore((state) => state.currentTime)
 
   const { data, isLoading } = useSWR<SongBundle | undefined>(
     id ? `song-detail-${id}` : null,
@@ -54,20 +66,25 @@ export default function SongDetailPage() {
       const lyricRoot = normalizeLyricData(lyric)
       const lrcText = lyricRoot?.lrc?.lyric ?? ''
       const tlyricText = lyricRoot?.tlyric?.lyric ?? ''
-      const lyrics = lrcText.length >= MIN_LYRIC_LENGTH
-        ? parseLyricResponse(lrcText, tlyricText)
-        : []
+      let lyrics: LyricLine[] = []
+      if (lrcText.length >= MIN_LYRIC_LENGTH) {
+        try {
+          lyrics = parseLyricResponse(lrcText, tlyricText)
+        } catch {
+          lyrics = []
+        }
+      }
       const simiSongs = normalizeSongList(simi)
 
       return { song, lyrics, simiSongs }
     }
   )
 
-  const song = useMemo(() => data?.song ?? null, [data?.song])
-  const lyrics = useMemo(() => data?.lyrics ?? [], [data?.lyrics])
-  const simiSongs = useMemo(() => data?.simiSongs ?? [], [data?.simiSongs])
+  const song = data?.song ?? null
+  const lyrics = data?.lyrics ?? EMPTY_LYRICS
+  const simiSongs = data?.simiSongs ?? EMPTY_SONGS
 
-  const isCurrent = currentTrack?.id === song?.id
+  const isCurrent = currentTrackId === song?.id
   const lyricCurrentTime = isCurrent ? currentTime : 0
 
   const handleLyricSeek = useCallback(
@@ -144,6 +161,7 @@ interface AlbumCardProps {
 }
 
 function AlbumCard({ album }: AlbumCardProps) {
+  const albumName = album.name?.trim() || UNKNOWN_ALBUM
   return (
     <Link
       href={`/album/${album.id}`}
@@ -153,7 +171,7 @@ function AlbumCard({ album }: AlbumCardProps) {
       <div className="w-16 h-16 rounded-lg overflow-hidden bg-[var(--bg-elevated)] flex-shrink-0">
         <Image
           src={imageUrl(album.picUrl, 160)}
-          alt={album.name}
+          alt={albumName}
           width={64}
           height={64}
           className="w-full h-full object-cover"
@@ -164,7 +182,7 @@ function AlbumCard({ album }: AlbumCardProps) {
           所属专辑
         </p>
         <p className="text-sm font-medium text-[var(--text-primary)] truncate group-hover:text-[var(--accent-text)] transition-colors">
-          {album.name}
+          {albumName}
         </p>
       </div>
     </Link>
@@ -207,6 +225,12 @@ interface SimilarCardProps {
 }
 
 function SimilarCard({ song, onClick }: SimilarCardProps) {
+  const songName = song.name?.trim() || UNKNOWN_SONG
+  const artistNames = song.ar
+    ?.map((artist) => artist.name?.trim())
+    .filter(Boolean)
+    .join(' / ') || UNKNOWN_ARTIST
+
   return (
     <button
       type="button"
@@ -217,7 +241,7 @@ function SimilarCard({ song, onClick }: SimilarCardProps) {
       <div className="aspect-square rounded-lg overflow-hidden bg-[var(--bg-elevated)] mb-2">
         <Image
           src={imageUrl(song.al?.picUrl, 240)}
-          alt={song.name}
+          alt={songName}
           width={160}
           height={160}
           loading="lazy"
@@ -225,10 +249,10 @@ function SimilarCard({ song, onClick }: SimilarCardProps) {
         />
       </div>
       <p className="text-sm font-medium text-[var(--text-primary)] truncate group-hover:text-[var(--accent-text)] transition-colors">
-        {song.name}
+        {songName}
       </p>
       <p className="text-xs text-[var(--text-tertiary)] truncate">
-        {song.ar?.map((a) => a.name).join(' / ') ?? '未知艺人'}
+        {artistNames}
       </p>
     </button>
   )

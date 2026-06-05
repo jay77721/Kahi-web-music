@@ -1,7 +1,7 @@
 'use client'
 
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
+import { render, screen, cleanup, act, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 
 // ---------------------------------------------------------------------------
@@ -53,17 +53,6 @@ vi.mock('@/lib/api', () => ({
   ncmApi: {
     personalFm: mockPersonalFm,
     fmTrash: mockFmTrash,
-  },
-}))
-
-vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { alt, src, ...rest } = props
-    return React.createElement('img', {
-      alt: (alt as string) ?? '',
-      src: (src as string) ?? '',
-      ...rest,
-    })
   },
 }))
 
@@ -141,6 +130,7 @@ describe('FMPage', () => {
     mockPersonalFm.mockReset()
     mockFmTrash.mockReset()
 
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 1024 })
     mockUseReducedMotion.mockReturnValue(false)
     mockUseDominantColor.mockReturnValue({ color: null, isLoading: false, error: null })
     mockUsePlayerStore.mockImplementation((selector?: (s: Record<string, unknown>) => unknown) =>
@@ -210,6 +200,19 @@ describe('FMPage', () => {
     expect(screen.getByTestId('fm-next')).toBeInTheDocument()
     expect(screen.getByTestId('fm-like')).toBeInTheDocument()
     expect(screen.getByTestId('fm-progress')).toBeInTheDocument()
+  })
+
+  test('clamps cover size on narrow mobile viewports', async () => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 320 })
+    mockLoggedIn()
+    mockUseSWR.mockReturnValue(swrState({ data: [FM_SONG] }))
+
+    const { default: FMPage } = await import('@/app/fm/page')
+    render(<FMPage />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('fm-main-player')).toHaveAttribute('data-cover-size', '272')
+    })
   })
 
   test('dislike control invokes fmTrash and triggers a refresh', async () => {

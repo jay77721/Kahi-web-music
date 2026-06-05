@@ -29,8 +29,8 @@ function useLoginBackground() {
       background: `
         radial-gradient(ellipse at 20% 50%, color-mix(in oklch, ${accent} 10%, transparent) 0%, transparent 50%),
         radial-gradient(ellipse at 80% 20%, color-mix(in oklch, ${accent} 6%, transparent) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 80%, rgba(30, 150, 215, 0.04) 0%, transparent 50%),
-        #000000
+        radial-gradient(ellipse at 50% 80%, color-mix(in oklch, var(--accent) 4%, transparent) 0%, transparent 50%),
+        var(--bg-primary)
       `,
     } as const
   }, [color])
@@ -55,7 +55,7 @@ export default function LoginPage() {
   if (isRestoringSession || isLoggedIn) {
     return (
       <main
-        className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 bg-black text-[var(--text-tertiary)]"
+        className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 bg-[var(--bg-primary)] text-[var(--text-tertiary)]"
         style={bgStyle}
       >
         <p role="status" aria-live="polite" className="text-sm">
@@ -67,7 +67,7 @@ export default function LoginPage() {
 
   return (
     <main
-      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden px-4"
+      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden px-4 bg-[var(--bg-primary)] text-[var(--text-primary)]"
       style={bgStyle}
       aria-labelledby="login-heading"
     >
@@ -76,9 +76,9 @@ export default function LoginPage() {
       <BrandHeader />
 
       <div
-        className="relative w-full max-w-md rounded-2xl border border-[var(--border)] overflow-hidden bg-white/5 backdrop-blur-xl"
+        className="relative w-full max-w-md rounded-2xl border border-[var(--border)] overflow-hidden bg-[var(--bg-elevated)]/80 backdrop-blur-xl"
         style={{
-          boxShadow: '0 24px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
+          boxShadow: 'var(--shadow-lg), inset 0 1px 0 var(--border-subtle)',
         }}
       >
         <TabSwitcher activeTab={activeTab} onChange={setActiveTab} />
@@ -87,6 +87,9 @@ export default function LoginPage() {
             {activeTab === 'phone' ? (
               <motion.div
                 key="phone"
+                id="tab-panel-phone"
+                role="tabpanel"
+                aria-labelledby="login-tab-phone"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
@@ -97,6 +100,9 @@ export default function LoginPage() {
             ) : (
               <motion.div
                 key="qr"
+                id="tab-panel-qr"
+                role="tabpanel"
+                aria-labelledby="login-tab-qr"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
@@ -142,7 +148,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       aria-label="返回首页"
-      className="fixed top-5 left-5 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-[var(--text-tertiary)] hover:text-white transition-all duration-200"
+      className="fixed top-5 left-5 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-all duration-200"
     >
       <ArrowLeft className="w-5 h-5" />
     </button>
@@ -154,11 +160,11 @@ function BrandHeader() {
     <div className="relative text-center mb-8">
       <div
         className="w-16 h-16 rounded-2xl bg-[var(--accent)] flex items-center justify-center mx-auto mb-4"
-        style={{ boxShadow: '0 0 40px var(--accent-glow), 0 8px 32px rgba(0,0,0,0.5)' }}
+        style={{ boxShadow: '0 0 40px var(--accent-glow), var(--shadow-lg)' }}
       >
-        <Music2 className="w-8 h-8 text-black" strokeWidth={2.5} />
+        <Music2 className="w-8 h-8 text-[var(--accent-foreground)]" strokeWidth={2.5} />
       </div>
-      <h1 id="login-heading" className="text-2xl font-bold tracking-tight text-white">
+      <h1 id="login-heading" className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
         Kahi Music
       </h1>
       <p className="text-sm text-[var(--text-tertiary)] mt-1.5">登录后享受更多服务</p>
@@ -180,13 +186,14 @@ function TabSwitcher({ activeTab, onChange }: TabSwitcherProps) {
           <button
             key={value}
             type="button"
+            id={`login-tab-${value}`}
             role="tab"
             aria-selected={isActive}
             aria-controls={`tab-panel-${value}`}
             onClick={() => onChange(value)}
             className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-all duration-300 relative ${
               isActive
-                ? 'text-white'
+                ? 'text-[var(--accent-foreground)]'
                 : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
             }`}
           >

@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { usePlayerStore } from '@/stores/playerStore'
 import { useDominantColor } from '@/hooks/useDominantColor'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
-import { imageUrl, formatArtists, formatDuration } from '@/lib/format'
+import { imageUrl, formatArtists, formatTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Song } from '@/types/song'
 
@@ -52,20 +52,34 @@ export const FMMainPlayer = memo(function FMMainPlayer({
   className,
 }: FMMainPlayerProps) {
   const prefersReducedMotion = useReducedMotion()
-  const { currentTrack, isPlaying, currentTime, duration, playSong, seek } =
-    usePlayerStore()
+  const currentTrackId = usePlayerStore((state) => state.currentTrack?.id ?? null)
+  const isPlaying = usePlayerStore((state) => state.isPlaying)
+  const currentTime = usePlayerStore((state) => state.currentTime)
+  const duration = usePlayerStore((state) => state.duration)
+  const playSong = usePlayerStore((state) => state.playSong)
+  const seek = usePlayerStore((state) => state.seek)
 
   // Responsive cover size — smaller on phones, larger on desktop. The disc
   // is the visual anchor of the page so we keep it generous.
   const COVER_SIZE_MOBILE = 280
   const COVER_SIZE_DESKTOP = 360
+  const COVER_SIZE_MIN = 160
+  const COVER_VIEWPORT_GUTTER = 48
   const [coverSize, setCoverSize] = useState(COVER_SIZE_MOBILE)
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 640px)')
-    const apply = () => setCoverSize(mq.matches ? COVER_SIZE_DESKTOP : COVER_SIZE_MOBILE)
+    const apply = () => {
+      const ideal = mq.matches ? COVER_SIZE_DESKTOP : COVER_SIZE_MOBILE
+      const available = Math.max(COVER_SIZE_MIN, window.innerWidth - COVER_VIEWPORT_GUTTER)
+      setCoverSize(Math.min(ideal, available))
+    }
     apply()
     mq.addEventListener('change', apply)
-    return () => mq.removeEventListener('change', apply)
+    window.addEventListener('resize', apply)
+    return () => {
+      mq.removeEventListener('change', apply)
+      window.removeEventListener('resize', apply)
+    }
   }, [])
 
   const coverUrl = song?.al?.picUrl ? imageUrl(song.al.picUrl, coverSize) : null
@@ -87,7 +101,7 @@ export const FMMainPlayer = memo(function FMMainPlayer({
     }
   }, [color])
 
-  const isActive = song ? currentTrack?.id === song.id : false
+  const isActive = song ? currentTrackId === song.id : false
   const showPlaying = isActive && isPlaying
   const spinClass = prefersReducedMotion
     ? ''
@@ -182,7 +196,6 @@ export const FMMainPlayer = memo(function FMMainPlayer({
       />
 
       <FMActions
-        isActive={isActive}
         isPlaying={showPlaying}
         onDislike={handleDislike}
         onPlayPause={handlePlayPause}
@@ -261,6 +274,8 @@ interface FMProgressProps {
 function FMProgress({ currentTime, duration, isActive, onSeek }: FMProgressProps) {
   const max = duration || (isActive ? 100 : 1)
   const percent = Math.min(100, (currentTime / max) * 100)
+  const currentTimeLabel = formatTime(currentTime)
+  const durationLabel = formatTime(duration || 0)
   return (
     <div
       className="w-full max-w-md px-6 mt-8"
@@ -279,25 +294,24 @@ function FMProgress({ currentTime, duration, isActive, onSeek }: FMProgressProps
         data-testid="fm-progress-input"
       />
       <div className="flex justify-between text-[11px] text-[var(--text-tertiary)] tabular-nums mt-2">
-        <span data-testid="fm-current-time">{formatDuration(currentTime * 1000)}</span>
-        <span data-testid="fm-duration">{formatDuration((duration || 0) * 1000)}</span>
+        <span data-testid="fm-current-time">{currentTimeLabel}</span>
+        <span data-testid="fm-duration">{durationLabel}</span>
       </div>
     </div>
   )
 }
 
 interface FMActionsProps {
-  isActive: boolean
   isPlaying: boolean
   onDislike: () => void
   onPlayPause: () => void
   onNext: () => void
 }
 
-function FMActions({ isActive, isPlaying, onDislike, onPlayPause, onNext }: FMActionsProps) {
+function FMActions({ isPlaying, onDislike, onPlayPause, onNext }: FMActionsProps) {
   return (
     <div
-      className="w-full max-w-md px-6 mt-6 mb-10 flex items-center justify-between"
+      className="w-full max-w-md px-6 mt-6 mb-10 flex flex-wrap items-center justify-center gap-2 sm:justify-between"
       data-testid="fm-actions"
       role="group"
       aria-label="FM 播放控件"
@@ -326,11 +340,11 @@ function FMActions({ isActive, isPlaying, onDislike, onPlayPause, onNext }: FMAc
         size="icon"
         onClick={onPlayPause}
         className="w-16 h-16 rounded-full bg-[var(--accent)] text-[var(--bg-primary)] hover:bg-[var(--accent-hover)] hover:scale-105 transition-all duration-200 shadow-[var(--shadow-glow)]"
-        aria-label={isActive && isPlaying ? '暂停' : '播放'}
+        aria-label={isPlaying ? '暂停' : '播放'}
         data-testid="fm-play"
-        data-state={isActive && isPlaying ? 'playing' : 'paused'}
+        data-state={isPlaying ? 'playing' : 'paused'}
       >
-        {isActive && isPlaying ? (
+        {isPlaying ? (
           <Pause className="w-7 h-7" />
         ) : (
           <Play className="w-7 h-7 ml-0.5" />

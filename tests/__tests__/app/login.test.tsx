@@ -239,5 +239,21 @@ describe('PhoneLoginForm', () => {
         expect(getSendButton()).not.toBeDisabled()
       })
     })
+
+    test('treats non-200 captcha responses as failures', async () => {
+      mockCaptchaSent.mockResolvedValueOnce({ code: 400, message: '发送太频繁' })
+      const user = userEvent.setup()
+      render(<PhoneLoginForm />)
+      await user.type(getPhoneInput(), '13800138000')
+      await user.click(getSendButton())
+
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith('发送太频繁')
+      })
+      expect(toast.success).not.toHaveBeenCalled()
+      await waitFor(() => {
+        expect(getSendButton()).not.toBeDisabled()
+      })
+    })
   })
 })

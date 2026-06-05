@@ -1,7 +1,7 @@
 export interface SuggestSong {
   id: number
   name: string
-  artists: { id: number; name: string }[]
+  artists?: { id: number; name: string }[]
   album?: { id: number; name: string; picUrl?: string }
 }
 
@@ -25,17 +25,24 @@ export interface SuggestPlaylist {
   creator?: { nickname?: string }
 }
 
+export type SearchSuggestionSection = 'songs' | 'artists' | 'albums' | 'playlists'
+
+export interface SearchSuggestMatch {
+  keyword?: string
+  type?: number
+  alg?: string
+  suggestion?: Array<{ type?: number; keyword?: string }>
+}
+
+export interface SearchSuggestResult {
+  allMatch?: SearchSuggestMatch
+  songs?: SuggestSong[]
+  artists?: SuggestArtist[]
+  albums?: SuggestAlbum[]
+  playlists?: SuggestPlaylist[]
+}
+
 export interface SearchSuggestResponse {
   code: number
-  result: {
-    allMatch?: {
-      keyword: string
-      type?: number
-      suggestion?: Array<{ type?: number; keyword?: string }>
-    }
-    songs?: SuggestSong[]
-    artists?: SuggestArtist[]
-    albums?: SuggestAlbum[]
-    playlists?: SuggestPlaylist[]
-  }
+  result: SearchSuggestResult
 }

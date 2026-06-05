@@ -5,7 +5,8 @@
  * Cache strategies:
  *   - HTML / JS / CSS: stale-while-revalidate
  *   - Images:          cache-first (separate "img-cache" bucket)
- *   - API GET:         network-first with a 5s timeout, fallback to cache
+ *   - API GET:         network-only + no-store by default
+ *   - Public API GET:  allow-listed, credential-free requests may use cache
  *
  * Lifecycle:
  *   - install: precache the offline shell
@@ -13,18 +14,19 @@
  *   - fetch: dispatch to the right strategy by request shape
  */
 
-const CACHE_VERSION = 'v1'
+const CACHE_VERSION = 'v2'
 const STATIC_CACHE = `kahi-static-${CACHE_VERSION}`
 const IMAGE_CACHE = `img-cache-${CACHE_VERSION}`
-const API_CACHE = `kahi-api-${CACHE_VERSION}`
+const API_CACHE = `kahi-api-public-${CACHE_VERSION}`
 
 const PRECACHE_URLS = ['/', '/offline', '/manifest.json']
-const PRIVATE_API_PATHS = [
-  '/api/user',
-  '/api/login',
-  '/api/likelist',
-  '/api/recommend/songs',
-  '/api/user/cloud',
+const CACHEABLE_PUBLIC_API_PATHS = [
+  '/api/banner',
+  '/api/search/hot',
+  '/api/search/default',
+  '/api/toplist',
+  '/api/toplist/detail',
+  '/api/playlist/catalog/playlist',
 ]
 
 /* ------------------------------------------------------------------ *
@@ -60,7 +62,7 @@ self.addEventListener('activate', (event) => {
       const keys = await caches.keys()
       await Promise.all(
         keys
-          .filter((key) => !allowed.has(key))
+          .filter((key) => shouldDeleteCache(key, allowed))
           .map((key) => caches.delete(key))
       )
       await self.clients.claim()
@@ -76,22 +78,19 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return
 
   const url = new URL(request.url)
-  if (url.origin !== self.location.origin && !url.pathname.startsWith('/api/')) {
+  if (url.origin !== self.location.origin) return
+
+  if (isApiRequest(url)) {
+    if (isCacheablePublicApiRequest(request, url)) {
+      event.respondWith(networkFirst(request, API_CACHE, 5000))
+    } else {
+      event.respondWith(networkOnlyNoStore(request))
+    }
     return
   }
 
   if (isImageRequest(request)) {
     event.respondWith(cacheFirst(request, IMAGE_CACHE))
-    return
-  }
-
-  if (isPrivateApiRequest(url)) {
-    event.respondWith(networkOnly(request))
-    return
-  }
-
-  if (isApiRequest(url)) {
-    event.respondWith(networkFirst(request, API_CACHE, 5000))
     return
   }
 
@@ -133,9 +132,9 @@ async function cacheFirst(request, cacheName) {
   }
 }
 
-async function networkOnly(request) {
+async function networkOnlyNoStore(request) {
   try {
-    return await fetch(request)
+    return await fetch(request, { cache: 'no-store' })
   } catch (err) {
     return new Response('', { status: 504, statusText: 'Offline' })
   }
@@ -145,8 +144,10 @@ async function networkFirst(request, cacheName, timeoutMs) {
   const cache = await caches.open(cacheName)
   try {
     const response = await raceWithTimeout(request, timeoutMs)
-    if (response && response.ok) {
-      cache.put(request, response.clone())
+    if (isCacheableResponse(response)) {
+      await cache.put(request, response.clone()).catch((err) => {
+        console.warn('[sw] failed to cache public API response', err)
+      })
     }
     return response
   } catch (err) {
@@ -164,7 +165,7 @@ async function networkFirst(request, cacheName, timeoutMs) {
 function raceWithTimeout(request, ms) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), ms)
-  return fetch(request, { signal: controller.signal })
+  return fetch(request, { cache: 'no-store', signal: controller.signal })
     .finally(() => clearTimeout(timer))
 }
 
@@ -190,18 +191,25 @@ function isApiRequest(url) {
   return url.pathname.startsWith('/api/')
 }
 
-function isPrivateApiRequest(url) {
-  return PRIVATE_API_PATHS.some((path) => {
-    if (path === '/api/likelist' || path === '/api/recommend/songs') {
-      return url.pathname === path
-    }
-    return url.pathname === path || url.pathname.startsWith(`${path}/`)
-  })
+function isCacheablePublicApiRequest(request, url) {
+  return request.credentials === 'omit'
+    && CACHEABLE_PUBLIC_API_PATHS.includes(url.pathname)
+}
+
+function isCacheableResponse(response) {
+  if (!response || !response.ok) return false
+  const cacheControl = response.headers.get('Cache-Control') || ''
+  return !/(^|,)\s*(no-store|private)\b/i.test(cacheControl)
 }
 
 function isStaticAsset(request) {
   const dest = request.destination
   return dest === 'script' || dest === 'style' || dest === 'font' || dest === 'worker'
+}
+
+function shouldDeleteCache(key, allowed) {
+  if (key.startsWith('kahi-api-') && key !== API_CACHE) return true
+  return !allowed.has(key)
 }
 
 /* ------------------------------------------------------------------ *

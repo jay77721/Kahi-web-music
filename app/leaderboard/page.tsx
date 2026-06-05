@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { Suspense, useEffect, useState, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
 import Image from 'next/image'
 import { Trophy, ListMusic, ChevronRight } from 'lucide-react'
@@ -27,10 +28,26 @@ const OFFICIAL_CHARTS: LeaderboardTabItem<number>[] = [
   { id: 60131, label: '原创榜' },
 ]
 
+function parseChartId(raw: string | null): number | null {
+  if (!raw) return null
+  const id = Number(raw)
+  return Number.isSafeInteger(id) && id > 0 ? id : null
+}
+
 export default function LeaderboardPage() {
-  const [selectedId, setSelectedId] = useState<number | null>(null)
+  return (
+    <Suspense fallback={<LeaderboardPageFallback />}>
+      <LeaderboardPageContent />
+    </Suspense>
+  )
+}
+
+function LeaderboardPageContent() {
+  const searchParams = useSearchParams()
+  const chartIdFromUrl = parseChartId(searchParams.get('id'))
+  const [selectedId, setSelectedId] = useState<number | null>(chartIdFromUrl)
   const { playQueue } = usePlayerStore()
-  const selectedIdRef = useRef<number | null>(null)
+  const selectedIdRef = useRef<number | null>(chartIdFromUrl)
 
   const { data: toplist } = useSWR<NormalizedLeaderboardItem[]>('toplist', async () =>
     normalizeLeaderboardList(await ncmApi.toplist())
@@ -200,6 +217,26 @@ export default function LeaderboardPage() {
             <EmptyState message="该榜单暂无数据" />
           )}
         </section>
+      </div>
+    </AppShell>
+  )
+}
+
+function LeaderboardPageFallback() {
+  return (
+    <AppShell>
+      <div className="px-4 md:px-6 py-6 max-w-6xl mx-auto">
+        <Skeleton className="h-10 w-36 rounded-lg mb-6" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-24 rounded-xl" />
+          ))}
+        </div>
+        <div className="space-y-2" data-testid="leaderboard-loading">
+          {Array.from({ length: 10 }).map((_, index) => (
+            <Skeleton key={index} className="h-12 w-full rounded-lg" />
+          ))}
+        </div>
       </div>
     </AppShell>
   )

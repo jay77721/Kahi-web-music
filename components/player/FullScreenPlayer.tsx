@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { usePlayerStore } from '@/stores/playerStore'
 import { useUIStore } from '@/stores/uiStore'
-import { formatDuration, formatArtists, imageUrl } from '@/lib/format'
+import { formatTime, formatArtists, imageUrl } from '@/lib/format'
 import { useDominantColor } from '@/hooks/useDominantColor'
 import { useAudioAnalyser } from '@/hooks/useAudioAnalyser'
 import { useReducedMotion, useReducedMotionVariants } from '@/hooks/useReducedMotion'
@@ -74,7 +74,6 @@ function FullScreenPlayerContent() {
   const rawUrl = currentTrack?.al?.picUrl
   const [stableUrl, setStableUrl] = useState<string | null>(rawUrl ?? null)
   const lastExtractedRef = useRef<{ url: string; at: number } | null>(null)
-  const seenUrlsRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
     let cancelled = false
@@ -92,8 +91,6 @@ function FullScreenPlayerContent() {
       if (last && last.url === rawUrl && Date.now() - last.at < RESAMPLE_INTERVAL_MS) {
         return
       }
-      // Mark as seen so the hook skips re-extraction if it would be redundant.
-      seenUrlsRef.current.add(rawUrl)
       setStableUrl(rawUrl)
     })
 
@@ -174,7 +171,9 @@ function FullScreenPlayerContent() {
     overlay?.focus()
 
     return () => {
-      previouslyFocusedRef.current?.focus()
+      if (previouslyFocusedRef.current?.isConnected) {
+        previouslyFocusedRef.current.focus()
+      }
     }
   }, [])
 
@@ -192,7 +191,7 @@ function FullScreenPlayerContent() {
 
     const focusableElements = Array.from(
       overlay.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-    ).filter((element) => element.offsetParent !== null || element === document.activeElement)
+    )
 
     if (focusableElements.length === 0) {
       event.preventDefault()
@@ -245,6 +244,8 @@ function FullScreenPlayerContent() {
 
   const playModeIcon = playMode === 'repeat-one' ? Repeat1 : playMode === 'shuffle' ? Shuffle : Repeat
   const PlayModeIcon = playModeIcon
+  const currentTimeLabel = formatTime(currentTime)
+  const durationLabel = formatTime(duration || 0)
 
   // Animation variants
   const panelVariants = useReducedMotionVariants({
@@ -394,7 +395,7 @@ function FullScreenPlayerContent() {
       >
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-[var(--text-tertiary)] w-10 text-right tabular-nums">
-            {formatDuration(currentTime * 1000)}
+            {currentTimeLabel}
           </span>
           <Slider
             value={[currentTime]}
@@ -405,7 +406,7 @@ function FullScreenPlayerContent() {
             aria-label="播放进度"
           />
           <span className="text-[10px] text-[var(--text-tertiary)] w-10 tabular-nums">
-            {formatDuration((duration || 0) * 1000)}
+            {durationLabel}
           </span>
         </div>
 

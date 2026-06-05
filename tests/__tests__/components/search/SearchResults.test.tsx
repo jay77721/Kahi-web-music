@@ -1,14 +1,22 @@
 'use client'
 
-import { afterEach, describe, test, expect, vi } from 'vitest'
+import { afterEach, beforeEach, describe, test, expect, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { SearchResults } from '@/components/search/SearchResults'
+
+const { mockUseSWR } = vi.hoisted(() => ({
+  mockUseSWR: vi.fn(),
+}))
 
 // ---------------------------------------------------------------------------
 // Mock child components
 // ---------------------------------------------------------------------------
+vi.mock('swr', () => ({
+  default: (...args: unknown[]) => mockUseSWR(...args),
+}))
+
 vi.mock('@/components/common/SongTable', () => ({
-  SongTable: () => <div data-testid="song-table">SongTable</div>,
+  SongTable: ({ songs }: { songs: unknown[] }) => <div data-testid="song-table">SongTable:{songs.length}</div>,
 }))
 
 vi.mock('@/components/common/PlaylistCard', () => ({
@@ -21,19 +29,16 @@ vi.mock('@/components/search/SearchEmptyState', () => ({
   ),
 }))
 
-vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
-}))
-
-vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { ...rest } = props
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img {...rest} alt={(rest.alt as string) ?? ''} />
-  },
-}))
+beforeEach(() => {
+  mockUseSWR.mockReset()
+  mockUseSWR.mockReturnValue({
+    data: undefined,
+    error: undefined,
+    isLoading: false,
+    isValidating: false,
+    mutate: vi.fn(),
+  })
+})
 
 afterEach(() => {
   cleanup()
@@ -94,6 +99,54 @@ describe('SearchResults', () => {
       render(<SearchResults keywords="test" />)
       const songsTab = screen.getAllByText('歌曲')[0].closest('button')
       expect(songsTab).toBeTruthy()
+    })
+
+    test('shows a semantic loading state for the active tab', () => {
+      mockUseSWR.mockReturnValue({
+        data: undefined,
+        error: undefined,
+        isLoading: true,
+        isValidating: true,
+        mutate: vi.fn(),
+      })
+
+      render(<SearchResults keywords="test" />)
+
+      expect(screen.getByRole('status', { name: '正在加载搜索结果' })).toBeInTheDocument()
+      expect(screen.getByTestId('search-loading')).toBeInTheDocument()
+      expect(screen.queryByTestId('search-empty')).not.toBeInTheDocument()
+    })
+
+    test('trims keywords before building the search key', () => {
+      render(<SearchResults keywords="  jay  " />)
+
+      expect(mockUseSWR.mock.calls[0][0]).toBe('search:jay:1')
+    })
+
+    test('renders song results when the normalized song count is positive', () => {
+      mockUseSWR.mockReturnValue({
+        data: {
+          songs: [{ id: 1, name: '晴天' }],
+          songCount: 1,
+          artists: [],
+          artistCount: 0,
+          albums: [],
+          albumCount: 0,
+          playlists: [],
+          playlistCount: 0,
+          mvs: [],
+          mvCount: 0,
+        },
+        error: undefined,
+        isLoading: false,
+        isValidating: false,
+        mutate: vi.fn(),
+      })
+
+      render(<SearchResults keywords="晴天" />)
+
+      expect(screen.getByTestId('song-table')).toHaveTextContent('SongTable:1')
+      expect(screen.queryByTestId('search-empty')).not.toBeInTheDocument()
     })
   })
 })

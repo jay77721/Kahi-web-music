@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { Sun, Moon, Monitor } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/stores/uiStore'
@@ -34,10 +34,46 @@ interface ThemeToggleProps {
 export function ThemeToggle({ className }: ThemeToggleProps) {
   const theme = useUIStore((state) => state.theme)
   const setTheme = useUIStore((state) => state.setTheme)
+  const buttonRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   const handleSelect = useCallback(
     (next: ThemeOption) => () => setTheme(next),
     [setTheme]
+  )
+
+  const moveSelection = useCallback(
+    (nextIndex: number) => {
+      const option = OPTIONS[nextIndex]
+      setTheme(option.value)
+      window.requestAnimationFrame(() => {
+        buttonRefs.current[nextIndex]?.focus()
+      })
+    },
+    [setTheme]
+  )
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      const currentIndex = Math.max(
+        0,
+        OPTIONS.findIndex((option) => option.value === theme)
+      )
+
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+        event.preventDefault()
+        moveSelection((currentIndex + 1) % OPTIONS.length)
+      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+        event.preventDefault()
+        moveSelection((currentIndex - 1 + OPTIONS.length) % OPTIONS.length)
+      } else if (event.key === 'Home') {
+        event.preventDefault()
+        moveSelection(0)
+      } else if (event.key === 'End') {
+        event.preventDefault()
+        moveSelection(OPTIONS.length - 1)
+      }
+    },
+    [moveSelection, theme]
   )
 
   return (
@@ -45,13 +81,14 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
       role="radiogroup"
       aria-label="主题切换"
       data-testid="theme-toggle"
+      onKeyDown={handleKeyDown}
       className={cn(
         'inline-flex items-center gap-1 p-1 rounded-full',
         'bg-[var(--bg-elevated)] border border-[var(--border)]',
         className
       )}
     >
-      {OPTIONS.map((option) => {
+      {OPTIONS.map((option, index) => {
         const { Icon } = option
         const selected = theme === option.value
         return (
@@ -62,6 +99,10 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
             aria-checked={selected}
             aria-label={option.ariaLabel}
             data-testid={`theme-toggle-${option.value}`}
+            tabIndex={selected ? 0 : -1}
+            ref={(element) => {
+              buttonRefs.current[index] = element
+            }}
             onClick={handleSelect(option.value)}
             className={cn(
               'h-8 w-8 rounded-full p-0 transition-colors duration-150',

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Home, Music, ListMusic, Radio, Headphones,
@@ -23,8 +23,8 @@ const mainNavItems = [
 ]
 
 const myNavItems = [
-  { href: '/my?tab=liked', label: '我喜欢的', icon: Heart },
-  { href: '/my?tab=recent', label: '最近播放', icon: Clock },
+  { href: '/my?tab=liked', label: '我喜欢的', icon: Heart, activePath: '/my', activeTab: 'liked' },
+  { href: '/my?tab=recent', label: '最近播放', icon: Clock, activePath: '/my', activeTab: 'recent' },
   { href: '/cloud', label: '云盘', icon: Cloud },
 ]
 
@@ -33,14 +33,39 @@ const placeholderPlaylists = [
   { id: 2, name: '最近播放', playCount: 0 },
 ]
 
+type NavItem = {
+  href: string
+  label: string
+  icon: React.ElementType
+  activePath?: string
+  activeTab?: string
+}
+
+function pathFromHref(href: string): string {
+  return href.split('?')[0]
+}
+
+function isSidebarNavItemActive(item: NavItem, pathname: string, activeTab: string): boolean {
+  const basePath = item.activePath ?? pathFromHref(item.href)
+
+  if (item.activeTab) {
+    return pathname === basePath && activeTab === item.activeTab
+  }
+
+  if (basePath === '/') return pathname === '/'
+  return pathname === basePath || pathname.startsWith(`${basePath}/`)
+}
+
 export function Sidebar() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const activeTab = searchParams.get('tab') || 'liked'
   const { sidebarOpen, toggleSidebar } = useUIStore()
   const { isLoggedIn, profile } = useUserStore()
 
-  const navLink = (item: { href: string; label: string; icon: React.ElementType }) => {
+  const navLink = (item: NavItem) => {
     const Icon = item.icon
-    const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+    const isActive = isSidebarNavItemActive(item, pathname, activeTab)
 
     return (
       <Link
@@ -57,17 +82,18 @@ export function Sidebar() {
         {isActive && (
           <motion.span
             layoutId="sidebarActive"
+            aria-hidden="true"
             className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-[var(--accent)]"
             style={{ boxShadow: '0 0 10px var(--accent-glow)' }}
             transition={{ type: 'spring', bounce: 0.25, duration: 0.5 }}
           />
         )}
-        <Icon className={cn(
+        <Icon aria-hidden="true" className={cn(
           'w-[20px] h-[20px] flex-shrink-0 transition-all duration-200',
           isActive ? 'text-[var(--accent)] scale-110' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)] group-hover:scale-110'
         )} />
         <span className={cn(
-          'text-[15px] font-semibold tracking-wide truncate',
+          'text-[15px] font-semibold truncate',
           isActive && 'text-[var(--text-primary)]'
         )}>
           {item.label}
@@ -79,30 +105,32 @@ export function Sidebar() {
   // Collapsed state
   if (!sidebarOpen) {
     return (
-      <aside className="hidden md:flex flex-col items-center w-[76px] bg-[var(--bg-primary)] border-r border-[var(--border)] py-5 transition-all duration-300">
+      <aside aria-label="侧边栏" className="hidden md:flex flex-col items-center w-[76px] bg-[var(--bg-primary)] border-r border-[var(--border)] py-5 transition-all duration-300">
         {/* Logo */}
         <div className="w-11 h-11 rounded-2xl bg-[var(--accent)] flex items-center justify-center mb-8"
           style={{ boxShadow: '0 0 20px var(--accent-glow)' }}>
-          <Music2 className="w-6 h-6 text-[var(--text-inverse)]" strokeWidth={2.5} />
+          <Music2 className="w-6 h-6 text-[var(--text-inverse)]" strokeWidth={2.5} aria-hidden="true" />
         </div>
 
         <button
+          type="button"
           onClick={toggleSidebar}
           className="p-3 rounded-xl hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] mb-6 transition-all duration-200"
           aria-label="展开侧边栏"
         >
-          <ChevronRight className="w-5 h-5" />
+          <ChevronRight className="w-5 h-5" aria-hidden="true" />
         </button>
 
-        <nav className="flex flex-col items-center gap-3 flex-1">
+        <nav aria-label="主导航" className="flex flex-col items-center gap-3 flex-1">
           {mainNavItems.map((item) => {
             const Icon = item.icon
-            const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+            const isActive = isSidebarNavItemActive(item, pathname, activeTab)
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 aria-current={isActive ? 'page' : undefined}
+                aria-label={item.label}
                 className={cn(
                   'p-3.5 rounded-2xl transition-all duration-200 relative',
                   isActive ? 'bg-[var(--bg-elevated)] text-[var(--accent)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
@@ -111,10 +139,11 @@ export function Sidebar() {
               >
                 {isActive && (
                   <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-[var(--accent)]"
+                    aria-hidden="true"
                     style={{ boxShadow: '0 0 8px var(--accent-glow)' }}
                   />
                 )}
-                <Icon className="w-6 h-6" />
+                <Icon className="w-6 h-6" aria-hidden="true" />
               </Link>
             )
           })}
@@ -124,6 +153,7 @@ export function Sidebar() {
             href="/settings"
             data-testid="sidebar-settings"
             aria-current={pathname === '/settings' ? 'page' : undefined}
+            aria-label="设置"
             className={cn(
               'p-3.5 rounded-2xl transition-all duration-200 relative',
               pathname === '/settings' ? 'bg-[var(--bg-elevated)] text-[var(--accent)]' : 'text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
@@ -132,11 +162,12 @@ export function Sidebar() {
           >
             {pathname === '/settings' && (
               <span
+                aria-hidden="true"
                 className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-[var(--accent)]"
                 style={{ boxShadow: '0 0 8px var(--accent-glow)' }}
               />
             )}
-            <SettingsIcon className="w-6 h-6" />
+            <SettingsIcon className="w-6 h-6" aria-hidden="true" />
           </Link>
         </nav>
 
@@ -146,6 +177,7 @@ export function Sidebar() {
             <Link
               href={`/user/${profile.userId}`}
               className="block p-2 rounded-2xl hover:bg-[var(--bg-hover)] transition-all duration-200"
+              aria-label={`${profile.nickname}的主页`}
               title={profile.nickname}
             >
               <div className="w-9 h-9 rounded-full bg-[var(--bg-elevated)] overflow-hidden border-2 border-[var(--border-light)]">
@@ -153,7 +185,7 @@ export function Sidebar() {
                   <Image src={profile.avatarUrl} alt="" width={36} height={36} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
-                    <User className="w-4 h-4 text-[var(--text-tertiary)]" />
+                    <User className="w-4 h-4 text-[var(--text-tertiary)]" aria-hidden="true" />
                   </div>
                 )}
               </div>
@@ -162,9 +194,10 @@ export function Sidebar() {
             <Link
               href="/login"
               className="block p-2 rounded-2xl hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-all duration-200"
+              aria-label="登录"
               title="登录"
             >
-              <User className="w-5 h-5" />
+              <User className="w-5 h-5" aria-hidden="true" />
             </Link>
           )}
         </div>
@@ -174,7 +207,7 @@ export function Sidebar() {
 
   // Expanded state
   return (
-    <aside className="hidden md:flex flex-col w-[280px] bg-[var(--bg-primary)] border-r border-[var(--border)] relative transition-all duration-300">
+    <aside aria-label="侧边栏" className="hidden md:flex flex-col w-[280px] bg-[var(--bg-primary)] border-r border-[var(--border)] relative transition-all duration-300">
       {/* Brand header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-4">
         <Link href="/" className="flex items-center gap-3 group">
@@ -182,30 +215,31 @@ export function Sidebar() {
             <div className="absolute inset-0 rounded-xl bg-[var(--accent)] opacity-15 group-hover:opacity-25 transition-opacity duration-300"
               style={{ boxShadow: '0 0 20px var(--accent-glow)' }}
             />
-            <Music2 className="w-6 h-6 text-[var(--accent)] relative z-10" strokeWidth={2.5} />
+            <Music2 className="w-6 h-6 text-[var(--accent)] relative z-10" strokeWidth={2.5} aria-hidden="true" />
           </div>
-          <span className="font-bold text-[18px] tracking-tight text-[var(--text-primary)]">Kahi Music</span>
+          <span className="font-bold text-[18px] text-[var(--text-primary)]">Kahi Music</span>
         </Link>
         <button
+          type="button"
           onClick={toggleSidebar}
           className="p-2 rounded-xl hover:bg-[var(--bg-hover)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-all duration-200"
           aria-label="收起侧边栏"
         >
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="w-5 h-5" aria-hidden="true" />
         </button>
       </div>
 
       <ScrollArea className="flex-1 px-3">
         {/* Main navigation */}
-        <nav className="mb-2">
+        <nav aria-label="主导航" className="mb-2">
           {mainNavItems.map((item) => navLink(item))}
         </nav>
 
         <div className="mx-3 my-2 h-px bg-gradient-to-r from-transparent via-[var(--border)] to-transparent" />
 
         {/* My music */}
-        <nav className="mb-2">
-          <p className="px-3 py-2 text-[11px] font-bold text-[var(--text-quaternary)] uppercase tracking-[0.15em]">
+        <nav aria-label="我的音乐" className="mb-2">
+          <p className="px-3 py-2 text-[11px] font-bold text-[var(--text-quaternary)] uppercase">
             我的音乐
           </p>
           {myNavItems.map((item) => navLink(item))}
@@ -216,13 +250,15 @@ export function Sidebar() {
         {/* Playlists */}
         <div className="mb-2">
           <div className="flex items-center justify-between px-3 py-2">
-            <p className="text-[11px] font-bold text-[var(--text-quaternary)] uppercase tracking-[0.15em]">
+            <p className="text-[11px] font-bold text-[var(--text-quaternary)] uppercase">
               歌单
             </p>
             <button
+              type="button"
+              aria-label="新建歌单"
               className="p-1.5 rounded-lg hover:bg-[var(--bg-hover)] text-[var(--text-quaternary)] hover:text-[var(--text-secondary)] transition-all duration-200"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4" aria-hidden="true" />
             </button>
           </div>
           {placeholderPlaylists.map((pl) => (
@@ -232,7 +268,7 @@ export function Sidebar() {
               className="flex items-center gap-3.5 px-3 py-2.5 rounded-2xl mb-1 text-[14px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all duration-200"
             >
               <div className="w-9 h-9 rounded-xl bg-[var(--bg-elevated)] flex items-center justify-center flex-shrink-0 border border-[var(--border)]">
-                <Music2 className="w-4 h-4 text-[var(--text-tertiary)]" />
+                <Music2 className="w-4 h-4 text-[var(--text-tertiary)]" aria-hidden="true" />
               </div>
               <span className="truncate font-medium">{pl.name}</span>
             </Link>
@@ -242,7 +278,7 @@ export function Sidebar() {
         <div className="mx-3 my-2 h-px bg-gradient-to-r from-transparent via-[var(--border)] to-transparent" />
 
         {/* Settings (expanded) */}
-        <nav className="mb-2">
+        <nav aria-label="设置" className="mb-2">
           <Link
             href="/settings"
             data-testid="sidebar-settings"
@@ -257,17 +293,18 @@ export function Sidebar() {
             {pathname === '/settings' && (
               <motion.span
                 layoutId="sidebarActive"
+                aria-hidden="true"
                 className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-[var(--accent)]"
                 style={{ boxShadow: '0 0 10px var(--accent-glow)' }}
                 transition={{ type: 'spring', bounce: 0.25, duration: 0.5 }}
               />
             )}
-            <SettingsIcon className={cn(
+            <SettingsIcon aria-hidden="true" className={cn(
               'w-[20px] h-[20px] flex-shrink-0 transition-all duration-200',
               pathname === '/settings' ? 'text-[var(--accent)] scale-110' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)] group-hover:scale-110'
             )} />
             <span className={cn(
-              'text-[15px] font-semibold tracking-wide truncate',
+              'text-[15px] font-semibold truncate',
               pathname === '/settings' && 'text-[var(--text-primary)]'
             )}>
               设置
@@ -281,6 +318,7 @@ export function Sidebar() {
             <Link
               href={`/user/${profile.userId}`}
               className="flex items-center gap-3.5 px-3 py-2.5 rounded-2xl text-[14px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all duration-200"
+              aria-label={`${profile.nickname}的主页`}
             >
               <div className="w-9 h-9 rounded-full bg-[var(--bg-elevated)] overflow-hidden border-2 border-[var(--border-light)] flex-shrink-0">
                 {profile.avatarUrl && (
@@ -295,7 +333,7 @@ export function Sidebar() {
               className="flex items-center gap-3.5 px-3 py-2.5 rounded-2xl text-[14px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all duration-200"
             >
               <div className="w-9 h-9 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center flex-shrink-0 border-2 border-[var(--border)]">
-                <User className="w-4 h-4 text-[var(--text-tertiary)]" />
+                <User className="w-4 h-4 text-[var(--text-tertiary)]" aria-hidden="true" />
               </div>
               <span className="font-medium">登录</span>
             </Link>

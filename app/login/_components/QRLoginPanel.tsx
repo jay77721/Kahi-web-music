@@ -33,6 +33,11 @@ interface UserAccountResult {
   profile?: UserProfile
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) return error.message
+  return fallback
+}
+
 export function QRLoginPanel() {
   const router = useRouter()
   const setProfile = useUserStore((s) => s.setProfile)
@@ -63,12 +68,18 @@ export function QRLoginPanel() {
             setStatus('scanned')
           } else if (res.code === QRStatus.CONFIRMED) {
             clearTimers()
-            const accountRes = (await ncmApi.userAccount()) as unknown as UserAccountResult
-            if (accountRes?.profile) {
+            try {
+              const accountRes = (await ncmApi.userAccount()) as unknown as UserAccountResult
+              if (!accountRes?.profile) {
+                throw new Error('登录状态确认失败，请重试')
+              }
               setProfile(accountRes.profile)
               toast.success('登录成功')
+              router.push('/my')
+            } catch (error) {
+              toast.error(getErrorMessage(error, '登录状态确认失败，请重试'))
+              setStatus('expired')
             }
-            router.push('/my')
           }
         } catch {
           // Polling can fail transiently — keep retrying until expiry timeout.
@@ -136,7 +147,7 @@ export function QRLoginPanel() {
             )}
             {status === 'expired' && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl">
-                <p className="text-sm text-[var(--text-tertiary)]">已过期</p>
+                <p className="text-sm text-white">已过期</p>
               </div>
             )}
           </div>

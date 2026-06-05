@@ -13,8 +13,21 @@ import type { MV } from '@/types/mv'
 import type { Playlist } from '@/types/playlist'
 import type { SearchSuggestResponse } from '@/types/search'
 import type { LoginQRCreate, LoginQRKey, UserProfile } from '@/types/user'
+import {
+  asArray,
+  asNumber,
+  asString,
+  findResponseLayer,
+  firstRecord,
+  isRecord,
+  readFirstField,
+  readField,
+  type UnknownRecord,
+} from '@/lib/api-shape'
 
-type UnknownRecord = Record<string, unknown>
+type SearchSuggestResult = NonNullable<SearchSuggestResponse['result']>
+type SearchSuggestArrayItem<K extends keyof SearchSuggestResult> =
+  NonNullable<SearchSuggestResult[K]> extends Array<infer Item> ? Item : never
 
 export type NormalizedSearchResult = SearchResponse['result']
 
@@ -76,48 +89,6 @@ export interface NormalizedHomepageBlock {
   [key: string]: unknown
 }
 
-function isRecord(value: unknown): value is UnknownRecord {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function candidateLayers(raw: unknown): unknown[] {
-  const layers: unknown[] = []
-  let current = raw
-
-  for (let depth = 0; depth < 5; depth += 1) {
-    layers.push(current)
-
-    if (!isRecord(current) || current.data === undefined || current.data === null) {
-      break
-    }
-
-    current = current.data
-  }
-
-  return layers
-}
-
-function readField<T = unknown>(raw: unknown, field: string): T | undefined {
-  for (const layer of candidateLayers(raw)) {
-    if (!isRecord(layer)) continue
-    const value = layer[field]
-    if (value !== undefined && value !== null) return value as T
-  }
-  return undefined
-}
-
-function asArray<T>(value: unknown): T[] {
-  return Array.isArray(value) ? (value as T[]) : []
-}
-
-function asNumber(value: unknown, fallback = 0): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
-}
-
-function asString(value: unknown, fallback = ''): string {
-  return typeof value === 'string' ? value : fallback
-}
-
 function looksLikeUserProfile(value: unknown): value is UserProfile {
   return isRecord(value) && typeof value.userId === 'number' && typeof value.nickname === 'string'
 }
@@ -143,11 +114,8 @@ function looksLikeMv(value: unknown): value is MV {
   return isRecord(value) && typeof value.id === 'number' && typeof value.name === 'string'
 }
 
-function unwrapSingleRecord(raw: unknown): UnknownRecord | null {
-  for (const layer of candidateLayers(raw)) {
-    if (isRecord(layer)) return layer
-  }
-  return null
+function looksLikeSearchSuggestMatch(value: unknown): value is NonNullable<SearchSuggestResult['allMatch']> {
+  return isRecord(value) && typeof value.keyword === 'string'
 }
 
 function normalizeMappedSongs(items: unknown[]): Song[] {
@@ -159,16 +127,15 @@ function normalizeMappedSongs(items: unknown[]): Song[] {
     .filter((item): item is Song => isRecord(item) && typeof item.id === 'number')
 }
 
+function normalizeSearchSuggestMatch(value: unknown): SearchSuggestResult['allMatch'] {
+  if (looksLikeSearchSuggestMatch(value)) return value
+  return asArray<unknown>(value).find(looksLikeSearchSuggestMatch)
+}
+
 export function normalizeSongList(raw: unknown): Song[] {
   if (Array.isArray(raw)) return normalizeMappedSongs(raw)
 
-  const direct =
-    readField<unknown>(raw, 'songs') ??
-    readField<unknown>(raw, 'hotSongs') ??
-    readField<unknown>(raw, 'dailySongs') ??
-    readField<unknown>(raw, 'recommend') ??
-    readField<unknown>(raw, 'data')
-
+  const direct = readFirstField(raw, ['songs', 'hotSongs', 'dailySongs', 'recommend', 'data'])
   const directSongs = asArray<unknown>(direct)
   if (directSongs.length > 0) return normalizeMappedSongs(directSongs)
 
@@ -187,11 +154,7 @@ export function normalizeIdList(raw: unknown): number[] {
 export function normalizePlaylistList(raw: unknown): Playlist[] {
   if (Array.isArray(raw)) return raw as Playlist[]
 
-  return asArray<Playlist>(
-    readField<unknown>(raw, 'playlist') ??
-    readField<unknown>(raw, 'playlists') ??
-    readField<unknown>(raw, 'list')
-  )
+  return asArray<Playlist>(readFirstField(raw, ['playlist', 'playlists', 'list']))
 }
 
 export function normalizePlaylistDetail(
@@ -222,7 +185,7 @@ export function normalizeAlbumDetail(raw: unknown): NormalizedAlbumDetail {
 }
 
 export function normalizeArtistDetail(raw: unknown): NormalizedArtistDetail {
-  const composite = unwrapSingleRecord(raw)
+  const composite = firstRecord(raw)
   const detailSource = composite?.detail ?? raw
   const songsSource = composite?.songs ?? detailSource
   const albumsSource = composite?.albums ?? raw
@@ -231,22 +194,16 @@ export function normalizeArtistDetail(raw: unknown): NormalizedArtistDetail {
 
   const detail =
     readField<ArtistDetail>(detailSource, 'artist') !== undefined
-      ? (unwrapSingleRecord(detailSource) as ArtistDetail | null)
+      ? (firstRecord(detailSource) as ArtistDetail | null)
       : readField<ArtistDetail>(detailSource, 'data') ?? null
 
   const artist = detail?.artist ?? readField<Artist>(detailSource, 'artist') ?? null
   const songs = normalizeSongList(songsSource)
-  const albums = asArray<Album>(
-    readField<unknown>(albumsSource, 'hotAlbums') ??
-    readField<unknown>(albumsSource, 'albums')
-  )
+  const albums = asArray<Album>(readFirstField(albumsSource, ['hotAlbums', 'albums']))
   const desc =
     asString(readField<unknown>(descSource, 'briefDesc')) ||
     asString(readField<unknown>(descSource, 'desc'))
-  const simiArtists = asArray<Artist>(
-    readField<unknown>(simiSource, 'artists') ??
-    readField<unknown>(simiSource, 'simiArtists')
-  )
+  const simiArtists = asArray<Artist>(readFirstField(simiSource, ['artists', 'simiArtists']))
 
   return {
     artist,
@@ -263,13 +220,7 @@ function normalizeSearchCollection<T>(
   countKey: string
 ): { items: T[]; count: number } {
   const nested = result[collectionKey]
-  const items = asArray<T>(
-    Array.isArray(nested)
-      ? nested
-      : isRecord(nested)
-        ? nested[collectionKey]
-        : result[collectionKey]
-  )
+  const items = asArray<T>(isRecord(nested) ? nested[collectionKey] : nested)
 
   const nestedCount = isRecord(nested) ? nested[countKey] : undefined
   return {
@@ -279,7 +230,7 @@ function normalizeSearchCollection<T>(
 }
 
 export function normalizeSearchResult(raw: unknown): NormalizedSearchResult {
-  const result = readField<UnknownRecord>(raw, 'result') ?? unwrapSingleRecord(raw) ?? {}
+  const result = readField<UnknownRecord>(raw, 'result') ?? firstRecord(raw) ?? {}
 
   const songs = normalizeSearchCollection<Song>(result, 'songs', 'songCount')
   const playlists = normalizeSearchCollection<Playlist>(result, 'playlists', 'playlistCount')
@@ -305,21 +256,11 @@ export function normalizeUserProfile(raw: unknown): UserProfile | null {
   const profile = readField<unknown>(raw, 'profile')
   if (looksLikeUserProfile(profile)) return profile
 
-  for (const layer of candidateLayers(raw)) {
-    if (looksLikeUserProfile(layer)) return layer
-  }
-
-  return null
+  return findResponseLayer(raw, looksLikeUserProfile)
 }
 
 export function normalizeLyricData(raw: unknown): LyricDataResponse | null {
-  for (const layer of candidateLayers(raw)) {
-    if (looksLikeLyricData(layer)) {
-      return layer
-    }
-  }
-
-  return readField<LyricDataResponse>(raw, 'data') ?? null
+  return findResponseLayer(raw, looksLikeLyricData)
 }
 
 export function normalizeLeaderboardList(raw: unknown): NormalizedLeaderboardItem[] {
@@ -353,15 +294,11 @@ export function normalizeMvDetail(raw: unknown): MV | null {
   const mv = readField<MV>(raw, 'mv')
   if (looksLikeMv(mv)) return mv
 
-  for (const layer of candidateLayers(raw)) {
-    if (looksLikeMv(layer)) return layer
-  }
-
-  return null
+  return findResponseLayer(raw, looksLikeMv)
 }
 
 export function normalizeMvInfo(raw: unknown): MVDetailInfoResponse | null {
-  const info = unwrapSingleRecord(raw)
+  const info = firstRecord(raw)
   if (!info) return null
 
   return {
@@ -375,11 +312,7 @@ export function normalizeMvInfo(raw: unknown): MVDetailInfoResponse | null {
 export function normalizeMvList(raw: unknown): MV[] {
   if (Array.isArray(raw)) return raw.filter(looksLikeMv)
 
-  return asArray<unknown>(
-    readField<unknown>(raw, 'mvs') ??
-    readField<unknown>(raw, 'data') ??
-    readField<unknown>(raw, 'result')
-  ).filter(looksLikeMv)
+  return asArray<unknown>(readFirstField(raw, ['mvs', 'data', 'result'])).filter(looksLikeMv)
 }
 
 export function normalizeMvBundle(
@@ -408,7 +341,7 @@ export function normalizeLoginQrCreate(raw: unknown): LoginQRCreate | null {
 }
 
 export function normalizeQrCheck(raw: unknown): { code: number; message?: string } | null {
-  const record = unwrapSingleRecord(raw)
+  const record = firstRecord(raw)
   if (!record) return null
 
   return {
@@ -418,7 +351,7 @@ export function normalizeQrCheck(raw: unknown): { code: number; message?: string
 }
 
 export function normalizeLoginCellphone(raw: unknown): LoginCellphoneResponse {
-  const record = unwrapSingleRecord(raw) ?? {}
+  const record = firstRecord(raw) ?? {}
   const profile = normalizeUserProfile(raw) ?? undefined
   return {
     code: asNumber(record.code, 200),
@@ -429,16 +362,16 @@ export function normalizeLoginCellphone(raw: unknown): LoginCellphoneResponse {
 }
 
 export function normalizeSearchSuggest(raw: unknown): SearchSuggestResponse {
-  const result = readField<UnknownRecord>(raw, 'result') ?? unwrapSingleRecord(raw) ?? {}
+  const result = readField<UnknownRecord>(raw, 'result') ?? firstRecord(raw) ?? {}
 
   return {
     code: asNumber(readField<unknown>(raw, 'code'), 200),
     result: {
-      allMatch: isRecord(result.allMatch) ? result.allMatch as SearchSuggestResponse['result']['allMatch'] : undefined,
-      songs: asArray<NonNullable<SearchSuggestResponse['result']['songs']>[number]>(result.songs),
-      artists: asArray<NonNullable<SearchSuggestResponse['result']['artists']>[number]>(result.artists),
-      albums: asArray<NonNullable<SearchSuggestResponse['result']['albums']>[number]>(result.albums),
-      playlists: asArray<NonNullable<SearchSuggestResponse['result']['playlists']>[number]>(result.playlists),
+      allMatch: normalizeSearchSuggestMatch(result.allMatch),
+      songs: asArray<SearchSuggestArrayItem<'songs'>>(result.songs),
+      artists: asArray<SearchSuggestArrayItem<'artists'>>(result.artists),
+      albums: asArray<SearchSuggestArrayItem<'albums'>>(result.albums),
+      playlists: asArray<SearchSuggestArrayItem<'playlists'>>(result.playlists),
     },
   }
 }
@@ -456,28 +389,18 @@ export function normalizeDiscoverItems(raw: unknown): NormalizedDiscoverItem[] {
   if (Array.isArray(raw)) return raw as NormalizedDiscoverItem[]
 
   return asArray<NormalizedDiscoverItem>(
-    readField<unknown>(raw, 'result') ??
-    readField<unknown>(raw, 'recommend') ??
-    readField<unknown>(raw, 'resources') ??
-    readField<unknown>(raw, 'data')
+    readFirstField(raw, ['result', 'recommend', 'resources', 'data'])
   )
 }
 
 export function normalizeHomepageBlocks(raw: unknown): NormalizedHomepageBlock[] {
-  return asArray<NormalizedHomepageBlock>(
-    readField<unknown>(raw, 'blocks') ??
-    readField<unknown>(raw, 'block')
-  )
+  return asArray<NormalizedHomepageBlock>(readFirstField(raw, ['blocks', 'block']))
 }
 
 export function normalizeDjRadioList(raw: unknown): DjRadio[] {
   if (Array.isArray(raw)) return raw as DjRadio[]
 
-  return asArray<DjRadio>(
-    readField<unknown>(raw, 'djRadios') ??
-    readField<unknown>(raw, 'radios') ??
-    readField<unknown>(raw, 'data')
-  )
+  return asArray<DjRadio>(readFirstField(raw, ['djRadios', 'radios', 'data']))
 }
 
 export function normalizeDjHotList(raw: unknown): DjRadioHot[] {
@@ -491,8 +414,6 @@ export function normalizeDjProgramToplist(raw: unknown): DjProgramToplistItem[] 
   if (Array.isArray(raw)) return raw as DjProgramToplistItem[]
 
   return asArray<DjProgramToplistItem>(
-    readField<unknown>(raw, 'toplist') ??
-    readField<unknown>(raw, 'programs') ??
-    readField<unknown>(raw, 'data')
+    readFirstField(raw, ['toplist', 'programs', 'data'])
   )
 }

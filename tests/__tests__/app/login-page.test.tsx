@@ -37,10 +37,22 @@ vi.mock('@/stores/userStore', () => ({
   ) => selector(mocks.userStoreState),
 }))
 
+function getLoginShell(): HTMLElement {
+  return screen.getByRole('main', { name: /Kahi Music/i })
+}
+
+function getClassNames(container: HTMLElement): string {
+  return Array.from(container.querySelectorAll<HTMLElement>('*'))
+    .map((element) => element.className)
+    .filter((className): className is string => typeof className === 'string')
+    .join(' ')
+}
+
 describe('LoginPage session restoration gate', () => {
   beforeEach(() => {
     mocks.userStoreState.isLoggedIn = false
     mocks.userStoreState.hasRestoredSession = true
+    document.documentElement.removeAttribute('data-theme')
     vi.clearAllMocks()
   })
 
@@ -92,4 +104,73 @@ describe('LoginPage session restoration gate', () => {
     })
     expect(mocks.routerReplace).toHaveBeenCalledWith('/my')
   })
+
+  test('allows a fresh authenticated remount to redirect after a previous StrictMode redirect', async () => {
+    mocks.userStoreState.isLoggedIn = true
+
+    const { unmount } = render(
+      <StrictMode>
+        <LoginPage />
+      </StrictMode>
+    )
+
+    await waitFor(() => {
+      expect(mocks.routerReplace).toHaveBeenCalledTimes(1)
+    })
+
+    unmount()
+    render(<LoginPage />)
+
+    await waitFor(() => {
+      expect(mocks.routerReplace).toHaveBeenCalledTimes(2)
+    })
+    expect(mocks.routerReplace).toHaveBeenLastCalledWith('/my')
+  })
+})
+
+describe('LoginPage theme tokens', () => {
+  beforeEach(() => {
+    mocks.userStoreState.isLoggedIn = false
+    mocks.userStoreState.hasRestoredSession = true
+    document.documentElement.removeAttribute('data-theme')
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    cleanup()
+    document.documentElement.removeAttribute('data-theme')
+  })
+
+  test('uses design tokens for login page chrome instead of dark-only palette classes', () => {
+    render(<LoginPage />)
+
+    const shell = getLoginShell()
+    const classNames = getClassNames(shell)
+
+    expect(shell).toHaveClass('bg-[var(--bg-primary)]')
+    expect(shell).toHaveClass('text-[var(--text-primary)]')
+    expect(classNames).toContain('bg-[var(--bg-elevated)]')
+    expect(classNames).toContain('text-[var(--text-primary)]')
+    expect(classNames).toContain('text-[var(--accent-foreground)]')
+    expect(classNames).not.toMatch(/\bbg-black\b|\bbg-white\/5\b|\btext-white\b|\btext-black\b|hover:text-white/)
+  })
+
+  test.each(['light', 'dark'] as const)(
+    'keeps login shell tokenized under %s theme attributes',
+    (theme) => {
+      document.documentElement.setAttribute('data-theme', theme)
+
+      render(<LoginPage />)
+
+      const shell = getLoginShell()
+      const classNames = getClassNames(shell)
+
+      expect(document.documentElement).toHaveAttribute('data-theme', theme)
+      expect(shell).toHaveClass('bg-[var(--bg-primary)]')
+      expect(shell).toHaveClass('text-[var(--text-primary)]')
+      expect(classNames).toContain('bg-[var(--bg-elevated)]')
+      expect(classNames).toContain('border-[var(--border)]')
+      expect(classNames).not.toMatch(/\bbg-black\b|\bbg-white\/5\b|\btext-white\b|\btext-black\b|hover:text-white/)
+    }
+  )
 })

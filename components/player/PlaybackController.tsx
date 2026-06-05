@@ -16,17 +16,29 @@ import {
 } from '@/lib/mediaSession'
 import type { Song } from '@/types/api'
 
+const STORE_TIME_UPDATE_INTERVAL_MS = 250
+const PRIMARY_STREAM_BITRATE = 320000
+const FALLBACK_STREAM_BITRATE = 128000
+
+function streamUrl(trackId: number, bitrate: number): string {
+  return `/api/song/stream?id=${trackId}&br=${bitrate}`
+}
+
 /**
  * PlaybackController - 独立于 UI 的播放逻辑
  * 始终挂载在 app 根布局中，不依赖 PlayerBar 渲染
  */
 export function PlaybackController() {
-  const {
-    currentTrack, isPlaying,
-    setIsPlaying, setLyrics,
-    setPlaybackError, clearPlaybackError,
-    setHasUserInteracted, next, prev, seek,
-  } = usePlayerStore()
+  const currentTrack = usePlayerStore((state) => state.currentTrack)
+  const isPlaying = usePlayerStore((state) => state.isPlaying)
+  const setIsPlaying = usePlayerStore((state) => state.setIsPlaying)
+  const setLyrics = usePlayerStore((state) => state.setLyrics)
+  const setPlaybackError = usePlayerStore((state) => state.setPlaybackError)
+  const clearPlaybackError = usePlayerStore((state) => state.clearPlaybackError)
+  const setHasUserInteracted = usePlayerStore((state) => state.setHasUserInteracted)
+  const next = usePlayerStore((state) => state.next)
+  const prev = usePlayerStore((state) => state.prev)
+  const seek = usePlayerStore((state) => state.seek)
 
   const currentTrackIdRef = useRef<number | null>(null)
   const streamRetryRef = useRef<{ trackId: number | null; retried: boolean }>({
@@ -51,18 +63,12 @@ export function PlaybackController() {
     }
     currentTrackIdRef.current = currentTrack.id
 
-    let cancelled = false
-
-    const loadAndPlay = (br = 320000) => {
+    const loadAndPlay = () => {
       try {
         clearPlaybackError()
 
-        const url = `/api/song/stream?id=${currentTrack.id}&br=${br}`
-
-        if (cancelled) return
-
         streamRetryRef.current = { trackId: currentTrack.id, retried: false }
-        audioEngine.load(url)
+        audioEngine.load(streamUrl(currentTrack.id, PRIMARY_STREAM_BITRATE))
         const { volume, isMuted } = usePlayerStore.getState()
         audioEngine.setVolume(isMuted ? 0 : volume)
 
@@ -71,15 +77,12 @@ export function PlaybackController() {
           audioEngine.play()
         }
       } catch (e) {
-        if (!cancelled) {
-          setPlaybackError(e instanceof Error ? e.message : '加载失败')
-          setIsPlaying(false)
-        }
+        setPlaybackError(e instanceof Error ? e.message : '加载失败')
+        setIsPlaying(false)
       }
     }
 
     loadAndPlay()
-    return () => { cancelled = true }
     // currentTrack is captured via currentTrack.id; whole object intentionally omitted
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTrack?.id, setIsPlaying, setPlaybackError, clearPlaybackError])
@@ -107,9 +110,17 @@ export function PlaybackController() {
 
   // AudioEngine events → store
   useEffect(() => {
+    let lastStoreTimeUpdateAt: number | null = null
+    const syncCurrentTime = (time: number) => {
+      usePlayerStore.getState().setCurrentTime(time)
+      lastStoreTimeUpdateAt = Date.now()
+    }
+    const flushCurrentTime = () => {
+      syncCurrentTime(audioEngine.getCurrentTime())
+    }
     const onPlay = () => { clearPlaybackError(); setIsPlaying(true) }
-    const onPause = () => setIsPlaying(false)
-    const onEnd = () => { setIsPlaying(false); next() }
+    const onPause = () => { flushCurrentTime(); setIsPlaying(false) }
+    const onEnd = () => { flushCurrentTime(); setIsPlaying(false); next() }
     const retryLowerBitrate = (): boolean => {
       const { currentTrack, hasUserInteracted, isPlaying, volume, isMuted } = usePlayerStore.getState()
       const retry = streamRetryRef.current
@@ -117,7 +128,7 @@ export function PlaybackController() {
 
       retry.retried = true
       try {
-        audioEngine.load(`/api/song/stream?id=${currentTrack.id}&br=128000`)
+        audioEngine.load(streamUrl(currentTrack.id, FALLBACK_STREAM_BITRATE))
         audioEngine.setVolume(isMuted ? 0 : volume)
         if (hasUserInteracted && isPlaying) audioEngine.play()
         return true
@@ -134,19 +145,27 @@ export function PlaybackController() {
       const dur = audioEngine.getDuration()
       if (dur > 0) usePlayerStore.getState().setDuration(dur)
     }
+    const onTimeUpdate = (time: number) => {
+      const now = Date.now()
+      if (
+        lastStoreTimeUpdateAt === null ||
+        now - lastStoreTimeUpdateAt >= STORE_TIME_UPDATE_INTERVAL_MS
+      ) {
+        syncCurrentTime(time)
+      }
+    }
 
-    audioEngine.onPlay(onPlay)
-    audioEngine.onPause(onPause)
-    audioEngine.onEnd(onEnd)
-    audioEngine.onError(onError)
-    audioEngine.onLoad(onLoad)
+    const unsubscribe = [
+      audioEngine.onPlay(onPlay),
+      audioEngine.onPause(onPause),
+      audioEngine.onEnd(onEnd),
+      audioEngine.onError(onError),
+      audioEngine.onLoad(onLoad),
+      audioEngine.onTimeUpdate(onTimeUpdate),
+    ]
 
     return () => {
-      audioEngine.onPlay(() => {})
-      audioEngine.onPause(() => {})
-      audioEngine.onEnd(() => {})
-      audioEngine.onError(() => {})
-      audioEngine.onLoad(() => {})
+      unsubscribe.forEach((off) => off())
     }
   }, [setIsPlaying, setPlaybackError, clearPlaybackError, next])
 
@@ -167,10 +186,7 @@ export function PlaybackController() {
 
   // Sync Media Session metadata + playback state with the current track
   useEffect(() => {
-    if (!currentTrack) {
-      setMediaPlaybackState('none')
-      return
-    }
+    if (!currentTrack) return
 
     const artistNames = (currentTrack.ar ?? []).map((a) => a.name).join(' / ')
     const albumName = currentTrack.al?.name ?? ''
@@ -228,7 +244,11 @@ export function PlaybackController() {
       }),
     }
     ;(window as unknown as Window).__playbackCtrl = controls
-    return () => { delete (window as unknown as Window).__playbackCtrl }
+    return () => {
+      if ((window as unknown as Window).__playbackCtrl === controls) {
+        delete (window as unknown as Window).__playbackCtrl
+      }
+    }
   }, [setHasUserInteracted])
 
   return null

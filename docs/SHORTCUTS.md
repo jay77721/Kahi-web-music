@@ -134,7 +134,7 @@ The global shortcuts are **not** fired when `Ctrl` / `Meta` / `Alt` is held. Thi
 
 ## ♿ Accessibility
 
-- All shortcut hooks (`useKeyboardShortcuts`, `useGlobalShortcuts`) short-circuit when an input has focus. The `Esc` key is handled by the dialog / sheet components (Radix-based) automatically.
+- All shortcut hooks (`useKeyboardShortcuts`, `useGlobalShortcuts`) short-circuit when an input has focus. The `Esc` key is handled by the dialog / sheet components (Base UI-based) automatically.
 - Every interactive surface has a focusable element with a visible focus ring (`.focus-visible:ring-2`).
 - `prefers-reduced-motion` is respected globally — see `useReducedMotion` and the corresponding `globals.css` rules.
 - Tooltips (`<Tooltip>`) surface the keyboard hint when one is available, e.g. on the play button.
@@ -169,4 +169,4 @@ For E2E coverage, the keyboard shortcuts are exercised in `tests/e2e/keyboard-sh
 
 ---
 
-<p align="center"><sub>Last updated: 2026-06-03</sub></p>
+<p align="center"><sub>Last updated: 2026-06-05</sub></p>

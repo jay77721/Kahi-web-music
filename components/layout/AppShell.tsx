@@ -26,24 +26,25 @@ export function AppShell({ children }: AppShellProps) {
   }, [isMobile, setIsMobile])
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--bg-primary)] text-[var(--text-primary)]">
+    <div className="flex h-dvh min-h-0 overflow-hidden bg-[var(--bg-primary)] text-[var(--text-primary)]">
       {/* Sidebar (PC only) */}
       <Sidebar />
 
       {/* Main area */}
-      <div className="flex flex-col flex-1 min-w-0">
+      <div className="flex min-h-0 flex-1 flex-col">
         {/* Header */}
         <Header />
 
         {/* Content */}
         <main
           id="main-content"
+          tabIndex={-1}
+          aria-label="主内容"
           className={cn(
-            'flex-1 overflow-y-auto',
-            isMobile && hasCurrentTrack && 'pb-32',
-            isMobile && !hasCurrentTrack && 'pb-16',
-            !isMobile && hasCurrentTrack && 'pb-24',
-            !isMobile && !hasCurrentTrack && 'pb-4'
+            'min-h-0 flex-1 overflow-y-auto scroll-p-4 focus:outline-none',
+            hasCurrentTrack
+              ? 'pb-[calc(8rem+env(safe-area-inset-bottom))] md:pb-24'
+              : 'pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-4'
           )}
         >
           {children}
@@ -54,7 +55,7 @@ export function AppShell({ children }: AppShellProps) {
       <PlayerOverlays />
 
       {/* Mobile bottom nav */}
-      {isMobile && <MobileNav />}
+      <MobileNav />
     </div>
   )
 }

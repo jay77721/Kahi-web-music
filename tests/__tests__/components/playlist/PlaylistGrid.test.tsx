@@ -1,21 +1,7 @@
-import { describe, test, expect, afterEach, vi } from 'vitest'
+import { describe, test, expect, afterEach } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { PlaylistGrid } from '@/components/playlist/PlaylistGrid'
 import type { Playlist } from '@/types/playlist'
-
-// Stub next/image so it renders a plain <img>.
-vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { src, alt, width, height } = props as {
-      src: string
-      alt: string
-      width?: number
-      height?: number
-    }
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={alt} width={width} height={height} />
-  },
-}))
 
 function makePlaylist(overrides: Partial<Playlist> = {}): Playlist {
   return {

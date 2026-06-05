@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach } from 'vitest'
+import { describe, test, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { ThemeToggle } from '@/components/common/ThemeToggle'
 import { useUIStore } from '@/stores/uiStore'
@@ -89,5 +89,32 @@ describe('ThemeToggle', () => {
     const checked = screen.getAllByRole('radio').filter((r) => r.getAttribute('aria-checked') === 'true')
     expect(checked).toHaveLength(1)
     expect(checked[0]).toBe(screen.getByTestId('theme-toggle-system'))
+  })
+
+  test('uses roving tab index for the selected radio', () => {
+    useUIStore.setState({ theme: 'light' })
+    render(<ThemeToggle />)
+
+    expect(screen.getByTestId('theme-toggle-light')).toHaveAttribute('tabindex', '0')
+    expect(screen.getByTestId('theme-toggle-dark')).toHaveAttribute('tabindex', '-1')
+    expect(screen.getByTestId('theme-toggle-system')).toHaveAttribute('tabindex', '-1')
+  })
+
+  test('supports arrow-key selection within the radiogroup', () => {
+    const rafSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback) => {
+        callback(0)
+        return 1
+      })
+
+    render(<ThemeToggle />)
+
+    fireEvent.keyDown(screen.getByRole('radiogroup'), { key: 'ArrowRight' })
+
+    expect(useUIStore.getState().theme).toBe('light')
+    expect(screen.getByTestId('theme-toggle-light')).toHaveFocus()
+
+    rafSpy.mockRestore()
   })
 })

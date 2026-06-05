@@ -24,6 +24,7 @@ const LIKED_BACKGROUND_STYLE: CSSProperties = {
     linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 50%, var(--bg-secondary) 100%)
   `,
 }
+const EMPTY_SONGS: Song[] = []
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
@@ -75,22 +76,22 @@ export default function LikedPage() {
       return fetchSongDetailsByIds(ids)
     }
   )
+  const songs = data ?? EMPTY_SONGS
+  const total = songs.length
 
   const handlePlayAll = useCallback(() => {
-    if (!data || data.length === 0) return
+    if (songs.length === 0) return
     setPlayMode('sequential')
-    playQueue(data, 0)
-  }, [data, playQueue, setPlayMode])
+    playQueue(songs, 0)
+  }, [songs, playQueue, setPlayMode])
 
   const handleShuffle = useCallback(() => {
-    if (!data || data.length === 0) return
+    if (songs.length === 0) return
     setPlayMode('shuffle')
-    playQueue(shuffle(data), 0)
-  }, [data, playQueue, setPlayMode])
+    playQueue(shuffle(songs), 0)
+  }, [songs, playQueue, setPlayMode])
 
   if (!hasRestoredSession || !isLoggedIn) return null
-
-  const total = data?.length ?? 0
 
   return (
     <AppShell>
@@ -102,16 +103,16 @@ export default function LikedPage() {
         <header className="mb-6 animate-fade-in">
           <div className="flex items-center gap-3 mb-2">
             <div
-              className="w-11 h-11 rounded-2xl flex items-center justify-center bg-[var(--accent)]/15"
+              className="w-11 h-11 rounded-2xl flex shrink-0 items-center justify-center bg-[var(--accent)]/15"
               style={{ boxShadow: '0 0 18px var(--accent-glow)' }}
             >
               <Heart className="w-6 h-6 text-[var(--accent)]" aria-hidden="true" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
+            <h1 className="min-w-0 text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
               我喜欢的音乐
             </h1>
           </div>
-          <p className="text-sm text-[var(--text-tertiary)] ml-14">
+          <p className="text-sm text-[var(--text-tertiary)] sm:ml-14">
             你收藏的所有歌曲
             {total > 0 && (
               <span className="ml-2">· 共 {total} 首</span>
@@ -120,7 +121,7 @@ export default function LikedPage() {
         </header>
 
         {total > 0 && (
-          <div className="flex items-center gap-3 mb-6 ml-14">
+          <div className="flex flex-wrap items-center gap-3 mb-6 sm:ml-14">
             <Button
               size="sm"
               onClick={handlePlayAll}
@@ -169,9 +170,9 @@ export default function LikedPage() {
               重试
             </Button>
           </div>
-        ) : data && data.length > 0 ? (
+        ) : total > 0 ? (
           <SongTable
-            songs={data}
+            songs={songs}
             onPlayAll={handlePlayAll}
             animated={false}
           />

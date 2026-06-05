@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest'
-import { render } from '@testing-library/react'
+import { fireEvent, render } from '@testing-library/react'
 import { SkipNav } from '@/components/common/SkipNav'
 
 describe('SkipNav', () => {
@@ -23,7 +23,7 @@ describe('SkipNav', () => {
     expect(document.activeElement).toBe(link)
   })
 
-  test('clicking navigates to #main-content', () => {
+  test('clicking moves focus to #main-content', () => {
     const main = document.createElement('main')
     main.id = 'main-content'
     document.body.appendChild(main)
@@ -31,9 +31,11 @@ describe('SkipNav', () => {
     const { container } = render(<SkipNav />)
     const link = container.querySelector('a.skip-nav') as HTMLElement
 
-    // jsdom does not update window.location.hash on anchor clicks;
-    // verify the anchor has the correct href instead.
+    fireEvent.click(link)
+
     expect(link).toHaveAttribute('href', '#main-content')
+    expect(main).toHaveAttribute('tabindex', '-1')
+    expect(document.activeElement).toBe(main)
 
     document.body.removeChild(main)
   })

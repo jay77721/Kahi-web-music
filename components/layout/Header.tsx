@@ -34,9 +34,14 @@ export function Header() {
   )
 
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-2 md:gap-3 px-3 md:px-6 h-14 bg-[var(--bg-primary)] border-b border-[var(--border)]">
+    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--bg-primary)] px-3 md:gap-3 md:px-6">
       {/* Center: search bar */}
-      <form onSubmit={handleSearch} className="min-w-0 flex-1 md:max-w-[420px]">
+      <form
+        role="search"
+        aria-label="站内搜索"
+        onSubmit={handleSearch}
+        className="min-w-0 flex-1 md:max-w-[420px]"
+      >
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
           <Input
@@ -57,15 +62,15 @@ export function Header() {
           variant="ghost"
           size="icon"
           className="hidden md:inline-flex w-8 h-8 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all duration-150"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          aria-label="切换主题"
+          onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+          aria-label={theme === 'light' ? '切换到深色主题' : '切换到浅色主题'}
         >
           {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </Button>
 
         {isLoggedIn && profile ? (
-          <Link href={`/user/${profile.userId}`}>
-            <div className="w-8 h-8 rounded-full bg-[var(--bg-elevated)] overflow-hidden hover:border-[var(--border-strong)] transition-all duration-150 cursor-pointer">
+          <Link href={`/user/${profile.userId}`} aria-label={`${profile.nickname}的主页`}>
+            <div className="w-8 h-8 rounded-full bg-[var(--bg-elevated)] overflow-hidden border border-transparent hover:border-[var(--border-strong)] transition-all duration-150 cursor-pointer">
               {profile.avatarUrl ? (
                 <Image
                   src={profile.avatarUrl}

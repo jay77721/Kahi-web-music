@@ -2,7 +2,6 @@
 
 import { describe, test, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
-import React from 'react'
 import type { Artist } from '@/types/artist'
 
 // ---------------------------------------------------------------------------
@@ -13,18 +12,6 @@ const mockUseDominantColor = vi.fn()
 
 vi.mock('@/hooks/useDominantColor', () => ({
   useDominantColor: (...args: unknown[]) => mockUseDominantColor(...args),
-}))
-
-vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { src, alt, width, height } = props as {
-      src: string
-      alt: string
-      width?: number
-      height?: number
-    }
-    return React.createElement('img', { src, alt, width, height })
-  },
 }))
 
 import { ArtistHero } from '@/components/artist/ArtistHero'

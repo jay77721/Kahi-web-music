@@ -6,20 +6,6 @@ vi.mock('@/hooks/useDominantColor', () => ({
   useDominantColor: () => ({ color: null, isLoading: false, error: null }),
 }))
 
-// next/image: render a plain <img>, ignoring next.js optimization wrapper.
-vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { src, alt, width, height } = props as {
-      src: string
-      alt: string
-      width?: number
-      height?: number
-    }
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={alt} width={width} height={height} />
-  },
-}))
-
 import { HeroBanner } from '@/components/playlist/HeroBanner'
 
 afterEach(() => {

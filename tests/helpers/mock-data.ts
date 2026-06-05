@@ -19,6 +19,10 @@ export const mockSong = {
   mv: 0,
 }
 
+export function makeMockSong(overrides: Partial<typeof mockSong> = {}): typeof mockSong {
+  return { ...mockSong, ...overrides } as typeof mockSong
+}
+
 export const mockArtist = {
   id: 101,
   name: '周杰伦',

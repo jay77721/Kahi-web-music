@@ -3,16 +3,17 @@ import { useRef } from 'react'
 import { render, fireEvent, waitFor, screen, cleanup } from '@testing-library/react'
 import { SearchSuggestions } from '@/components/search/SearchSuggestions'
 
-const { mockUseSWR, mockSearchSuggest } = vi.hoisted(() => ({
+const { mockUseSWR, mockSearchSuggest, mockUseDebouncedValue } = vi.hoisted(() => ({
   mockUseSWR: vi.fn(),
   mockSearchSuggest: vi.fn(),
+  mockUseDebouncedValue: vi.fn(),
 }))
 
 // ---------------------------------------------------------------------------
 // Mocks (must come before imports that use them)
 // ---------------------------------------------------------------------------
 vi.mock('@/hooks/useDebouncedValue', () => ({
-  useDebouncedValue: (value: string) => value,
+  useDebouncedValue: (value: string, delay: number) => mockUseDebouncedValue(value, delay),
 }))
 
 vi.mock('swr', () => ({
@@ -49,6 +50,8 @@ describe('SearchSuggestions', () => {
     onSelect.mockClear()
     mockUseSWR.mockReset()
     mockSearchSuggest.mockReset()
+    mockUseDebouncedValue.mockReset()
+    mockUseDebouncedValue.mockImplementation((value: string) => value)
     mockUseSWR.mockReturnValue({
       data: suggestData,
       error: undefined,
@@ -124,6 +127,24 @@ describe('SearchSuggestions', () => {
 
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(onSelect).toHaveBeenCalledWith('晴天')
+  })
+
+  test('uses a null SWR key for whitespace-only queries', () => {
+    render(<SearchSuggestions query="   " onSelect={onSelect} />)
+
+    expect(mockUseSWR).toHaveBeenCalledWith(null, expect.any(Function))
+    expect(screen.queryByRole('listbox', { name: '搜索建议' })).not.toBeInTheDocument()
+  })
+
+  test('shows loading instead of stale options while waiting for debounce', () => {
+    mockUseDebouncedValue.mockReturnValue('周杰伦')
+
+    render(<SearchSuggestions query="周" onSelect={onSelect} />)
+
+    expect(screen.getByRole('listbox', { name: '搜索建议' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('status', { name: '正在加载搜索建议' })).toBeInTheDocument()
+    expect(screen.queryByRole('option')).not.toBeInTheDocument()
+    expect(screen.queryByText('晴天')).not.toBeInTheDocument()
   })
 
   test('closes suggestions with Escape', async () => {

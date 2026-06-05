@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 import Image from 'next/image'
 import { Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Shuffle, Volume2, VolumeX, List } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,7 @@ import { usePlayerStore } from '@/stores/playerStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { audioEngine } from '@/lib/audio'
-import { formatDuration, formatArtists, imageUrl } from '@/lib/format'
+import { formatTime, formatArtists, imageUrl } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 export function PlayerBar() {
@@ -38,7 +38,6 @@ function PlayerBarContent() {
   const cyclePlayMode = usePlayerStore((state) => state.cyclePlayMode)
   const togglePlayQueue = useUIStore((state) => state.togglePlayQueue)
   const playQueueOpen = useUIStore((state) => state.playQueueOpen)
-  const isSeeking = useRef(false)
 
   const handleTogglePlay = useCallback(() => {
     const ctrl = (window as unknown as Window).__playbackCtrl
@@ -55,10 +54,8 @@ function PlayerBarContent() {
 
   const handleSeek = useCallback((value: number | readonly number[]) => {
     const time = Array.isArray(value) ? value[0] : value
-    isSeeking.current = true
     setCurrentTime(time)
     audioEngine.seek(time)
-    setTimeout(() => { isSeeking.current = false }, 100)
   }, [setCurrentTime])
 
   const handleVolumeChange = useCallback((value: number | readonly number[]) => {
@@ -68,6 +65,8 @@ function PlayerBarContent() {
   const playModeIcon = playMode === 'repeat-one' ? Repeat1 : playMode === 'shuffle' ? Shuffle : Repeat
   const PlayModeIcon = playModeIcon
   const playModeLabel = playMode === 'repeat-one' ? '单曲循环' : playMode === 'shuffle' ? '随机播放' : '列表循环'
+  const currentTimeLabel = formatTime(currentTime)
+  const durationLabel = formatTime(duration || 0)
 
   if (!currentTrack) return null
 
@@ -127,7 +126,7 @@ function PlayerBarContent() {
 
         <div className="flex items-center gap-2 w-full">
           <span className="text-[10px] text-[var(--text-tertiary)] w-10 text-right tabular-nums">
-            {formatDuration(currentTime * 1000)}
+            {currentTimeLabel}
           </span>
           <Slider
             value={[currentTime]}
@@ -136,10 +135,10 @@ function PlayerBarContent() {
             onValueChange={handleSeek}
             className={cn('flex-1 player-slider', isPlaying && 'progress-glow')}
             aria-label="播放进度"
-            aria-valuetext={`${formatDuration(currentTime * 1000)} / ${formatDuration((duration || 0) * 1000)}`}
+            aria-valuetext={`${currentTimeLabel} / ${durationLabel}`}
           />
           <span className="text-[10px] text-[var(--text-tertiary)] w-10 tabular-nums">
-            {formatDuration((duration || 0) * 1000)}
+            {durationLabel}
           </span>
         </div>
       </div>

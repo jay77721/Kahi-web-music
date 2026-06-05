@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Suspense } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -23,6 +23,7 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
   const [inputValue, setInputValue] = useState(query)
   const [isFocused, setIsFocused] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const shouldRefocusInputRef = useRef(false)
 
   const saveToHistory = useCallback((keyword: string) => {
     if (!keyword.trim()) return
@@ -70,12 +71,18 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
   }
 
   const handleClear = useCallback(() => {
+    shouldRefocusInputRef.current = true
     setInputValue('')
     const params = new URLSearchParams()
     if (type === 'lyric') params.set('type', 'lyric')
     router.push(`/search${params.toString() ? `?${params.toString()}` : ''}`)
-    inputRef.current?.focus()
   }, [router, type])
+
+  useEffect(() => {
+    if (!shouldRefocusInputRef.current) return
+    shouldRefocusInputRef.current = false
+    inputRef.current?.focus()
+  }, [inputValue])
 
   const handleSelectHistory = useCallback(
     (keyword: string) => {
@@ -88,8 +95,9 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
     storage.remove(STORAGE_KEYS.SEARCH_HISTORY)
   }, [])
 
-  const showEmptyState = inputValue && !query
-  const showResults = query
+  const hasTypedQuery = inputValue.trim().length > 0
+  const showEmptyState = hasTypedQuery && !query
+  const showResults = query.length > 0
 
   return (
     <AppShell>
@@ -110,6 +118,8 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
           <motion.form
             onSubmit={handleSubmit}
             className="w-full max-w-2xl"
+            role="search"
+            aria-label="搜索音乐"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.4, delay: 0.1 }}
@@ -136,6 +146,7 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
                 aria-label={type === 'lyric' ? '搜索歌词' : '搜索音乐'}
+                autoComplete="off"
                 placeholder={type === 'lyric' ? '输入歌词片段搜索…' : '搜索歌曲、歌手、专辑...'}
                 className="flex-1 bg-transparent px-3 py-2.5 text-base md:text-lg outline-none placeholder:text-[var(--text-tertiary)] text-[var(--text-primary)]"
               />
@@ -232,7 +243,7 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
-            <Search className="w-16 h-16 text-[var(--text-tertiary)] mb-4" />
+            <Search className="w-16 h-16 text-[var(--text-tertiary)] mb-4" aria-hidden="true" />
             <p className="text-lg font-medium text-[var(--text-secondary)] mb-2">
               输入关键词开始搜索
             </p>
@@ -248,7 +259,7 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<AppShell><div className="p-6">加载中...</div></AppShell>}>
+    <Suspense fallback={<AppShell><div className="p-6" role="status">加载中...</div></AppShell>}>
       <SearchPageWrapper />
     </Suspense>
   )
@@ -256,7 +267,7 @@ export default function SearchPage() {
 
 function SearchPageWrapper() {
   const searchParams = useSearchParams()
-  const query = searchParams.get('q') || ''
+  const query = (searchParams.get('q') || '').trim()
   const typeParam = searchParams.get('type')
   const type: SearchType = typeParam === 'lyric' ? 'lyric' : 'songs'
 

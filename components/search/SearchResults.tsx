@@ -29,6 +29,7 @@ interface SearchResultsProps {
 }
 
 type TabValue = 'songs' | 'artists' | 'albums' | 'playlists' | 'mvs'
+type SearchCountKey = 'songCount' | 'artistCount' | 'albumCount' | 'playlistCount' | 'mvCount'
 
 interface SearchTabConfig {
   value: TabValue
@@ -50,6 +51,7 @@ function isTabValue(value: string): value is TabValue {
 }
 
 export function SearchResults({ keywords }: SearchResultsProps) {
+  const searchTerm = keywords.trim()
   const [activeTab, setActiveTab] = useState<TabValue>('songs')
   const activeTabConfig = SEARCH_TABS.find((tab) => tab.value === activeTab) ?? SEARCH_TABS[0]
 
@@ -60,14 +62,14 @@ export function SearchResults({ keywords }: SearchResultsProps) {
         if (isTabValue(value)) setActiveTab(value)
       }}
     >
-      <TabsList variant="line" className="mb-6 max-w-full overflow-x-auto">
+      <TabsList variant="line" className="mb-6 max-w-full overflow-x-auto" aria-label="搜索结果分类">
         {SEARCH_TABS.map((tab) => (
           <TabsTrigger
             key={tab.value}
             value={tab.value}
             className="gap-1.5 data-active:text-[var(--accent-text)]"
           >
-            <tab.icon className="w-4 h-4" />
+            <tab.icon className="w-4 h-4" aria-hidden="true" />
             {tab.label}
           </TabsTrigger>
         ))}
@@ -75,7 +77,7 @@ export function SearchResults({ keywords }: SearchResultsProps) {
 
       <TabsContent key={activeTabConfig.value} value={activeTabConfig.value} className="mt-0">
         <SearchTabContent
-          keywords={keywords}
+          keywords={searchTerm}
           type={activeTabConfig.type}
           tabValue={activeTabConfig.value}
         />
@@ -95,18 +97,18 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
     return <SearchSkeleton tabValue={tabValue} />
   }
 
-  if (!data) {
+  if (data === undefined) {
     return <SearchEmptyState query={keywords} type={tabValue} />
   }
 
-  const countKeyMap: Record<TabValue, keyof NormalizedSearchResult> = {
+  const countKeyMap = {
     songs: 'songCount',
     artists: 'artistCount',
     albums: 'albumCount',
     playlists: 'playlistCount',
     mvs: 'mvCount',
-  }
-  const count = result[countKeyMap[tabValue]] || 0
+  } satisfies Record<TabValue, SearchCountKey>
+  const count = result[countKeyMap[tabValue]] ?? 0
 
   if (count === 0) {
     return <SearchEmptyState query={keywords} type={tabValue} />
@@ -260,10 +262,10 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
   return null
 }
 
-function SearchSkeleton({ tabValue }: { tabValue: string }) {
+function SearchSkeleton({ tabValue }: { tabValue: TabValue }) {
   if (tabValue === 'songs') {
     return (
-      <div className="space-y-1">
+      <div className="space-y-1" role="status" aria-label="正在加载搜索结果" data-testid="search-loading">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 px-2 py-2.5">
             <Skeleton className="w-8 h-4 rounded bg-[var(--bg-surface)]" />
@@ -281,7 +283,12 @@ function SearchSkeleton({ tabValue }: { tabValue: string }) {
 
   if (tabValue === 'artists') {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+      <div
+        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"
+        role="status"
+        aria-label="正在加载搜索结果"
+        data-testid="search-loading"
+      >
         {Array.from({ length: 12 }).map((_, i) => (
           <div key={i} className="text-center">
             <Skeleton className="aspect-square rounded-full mb-3 mx-auto max-w-[160px] bg-[var(--bg-surface)]" />
@@ -294,7 +301,12 @@ function SearchSkeleton({ tabValue }: { tabValue: string }) {
 
   if (tabValue === 'mvs') {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div
+        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+        role="status"
+        aria-label="正在加载搜索结果"
+        data-testid="search-loading"
+      >
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i}>
             <Skeleton className="aspect-video rounded-xl mb-3 bg-[var(--bg-surface)]" />
@@ -308,7 +320,12 @@ function SearchSkeleton({ tabValue }: { tabValue: string }) {
 
   // Playlists & Albums
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+    <div
+      className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
+      role="status"
+      aria-label="正在加载搜索结果"
+      data-testid="search-loading"
+    >
       {Array.from({ length: 10 }).map((_, i) => (
         <div key={i}>
           <Skeleton className="aspect-square rounded-xl mb-3 bg-[var(--bg-surface)]" />

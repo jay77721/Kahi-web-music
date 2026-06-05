@@ -106,14 +106,74 @@ vi.mock('howler', () => ({
   Howler: { ctx: null, masterGain: { gain: { value: 1 } }, usingWebAudio: false, autoSuspend: true },
 }));
 
-vi.mock('swr', () => ({
-  default: () => ({
-    data: [],
-    error: undefined,
-    isLoading: false,
-    isValidating: false,
-    mutate: vi.fn(),
-  }),
+vi.mock('swr', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('swr')>()
+  const cache = new Map<string, { data?: unknown; error?: unknown; isValidating?: boolean; isLoading?: boolean }>()
+  const mutate = vi.fn(async (key: string, data?: unknown) => {
+    const entry = cache.get(key) ?? {}
+    entry.data = data
+    cache.set(key, entry)
+    return data
+  })
+
+  return {
+    ...actual,
+    default: () => ({
+      data: [],
+      error: undefined,
+      isLoading: false,
+      isValidating: false,
+      mutate: vi.fn(),
+    }),
+    useSWRConfig: () => ({ cache, mutate }),
+    mutate,
+  }
+});
+
+vi.mock('next/image', () => ({
+  default: (props: React.ImgHTMLAttributes<HTMLImageElement> & { src?: string | { src?: string } }) => {
+    const imageProps = { ...props } as Record<string, unknown>
+    const src = imageProps.src
+    const alt = imageProps.alt
+
+    delete imageProps.fill
+    delete imageProps.loader
+    delete imageProps.priority
+    delete imageProps.quality
+    delete imageProps.unoptimized
+    delete imageProps.placeholder
+    delete imageProps.blurDataURL
+
+    return React.createElement('img', {
+      ...imageProps,
+      src: typeof src === 'string' ? src : (src as { src?: string } | undefined)?.src ?? '',
+      alt: typeof alt === 'string' ? alt : '',
+    })
+  },
+}));
+
+type MockNextLinkHref = string | URL | { pathname?: string }
+type MockNextLinkProps = Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> & {
+  href: MockNextLinkHref
+}
+
+function resolveMockNextLinkHref(href: MockNextLinkHref) {
+  if (typeof href === 'string') return href
+  if (href instanceof URL) return href.toString()
+  return href.pathname ?? '#'
+}
+
+vi.mock('next/link', () => ({
+  default: ({
+    children,
+    href,
+    ...rest
+  }: MockNextLinkProps) =>
+    React.createElement(
+      'a',
+      { href: resolveMockNextLinkHref(href), ...rest },
+      children
+    ),
 }));
 
 vi.mock('framer-motion', () => ({

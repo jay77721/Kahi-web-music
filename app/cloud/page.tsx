@@ -61,7 +61,8 @@ export default function CloudPage() {
 
   if (!hasRestoredSession || !isLoggedIn) return null
 
-  const total = data?.length ?? 0
+  const songs = data ?? []
+  const total = songs.length
 
   return (
     <AppShell>
@@ -73,16 +74,16 @@ export default function CloudPage() {
         <header className="mb-6 animate-fade-in">
           <div className="flex items-center gap-3 mb-2">
             <div
-              className="w-11 h-11 rounded-2xl flex items-center justify-center bg-[var(--accent)]/15"
+              className="w-11 h-11 rounded-2xl flex shrink-0 items-center justify-center bg-[var(--accent)]/15"
               style={{ boxShadow: '0 0 18px var(--accent-glow)' }}
             >
               <Cloud className="w-6 h-6 text-[var(--accent)]" aria-hidden="true" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
+            <h1 className="min-w-0 text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
               云盘
             </h1>
           </div>
-          <p className="text-sm text-[var(--text-tertiary)] ml-14">
+          <p className="text-sm text-[var(--text-tertiary)] sm:ml-14">
             在这里管理你上传的音乐
             {total > 0 && (
               <span className="ml-2 text-[var(--text-tertiary)]">· 共 {total} 首</span>
@@ -116,8 +117,8 @@ export default function CloudPage() {
               重试
             </Button>
           </div>
-        ) : data && data.length > 0 ? (
-          <SongTable songs={data} onPlayAll={() => playQueue(data, 0)} />
+        ) : total > 0 ? (
+          <SongTable songs={songs} onPlayAll={() => playQueue(songs, 0)} />
         ) : (
           <div
             data-testid="cloud-empty"

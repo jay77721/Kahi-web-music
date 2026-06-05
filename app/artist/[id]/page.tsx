@@ -52,6 +52,8 @@ interface StatTile {
 // ---------------------------------------------------------------------------
 
 const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1]
+const UNKNOWN_ARTIST = '未知艺人'
+const UNKNOWN_ALBUM = '未知专辑'
 
 const sectionVariants: Variants = {
   hidden: { opacity: 0, y: 16 },
@@ -66,6 +68,16 @@ const statsContainer: Variants = {
 const statsItem: Variants = {
   hidden: { opacity: 0, y: 12, scale: 0.96 },
   show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.35, ease: EASE_OUT_EXPO } },
+}
+
+function getRouteId(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? value[0] ?? '' : value ?? ''
+}
+
+function formatAlbumYear(value: number | undefined): string {
+  if (!value) return '未知年份'
+  const year = new Date(value).getFullYear()
+  return Number.isFinite(year) ? String(year) : '未知年份'
 }
 
 // ---------------------------------------------------------------------------
@@ -197,30 +209,33 @@ function AlbumsRail({ albums }: AlbumsRailProps) {
         className="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1 snap-x"
         style={{ scrollbarWidth: 'thin' }}
       >
-        {albums.map((album) => (
-          <Link
-            key={album.id}
-            href={`/album/${album.id}`}
-            className="group flex-shrink-0 w-40 snap-start hover-lift"
-          >
-            <div className="aspect-square rounded-xl overflow-hidden mb-2 border border-transparent transition-all duration-300 group-hover:border-[var(--accent)]/30 group-hover:shadow-[0_0_16px_var(--accent-glow)]">
-              <Image
-                src={imageUrl(album.picUrl, 240)}
-                alt={album.name}
-                width={240}
-                height={240}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                loading="lazy"
-              />
-            </div>
-            <p className="text-sm text-[var(--text-secondary)] line-clamp-2 group-hover:text-[var(--text-primary)] transition-colors duration-300">
-              {album.name}
-            </p>
-            <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
-              {new Date(album.publishTime).getFullYear()}
-            </p>
-          </Link>
-        ))}
+        {albums.map((album) => {
+          const albumName = album.name?.trim() || UNKNOWN_ALBUM
+          return (
+            <Link
+              key={album.id}
+              href={`/album/${album.id}`}
+              className="group flex-shrink-0 w-40 snap-start hover-lift"
+            >
+              <div className="aspect-square rounded-xl overflow-hidden mb-2 border border-transparent transition-all duration-300 group-hover:border-[var(--accent)]/30 group-hover:shadow-[0_0_16px_var(--accent-glow)]">
+                <Image
+                  src={imageUrl(album.picUrl, 240)}
+                  alt={albumName}
+                  width={240}
+                  height={240}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  loading="lazy"
+                />
+              </div>
+              <p className="text-sm text-[var(--text-secondary)] line-clamp-2 group-hover:text-[var(--text-primary)] transition-colors duration-300">
+                {albumName}
+              </p>
+              <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">
+                {formatAlbumYear(album.publishTime)}
+              </p>
+            </Link>
+          )
+        })}
       </div>
     </motion.div>
   )
@@ -246,33 +261,36 @@ function SimilarArtists({ artists }: SimilarArtistsProps) {
         count={artists.length}
       />
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4">
-        {artists.slice(0, 6).map((similar) => (
-          <Link
-            key={similar.id}
-            href={`/artist/${similar.id}`}
-            className="group flex flex-col items-center text-center hover-lift"
-          >
-            <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-2 border-2 border-transparent transition-all duration-300 group-hover:border-[var(--accent)]/40 group-hover:shadow-[0_0_20px_var(--accent-glow)]">
-              {similar.picUrl ? (
-                <Image
-                  src={imageUrl(similar.picUrl, 200)}
-                  alt={similar.name}
-                  width={200}
-                  height={200}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="w-full h-full bg-[var(--bg-elevated)] flex items-center justify-center">
-                  <Mic2 className="w-8 h-8 text-[var(--text-tertiary)]" />
-                </div>
-              )}
-            </div>
-            <p className="text-xs text-[var(--text-secondary)] line-clamp-2 group-hover:text-[var(--text-primary)] transition-colors duration-300 w-full">
-              {similar.name}
-            </p>
-          </Link>
-        ))}
+        {artists.slice(0, 6).map((similar) => {
+          const artistName = similar.name?.trim() || UNKNOWN_ARTIST
+          return (
+            <Link
+              key={similar.id}
+              href={`/artist/${similar.id}`}
+              className="group flex flex-col items-center text-center hover-lift"
+            >
+              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden mb-2 border-2 border-transparent transition-all duration-300 group-hover:border-[var(--accent)]/40 group-hover:shadow-[0_0_20px_var(--accent-glow)]">
+                {similar.picUrl ? (
+                  <Image
+                    src={imageUrl(similar.picUrl, 200)}
+                    alt={artistName}
+                    width={200}
+                    height={200}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-[var(--bg-elevated)] flex items-center justify-center">
+                    <Mic2 className="w-8 h-8 text-[var(--text-tertiary)]" />
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-[var(--text-secondary)] line-clamp-2 group-hover:text-[var(--text-primary)] transition-colors duration-300 w-full">
+                {artistName}
+              </p>
+            </Link>
+          )
+        })}
       </div>
     </motion.div>
   )
@@ -284,9 +302,9 @@ function SimilarArtists({ artists }: SimilarArtistsProps) {
 
 async function loadArtistPage(id: string): Promise<ArtistPageData> {
   const [detailRes, songsRes, albumsRes, descRes, simiRes] = await Promise.all([
-    ncmApi.artistDetail(id),
-    ncmApi.artistSongs(id, 50),
-    ncmApi.artistAlbum(id, 12),
+    ncmApi.artistDetail(id).catch(() => null),
+    ncmApi.artistSongs(id, 50).catch(() => null),
+    ncmApi.artistAlbum(id, 12).catch(() => null),
     ncmApi.artistDesc(id).catch(() => null),
     ncmApi.simiArtist(id).catch(() => null),
   ])
@@ -311,7 +329,7 @@ async function loadArtistPage(id: string): Promise<ArtistPageData> {
 
 export default function ArtistPage() {
   const params = useParams()
-  const id = (params.id as string) ?? ''
+  const id = getRouteId(params?.id as string | string[] | undefined)
   const { playQueue } = usePlayerStore()
 
   const { data, isLoading } = useSWR<ArtistPageData>(

@@ -17,20 +17,6 @@ vi.mock('swr', () => ({
   default: (key: unknown, fetcher: unknown) => mockUseSWR(key, fetcher),
 }))
 
-vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
-}))
-
-vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { ...rest } = props
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img {...rest} alt={(rest.alt as string) ?? ''} />
-  },
-}))
-
 vi.mock('@/lib/api', () => ({
   ncmApi: {
     get searchLyric() {
@@ -158,7 +144,7 @@ describe('LyricSearchResults', () => {
   describe('highlighting', () => {
     test('wraps matched substring in <mark> elements', () => {
       setSwrState({
-        data: { result: { songs: [buildSong({ name: '月光之歌' })], songCount: 1 }, code: 200 },
+        data: { songs: [buildSong({ name: '月光之歌' })], songCount: 1 },
         isLoading: false,
       })
 
@@ -175,11 +161,8 @@ describe('LyricSearchResults', () => {
     test('highlights match in album name', () => {
       setSwrState({
         data: {
-          result: {
-            songs: [buildSong({ al: { id: 1, name: '月光专辑', picUrl: '' } })],
-            songCount: 1,
-          },
-          code: 200,
+          songs: [buildSong({ al: { id: 1, name: '月光专辑', picUrl: '' } })],
+          songCount: 1,
         },
         isLoading: false,
       })
@@ -211,7 +194,7 @@ describe('LyricSearchResults', () => {
       const longLine = 'a'.repeat(200) + '月光' + 'b'.repeat(200)
       const lrc = `[00:00.00]${longLine}`
       setSwrState({
-        data: { result: { songs: [buildSong({ lyric: lrc })], songCount: 1 }, code: 200 },
+        data: { songs: [buildSong({ lyric: lrc })], songCount: 1 },
         isLoading: false,
       })
 
@@ -235,7 +218,7 @@ describe('LyricSearchResults', () => {
 
       expect(screen.getByTestId('search-empty')).toBeInTheDocument()
       expect(mockSearchEmptyState).toHaveBeenCalledWith(
-        expect.objectContaining({ query: '不存在的关键词' })
+        expect.objectContaining({ query: '不存在的关键词', type: 'lyrics' })
       )
     })
 
@@ -245,6 +228,21 @@ describe('LyricSearchResults', () => {
       render(<LyricSearchResults query="anything" />)
 
       expect(screen.getByTestId('search-empty')).toBeInTheDocument()
+    })
+
+    test('shows a lyric fragment fallback when returned lyrics do not contain the query', () => {
+      setSwrState({
+        data: {
+          songs: [buildSong({ lyric: '[00:00.00]完全不同的歌词行' })],
+          songCount: 1,
+        },
+        isLoading: false,
+      })
+
+      render(<LyricSearchResults query="月光" />)
+
+      expect(screen.getByText('未找到匹配的歌词片段')).toBeInTheDocument()
+      expect(screen.queryByText('完全不同的歌词行')).not.toBeInTheDocument()
     })
   })
 
@@ -278,6 +276,7 @@ describe('LyricSearchResults', () => {
       // Skeletons use animate-pulse class (Tailwind v4 default for Skeleton)
       const skeletons = container.querySelectorAll('.animate-pulse')
       expect(skeletons.length).toBeGreaterThan(0)
+      expect(screen.getByRole('status', { name: '正在加载歌词搜索结果' })).toBeInTheDocument()
       expect(screen.queryByTestId('search-empty')).not.toBeInTheDocument()
     })
   })

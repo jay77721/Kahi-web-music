@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
@@ -40,6 +40,8 @@ export function PhoneLoginForm() {
   const [touchedCaptcha, setTouchedCaptcha] = useState(false)
   const [sending, setSending] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const sendingRef = useRef(false)
+  const submittingRef = useRef(false)
   const { seconds, isCountingDown, start, reset } = useCaptchaCountdown(60)
 
   const phoneError = useMemo(
@@ -54,11 +56,12 @@ export function PhoneLoginForm() {
   const canSubmit = isValidPhone(phone) && isValidCaptcha(captcha) && !submitting
 
   const handleSendCaptcha = useCallback(async () => {
-    if (!canSendCaptcha) return
+    if (!canSendCaptcha || sendingRef.current) return
+    sendingRef.current = true
     setSending(true)
     try {
       const res = (await ncmApi.captchaSent(phone)) as unknown as CaptchaSentResult
-      if (res?.code && res.code !== 200) {
+      if (res?.code !== 200) {
         throw new Error(res.message || '验证码发送失败')
       }
       toast.success('验证码已发送，请注意查收')
@@ -68,6 +71,7 @@ export function PhoneLoginForm() {
       toast.error(msg)
       reset()
     } finally {
+      sendingRef.current = false
       setSending(false)
     }
   }, [canSendCaptcha, phone, start, reset])
@@ -77,7 +81,8 @@ export function PhoneLoginForm() {
       e?.preventDefault()
       setTouchedPhone(true)
       setTouchedCaptcha(true)
-      if (!canSubmit) return
+      if (!canSubmit || submittingRef.current) return
+      submittingRef.current = true
       setSubmitting(true)
       try {
         await login(phone, captcha)
@@ -87,6 +92,7 @@ export function PhoneLoginForm() {
         const msg = err instanceof Error ? err.message : '登录失败'
         toast.error(msg)
       } finally {
+        submittingRef.current = false
         setSubmitting(false)
       }
     },
@@ -117,10 +123,10 @@ export function PhoneLoginForm() {
           onBlur={() => setTouchedPhone(true)}
           aria-invalid={!!phoneError}
           aria-describedby={phoneError ? 'login-phone-error' : undefined}
-          className="h-12 rounded-xl text-base bg-[var(--bg-secondary)] border-[var(--border)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all"
+          className="h-12 rounded-xl text-base bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all"
         />
         {phoneError && (
-          <p id="login-phone-error" role="alert" className="text-xs text-red-400 pl-1">
+          <p id="login-phone-error" role="alert" className="text-xs text-[var(--accent-text)] pl-1">
             {phoneError}
           </p>
         )}
@@ -144,7 +150,7 @@ export function PhoneLoginForm() {
             onBlur={() => setTouchedCaptcha(true)}
             aria-invalid={!!captchaError}
             aria-describedby={captchaError ? 'login-captcha-error' : undefined}
-            className="h-12 rounded-xl text-base bg-[var(--bg-secondary)] border-[var(--border)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all"
+            className="h-12 rounded-xl text-base bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] transition-all"
           />
           <Button
             type="button"
@@ -152,14 +158,14 @@ export function PhoneLoginForm() {
             onClick={handleSendCaptcha}
             disabled={!canSendCaptcha}
             aria-live="polite"
-            className="flex-shrink-0 h-12 text-sm rounded-xl border-[var(--border)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-strong)] transition-all disabled:opacity-40 px-4 min-w-[120px]"
+            className="flex-shrink-0 h-12 text-sm rounded-xl border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] hover:border-[var(--border-strong)] transition-all disabled:opacity-40 px-4 min-w-[120px]"
           >
             {sending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             {!sending && (isCountingDown ? `${seconds}s 后重发` : '获取验证码')}
           </Button>
         </div>
         {captchaError && (
-          <p id="login-captcha-error" role="alert" className="text-xs text-red-400 pl-1">
+          <p id="login-captcha-error" role="alert" className="text-xs text-[var(--accent-text)] pl-1">
             {captchaError}
           </p>
         )}
@@ -169,7 +175,7 @@ export function PhoneLoginForm() {
         <Button
           type="submit"
           disabled={!canSubmit}
-          className="w-full h-12 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-black font-semibold rounded-xl text-base transition-all duration-200 hover:shadow-[0_0_24px_var(--accent-glow)]"
+          className="w-full h-12 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-foreground)] font-semibold rounded-xl text-base transition-all duration-200 hover:shadow-[0_0_24px_var(--accent-glow)]"
         >
           {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
           {submitting ? '登录中…' : '登 录'}
