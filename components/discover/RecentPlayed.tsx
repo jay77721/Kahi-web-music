@@ -1,6 +1,5 @@
 'use client'
 
-import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { Play, History } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -12,19 +11,6 @@ interface RecentPlayedProps {
   /** Maximum number of items to render. Defaults to 6 for the home first screen. */
   maxItems?: number
 }
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.04, delayChildren: 0.05 },
-  },
-} as const
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
-} as const
 
 const COVER_IMAGE_SIZES =
   '(max-width: 639px) calc((100vw - 2rem - 0.75rem) / 2), (max-width: 767px) calc((100vw - 2rem - 1.5rem) / 3), (max-width: 1023px) calc((100vw - 3rem - 3rem) / 4), calc((100vw - 3rem - 5rem) / 6)'
@@ -127,30 +113,23 @@ export function RecentPlayed({ maxItems = 6 }: RecentPlayedProps) {
     <section aria-labelledby="recent-played-heading">
       <SectionHeader />
 
-      <motion.div
+      <div
         role="list"
         aria-label="最近播放"
-        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4"
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
+        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4 stagger-children"
       >
         {items.map((entry, index) => {
           const { song } = entry
           const cover = imageUrl(song.al?.picUrl, 200)
           const shouldRenderCover = index < initialCoverCount || deferredCoversReady
           return (
-            <motion.button
+            <button
               key={song.id}
               type="button"
               role="listitem"
-              variants={itemVariants}
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.98 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 24 }}
               onClick={() => playSong(song)}
               aria-label={`播放 ${song.name}`}
-              className="group text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded-xl"
+              className="group text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded-xl transition-transform duration-200 ease-out hover:scale-[1.04] active:scale-[0.98]"
             >
               <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-white/5 shadow-sm transition-shadow duration-300 group-hover:shadow-xl group-hover:shadow-black/40">
                 {shouldRenderCover ? (
@@ -183,10 +162,10 @@ export function RecentPlayed({ maxItems = 6 }: RecentPlayedProps) {
               <p className="mt-2 text-sm text-[var(--text-primary)] truncate group-hover:text-[var(--accent-text)] transition-colors duration-200">
                 {song.name}
               </p>
-            </motion.button>
+            </button>
           )
         })}
-      </motion.div>
+      </div>
     </section>
   )
 }

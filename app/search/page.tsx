@@ -2,12 +2,11 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { Suspense } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Search, X } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
-import { SearchResults } from '@/components/search/SearchResults'
-import { LyricSearchResults } from '@/components/search/LyricSearchResults'
 import { SearchHistory } from '@/components/search/SearchHistory'
 import { HotSearchTags } from '@/components/search/HotSearchTags'
 import { SearchSuggestions } from '@/components/search/SearchSuggestions'
@@ -17,6 +16,16 @@ import { cn } from '@/lib/utils'
 const MAX_HISTORY = 8
 
 type SearchType = 'songs' | 'lyric'
+
+const LazySearchResults = dynamic<{ keywords: string }>(
+  () => import('@/components/search/SearchResults').then((module) => module.SearchResults),
+  { loading: () => <SearchResultsFallback /> }
+)
+
+const LazyLyricSearchResults = dynamic<{ query: string }>(
+  () => import('@/components/search/LyricSearchResults').then((module) => module.LyricSearchResults),
+  { loading: () => <SearchResultsFallback /> }
+)
 
 function SearchPageContent({ query, type }: { query: string; type: SearchType }) {
   const router = useRouter()
@@ -233,9 +242,9 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
               </div>
 
               {type === 'lyric' ? (
-                <LyricSearchResults query={query} />
+                <LazyLyricSearchResults query={query} />
               ) : (
-                <SearchResults keywords={query} />
+                <LazySearchResults keywords={query} />
               )}
             </motion.div>
           )}
@@ -259,6 +268,31 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
         )}
       </div>
     </AppShell>
+  )
+}
+
+function SearchResultsFallback() {
+  return (
+    <div
+      className="min-h-[240px] space-y-3"
+      role="status"
+      aria-label="正在加载搜索结果"
+      data-testid="search-results-fallback"
+    >
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div
+          key={index}
+          className="flex items-center gap-3 rounded-xl bg-[var(--bg-surface)]/50 px-3 py-3"
+          aria-hidden="true"
+        >
+          <div className="h-10 w-10 rounded bg-white/5" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 w-2/3 rounded bg-white/5" />
+            <div className="h-3 w-1/3 rounded bg-white/5" />
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 

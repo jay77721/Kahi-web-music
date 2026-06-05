@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react"
+import { act, cleanup, render, screen } from "@testing-library/react"
 import { RootToaster } from "@/components/common/RootToaster"
 import { useUIStore } from "@/stores/uiStore"
 
@@ -35,20 +35,33 @@ function resetUIStore() {
 
 describe("RootToaster", () => {
   beforeEach(() => {
+    vi.useFakeTimers()
     toasterCalls.length = 0
     resetUIStore()
   })
 
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
     resetUIStore()
     vi.clearAllMocks()
   })
 
-  test("passes the app theme store value to Sonner", () => {
+  async function renderLoadedRootToaster() {
+    render(<RootToaster />)
+    expect(screen.queryByTestId("sonner-toaster")).not.toBeInTheDocument()
+
+    await act(async () => {
+      vi.runOnlyPendingTimers()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+  }
+
+  test("passes the app theme store value to Sonner", async () => {
     useUIStore.setState({ theme: "light" })
 
-    render(<RootToaster />)
+    await renderLoadedRootToaster()
 
     expect(screen.getByTestId("sonner-toaster")).toHaveAttribute("data-theme", "light")
     expect(toasterCalls.at(-1)).toMatchObject({
@@ -58,20 +71,18 @@ describe("RootToaster", () => {
   })
 
   test("updates Sonner when the app theme changes", async () => {
-    render(<RootToaster />)
+    await renderLoadedRootToaster()
     expect(screen.getByTestId("sonner-toaster")).toHaveAttribute("data-theme", "dark")
 
     act(() => {
       useUIStore.setState({ theme: "system" })
     })
 
-    await waitFor(() => {
-      expect(screen.getByTestId("sonner-toaster")).toHaveAttribute("data-theme", "system")
-    })
+    expect(screen.getByTestId("sonner-toaster")).toHaveAttribute("data-theme", "system")
   })
 
-  test("keeps the root toast token style contract", () => {
-    render(<RootToaster />)
+  test("keeps the root toast token style contract", async () => {
+    await renderLoadedRootToaster()
 
     const latestProps = toasterCalls.at(-1)
     expect(latestProps?.style).toMatchObject({

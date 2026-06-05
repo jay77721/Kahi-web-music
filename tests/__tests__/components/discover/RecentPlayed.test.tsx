@@ -2,45 +2,10 @@
 
 import { afterEach, describe, test, expect, vi, beforeEach } from 'vitest'
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
-import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react'
 import { RecentPlayed } from '@/components/discover/RecentPlayed'
 import { useHistoryStore } from '@/stores/historyStore'
 import { usePlayerStore } from '@/stores/playerStore'
 import { mockSong } from '@/tests/helpers/mock-data'
-
-type MotionMockProps<TElement> = HTMLAttributes<TElement> & {
-  children?: ReactNode
-  initial?: unknown
-  animate?: unknown
-  variants?: unknown
-  whileHover?: unknown
-  whileTap?: unknown
-  transition?: unknown
-}
-
-function stripMotionProps<TElement>(props: MotionMockProps<TElement>) {
-  const domProps = { ...props }
-  delete domProps.initial
-  delete domProps.animate
-  delete domProps.variants
-  delete domProps.whileHover
-  delete domProps.whileTap
-  delete domProps.transition
-  return domProps
-}
-
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: (props: MotionMockProps<HTMLDivElement>) => {
-      const { children, ...domProps } = stripMotionProps(props)
-      return <div {...domProps}>{children}</div>
-    },
-    button: (props: MotionMockProps<HTMLButtonElement> & ButtonHTMLAttributes<HTMLButtonElement>) => {
-      const { children, ...domProps } = stripMotionProps<HTMLButtonElement>(props)
-      return <button {...domProps}>{children}</button>
-    },
-  },
-}))
 
 function makeHistoryEntry(id: number, name: string) {
   return { song: { ...mockSong, id, name }, time: Date.now() - id * 1000 }
@@ -97,6 +62,16 @@ describe('RecentPlayed', () => {
       const { getAllByRole } = render(<RecentPlayed />)
       const items = getAllByRole('listitem')
       expect(items).toHaveLength(3)
+    })
+
+    test('uses CSS stagger instead of framer-motion elements', () => {
+      useHistoryStore.setState({
+        history: [makeHistoryEntry(1, 'CSS Tile')],
+      })
+
+      const { container, getByRole } = render(<RecentPlayed />)
+      expect(getByRole('list')).toHaveClass('stagger-children')
+      expect(container.querySelector('[data-framer-motion]')).toBeNull()
     })
 
     test('displays song titles', () => {

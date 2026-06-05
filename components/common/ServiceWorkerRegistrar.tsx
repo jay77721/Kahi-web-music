@@ -1,11 +1,19 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { toast } from 'sonner'
 import {
   applyServiceWorkerUpdate,
   registerServiceWorker,
 } from '@/lib/sw-register'
+
+type SonnerToast = typeof import('sonner')['toast']
+
+let sonnerToastPromise: Promise<SonnerToast> | undefined
+
+function loadSonnerToast() {
+  sonnerToastPromise ??= import('sonner').then(({ toast }) => toast)
+  return sonnerToastPromise
+}
 
 /**
  * Mounts the Service Worker for the Kahi Music PWA shell.
@@ -23,7 +31,7 @@ export function ServiceWorkerRegistrar() {
         onNeedRefresh: () => {
           if (updatePromptedRef.current) return
           updatePromptedRef.current = true
-          offerUpdate()
+          void offerUpdate()
         },
       })
     }
@@ -47,7 +55,9 @@ export function ServiceWorkerRegistrar() {
   return null
 }
 
-function offerUpdate(): void {
+async function offerUpdate(): Promise<void> {
+  const toast = await loadSonnerToast()
+
   toast('New version available', {
     description: 'Reload to apply the latest Kahi Music update.',
     duration: Number.POSITIVE_INFINITY,

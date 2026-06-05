@@ -1,12 +1,62 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import React from 'react'
 import SearchPage from '@/app/search/page'
 import { STORAGE_KEYS } from '@/lib/storage'
 
+type MockDynamicComponent = React.ComponentType<Record<string, unknown>>
+type MockDynamicModule = unknown
+
+const searchState = vi.hoisted(() => ({
+  searchResultsModuleLoaded: vi.fn(),
+  lyricSearchResultsModuleLoaded: vi.fn(),
+}))
+
 const mockRouterPush = vi.fn()
 const mockRouterReplace = vi.fn()
 let currentSearchParams = new URLSearchParams()
+
+vi.mock('next/dynamic', async () => {
+  const ReactActual = await vi.importActual<typeof import('react')>('react')
+
+  return {
+    default: (
+      loader: () => Promise<MockDynamicModule>,
+      options?: { loading?: MockDynamicComponent }
+    ) => {
+      function DynamicComponent(props: Record<string, unknown>) {
+        const [Resolved, setResolved] = ReactActual.useState<MockDynamicComponent | null>(null)
+
+        ReactActual.useEffect(() => {
+          let active = true
+
+          void loader().then((loaded) => {
+            const Component =
+              loaded &&
+              typeof loaded === 'object' &&
+              'default' in loaded
+                ? (loaded as { default: MockDynamicComponent }).default
+                : (loaded as MockDynamicComponent)
+            if (active) setResolved(() => Component)
+          })
+
+          return () => {
+            active = false
+          }
+        }, [])
+
+        if (!Resolved) {
+          const Loading = options?.loading
+          return Loading ? ReactActual.createElement(Loading, props) : null
+        }
+
+        return ReactActual.createElement(Resolved, props)
+      }
+
+      return DynamicComponent
+    },
+  }
+})
 
 vi.mock('next/navigation', async () => {
   const actual = await vi.importActual<typeof import('next/navigation')>('next/navigation')
@@ -55,17 +105,23 @@ vi.mock('@/components/layout/AppShell', () => ({
   ),
 }))
 
-vi.mock('@/components/search/SearchResults', () => ({
-  SearchResults: ({ keywords }: { keywords: string }) => (
-    <div data-testid="song-results">songs:{keywords}</div>
-  ),
-}))
+vi.mock('@/components/search/SearchResults', () => {
+  searchState.searchResultsModuleLoaded()
+  return {
+    SearchResults: ({ keywords }: { keywords: string }) => (
+      <div data-testid="song-results">songs:{keywords}</div>
+    ),
+  }
+})
 
-vi.mock('@/components/search/LyricSearchResults', () => ({
-  LyricSearchResults: ({ query }: { query: string }) => (
-    <div data-testid="lyric-results">lyrics:{query}</div>
-  ),
-}))
+vi.mock('@/components/search/LyricSearchResults', () => {
+  searchState.lyricSearchResultsModuleLoaded()
+  return {
+    LyricSearchResults: ({ query }: { query: string }) => (
+      <div data-testid="lyric-results">lyrics:{query}</div>
+    ),
+  }
+})
 
 vi.mock('@/components/search/SearchHistory', () => ({
   SearchHistory: ({ onSelect, onClear }: { onSelect: (keyword: string) => void; onClear?: () => void }) => (
@@ -118,6 +174,8 @@ describe('SearchPage', () => {
     currentSearchParams = new URLSearchParams()
     mockRouterPush.mockReset()
     mockRouterReplace.mockReset()
+    searchState.searchResultsModuleLoaded.mockClear()
+    searchState.lyricSearchResultsModuleLoaded.mockClear()
     window.localStorage.clear()
   })
 
@@ -125,7 +183,7 @@ describe('SearchPage', () => {
     cleanup()
   })
 
-  test('renders the empty search landing state with quick search affordances', () => {
+  test('renders the empty search landing state with quick search affordances', async () => {
     render(<SearchPage />)
 
     expect(screen.getByTestId('app-shell')).toBeInTheDocument()
@@ -134,6 +192,12 @@ describe('SearchPage', () => {
     expect(screen.getByTestId('search-history')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '热门词' })).toBeInTheDocument()
     expect(screen.queryByTestId('song-results')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('search-results-fallback')).not.toBeInTheDocument()
+
+    await act(async () => {})
+
+    expect(searchState.searchResultsModuleLoaded).not.toHaveBeenCalled()
+    expect(searchState.lyricSearchResultsModuleLoaded).not.toHaveBeenCalled()
   })
 
   test('submits a trimmed keyword, stores history, and navigates to search results', () => {
@@ -167,7 +231,9 @@ describe('SearchPage', () => {
 
     const input = screen.getByRole('textbox', { name: '搜索歌词' })
     expect(input).toHaveValue('月光')
-    expect(screen.getByTestId('lyric-results')).toHaveTextContent('lyrics:月光')
+    expect(await screen.findByTestId('lyric-results')).toHaveTextContent('lyrics:月光')
+    expect(searchState.lyricSearchResultsModuleLoaded).toHaveBeenCalledTimes(1)
+    expect(searchState.searchResultsModuleLoaded).not.toHaveBeenCalled()
 
     fireEvent.change(input, { target: { value: '  星光  ' } })
     fireEvent.submit(screen.getByRole('search', { name: '搜索音乐' }))
@@ -196,11 +262,14 @@ describe('SearchPage', () => {
     expect(pushedSearchParams().params.get('q')).toBe('建议词')
   })
 
-  test('keeps suggestions inactive on URL-loaded result pages until input focus', () => {
+  test('keeps suggestions inactive on URL-loaded result pages until input focus', async () => {
     currentSearchParams = new URLSearchParams('q=jay')
     render(<SearchPage />)
 
     expect(screen.getByTestId('search-suggestions')).toHaveAttribute('data-enabled', 'false')
+    expect(await screen.findByTestId('song-results')).toHaveTextContent('songs:jay')
+    expect(searchState.searchResultsModuleLoaded).toHaveBeenCalledTimes(1)
+    expect(searchState.lyricSearchResultsModuleLoaded).not.toHaveBeenCalled()
 
     fireEvent.focus(screen.getByRole('textbox'))
 

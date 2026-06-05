@@ -122,7 +122,7 @@ describe('ServiceWorkerRegistrar', () => {
     expect(mocks.registerServiceWorker).toHaveBeenCalledTimes(1)
   })
 
-  test('shows a single update toast when refresh is needed repeatedly', () => {
+  test('shows a single update toast when refresh is needed repeatedly', async () => {
     render(<ServiceWorkerRegistrar />)
 
     act(() => {
@@ -131,6 +131,11 @@ describe('ServiceWorkerRegistrar', () => {
 
     capturedOptions?.onNeedRefresh?.()
     capturedOptions?.onNeedRefresh?.()
+
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
 
     expect(mocks.toast).toHaveBeenCalledTimes(1)
     expect(mocks.toast).toHaveBeenCalledWith(
