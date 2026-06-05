@@ -155,21 +155,24 @@ test.describe('Navigation: route transitions', () => {
     stubApiRoutes(page)
   })
 
-  test('page transition shell wraps content with transition styles', async ({ page }) => {
+  test('page transition shell wraps content with CSS transition styles', async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('body')).toBeVisible()
-    // PageTransitionShell renders a wrapper; check that body has content
-    const content = await page.locator('body').innerHTML()
-    expect(content.length).toBeGreaterThan(0)
+    const transitionShell = page.locator('[data-page-transition-route="true"]').first()
+
+    await expect(transitionShell).toBeVisible()
+    await expect(transitionShell).toHaveClass(/page-transition/)
+    await expect(transitionShell).toHaveClass(/page-transition-enter/)
   })
 
   test('navigating between routes preserves application shell', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 })
     await page.goto('/')
-    await expect(page.locator('body')).toBeVisible()
+    await expect(page.locator('aside').first()).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('[data-page-transition-route="true"]').first()).toHaveClass(/page-transition/)
 
     await page.goto('/search')
-    await expect(page.locator('body')).toBeVisible()
     await expect(page).toHaveURL(/\/search/)
+    await expect(page.locator('aside').first()).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('[data-page-transition-route="true"]').first()).toHaveClass(/page-transition/)
   })
 })

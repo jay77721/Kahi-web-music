@@ -64,6 +64,21 @@ describe('BentoCard', () => {
       expect(container.textContent).toContain('专属推荐 B')
     })
 
+    test('marks cover images as lazy and async decoded', () => {
+      const { container } = render(
+        <BentoCard
+          size="lg"
+          title="Cover image"
+          cover="https://images.example.com/cover.jpg"
+          href="/cover"
+        />
+      )
+      const image = container.querySelector('img')
+      expect(image).toHaveAttribute('loading', 'lazy')
+      expect(image).toHaveAttribute('decoding', 'async')
+      expect(image).toHaveAttribute('sizes', '(max-width: 768px) 100vw, 33vw')
+    })
+
     test('does not render subtitle element when omitted', () => {
       const { container } = render(<BentoCard size="md" title="私人雷达 C" href="/discover-c" />)
       const paragraphs = container.querySelectorAll('p')
@@ -133,7 +148,7 @@ describe('BentoCard', () => {
       const { container } = render(
         <BentoCard size="md" title="私人雷达 K" subtitle="专属推荐 K" href="/discover-k" />
       )
-      const link = container.querySelector('a[aria-label="私人雷达 K — 专属推荐 K"]')
+      const link = container.querySelector('a[aria-label="私人雷达 K: 专属推荐 K"]')
       expect(link).toBeTruthy()
     })
   })

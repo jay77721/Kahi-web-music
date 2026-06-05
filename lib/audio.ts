@@ -1,15 +1,23 @@
-import { Howl } from 'howler'
+import type { Howl, HowlOptions } from 'howler'
 
 type AudioEventCallback = () => void
 type AudioTimeCallback = (time: number) => void
 type AudioErrorCallback = (error: unknown) => void
 type AudioUnsubscribe = () => void
 
+let howlerModulePromise: Promise<typeof import('howler')> | null = null
+
+function loadHowler(): Promise<typeof import('howler')> {
+  howlerModulePromise ??= import('howler')
+  return howlerModulePromise
+}
+
 export class AudioEngine {
   private howl: Howl | null = null
   private currentUrl: string | null = null
   private volume: number | null = null
   private _rafId: number | null = null
+  private loadToken = 0
 
   private onPlayCallback: AudioEventCallback | null = null
   private onPauseCallback: AudioEventCallback | null = null
@@ -18,7 +26,7 @@ export class AudioEngine {
   private onTimeUpdateCallback: AudioTimeCallback | null = null
   private onLoadCallback: AudioEventCallback | null = null
 
-  load(url: string): void {
+  async load(url: string): Promise<void> {
     if (!url) {
       console.warn('[AudioEngine] Cannot load: empty URL')
       return
@@ -30,10 +38,15 @@ export class AudioEngine {
       return
     }
 
-    this.destroy()
+    const loadToken = this.loadToken + 1
+    this.loadToken = loadToken
+    this.unloadCurrent()
+
+    const { Howl } = await loadHowler()
+    if (this.loadToken !== loadToken) return
 
     let howl: Howl | null = null
-    howl = new Howl({
+    const options: HowlOptions = {
       src: [url],
       html5: true,
       preload: true,
@@ -72,7 +85,14 @@ export class AudioEngine {
         if (this.howl !== howl) return
         this.stopTimeUpdate()
       },
-    })
+    }
+
+    howl = new Howl(options)
+
+    if (this.loadToken !== loadToken) {
+      howl.unload()
+      return
+    }
 
     this.howl = howl
     this.currentUrl = url
@@ -206,7 +226,7 @@ export class AudioEngine {
     }
   }
 
-  destroy(): void {
+  private unloadCurrent(): void {
     this.stopTimeUpdate()
     if (this.howl) {
       this.howl.unload()
@@ -214,6 +234,11 @@ export class AudioEngine {
     }
     // Always clear currentUrl when destroying - a destroyed instance has no loaded URL
     this.currentUrl = null
+  }
+
+  destroy(): void {
+    this.loadToken += 1
+    this.unloadCurrent()
   }
 
   reset(): void {

@@ -113,6 +113,14 @@ function resetStore() {
   howlMockState.instances.length = 0
 }
 
+async function flushPlaybackEffects() {
+  await act(async () => {
+    await Promise.resolve()
+    await Promise.resolve()
+    await Promise.resolve()
+  })
+}
+
 describe('PlaybackController', () => {
   beforeEach(() => {
     cleanup()
@@ -127,6 +135,41 @@ describe('PlaybackController', () => {
   test('renders nothing visible', () => {
     const { container } = render(<PlaybackController />)
     expect(container.firstChild).toBeNull()
+  })
+
+  test('does not create a Howl when mounted without a current track or queue', async () => {
+    render(<PlaybackController />)
+    await flushPlaybackEffects()
+    expect(usePlayerStore.getState().currentTrack).toBeNull()
+    expect(usePlayerStore.getState().queue).toEqual([])
+    expect(howlMockState.instances).toHaveLength(0)
+  })
+
+  test('does not create a Howl when togglePlay is called without a current track', async () => {
+    render(<PlaybackController />)
+    const ctrl = (window as unknown as {
+      __playbackCtrl: { togglePlay: () => void }
+    }).__playbackCtrl
+
+    act(() => ctrl.togglePlay())
+    await flushPlaybackEffects()
+
+    expect(howlMockState.instances).toHaveLength(0)
+  })
+
+  test('creates and plays a Howl when a current track should play', async () => {
+    usePlayerStore.setState({
+      currentTrack: mockSong,
+      isPlaying: true,
+      hasUserInteracted: true,
+    })
+
+    render(<PlaybackController />)
+    await flushPlaybackEffects()
+
+    expect(howlMockState.instances).toHaveLength(1)
+    const howl = howlMockState.instances[0] as { play: ReturnType<typeof vi.fn> }
+    expect(howl.play).toHaveBeenCalled()
   })
 
   test('exposes a global playback controller on window', () => {
@@ -176,6 +219,7 @@ describe('PlaybackController', () => {
       __playbackCtrl: { togglePlay: () => void }
     }).__playbackCtrl
     act(() => ctrl.togglePlay())
+    await flushPlaybackEffects()
     expect(pauseSpy).toHaveBeenCalled()
     pauseSpy.mockRestore()
     isPlayingSpy.mockRestore()
@@ -193,7 +237,9 @@ describe('PlaybackController', () => {
       __playbackCtrl: { togglePlay: () => void }
     }).__playbackCtrl
     act(() => ctrl.togglePlay())
+    await flushPlaybackEffects()
     expect(playSpy).toHaveBeenCalled()
+    expect(usePlayerStore.getState().isPlaying).toBe(true)
     playSpy.mockRestore()
     isPlayingSpy.mockRestore()
   })
@@ -216,7 +262,9 @@ describe('PlaybackController', () => {
     vi.spyOn(audioMod.audioEngine, 'getState').mockReturnValue('paused')
     vi.spyOn(audioMod.audioEngine, 'getCurrentTime').mockReturnValue(7)
     vi.spyOn(audioMod.audioEngine, 'getDuration').mockReturnValue(200)
+    usePlayerStore.setState({ currentTrack: mockSong })
     render(<PlaybackController />)
+    await flushPlaybackEffects()
     const ctrl = (window as unknown as {
       __playbackCtrl: { getState: () => Record<string, unknown> }
     }).__playbackCtrl
@@ -250,17 +298,23 @@ describe('PlaybackController', () => {
     const audioMod = await import('@/lib/audio')
     const playSpy = vi.spyOn(audioMod.audioEngine, 'play').mockImplementation(() => {})
     vi.spyOn(audioMod.audioEngine, 'isPlaying').mockReturnValue(false)
+    usePlayerStore.setState({ currentTrack: mockSong })
     render(<PlaybackController />)
+    await flushPlaybackEffects()
     const handlers = setActionHandlersMock.mock.calls[0]?.[0] as { play: () => void }
     act(() => handlers.play())
+    await flushPlaybackEffects()
     expect(playSpy).toHaveBeenCalled()
+    expect(usePlayerStore.getState().isPlaying).toBe(true)
     playSpy.mockRestore()
   })
 
   test('media-session pause handler pauses the engine', async () => {
     const audioMod = await import('@/lib/audio')
     const pauseSpy = vi.spyOn(audioMod.audioEngine, 'pause').mockImplementation(() => {})
+    usePlayerStore.setState({ currentTrack: mockSong })
     render(<PlaybackController />)
+    await flushPlaybackEffects()
     const handlers = setActionHandlersMock.mock.calls[0]?.[0] as { pause: () => void }
     act(() => handlers.pause())
     expect(pauseSpy).toHaveBeenCalled()
@@ -373,7 +427,7 @@ describe('PlaybackController', () => {
 
   test('skips engine load when same track is already playing', async () => {
     const audioMod = await import('@/lib/audio')
-    const loadSpy = vi.spyOn(audioMod.audioEngine, 'load').mockImplementation(() => {})
+    const loadSpy = vi.spyOn(audioMod.audioEngine, 'load').mockResolvedValue(undefined)
     vi.spyOn(audioMod.audioEngine, 'getState').mockReturnValue('playing')
 
     usePlayerStore.setState({ currentTrack: mockSong, hasUserInteracted: true })
@@ -395,7 +449,7 @@ describe('PlaybackController', () => {
   })
 
   test('does not reload the stream when playback is paused', async () => {
-    const loadSpy = vi.spyOn(audioEngine, 'load').mockImplementation(() => {})
+    const loadSpy = vi.spyOn(audioEngine, 'load').mockResolvedValue(undefined)
 
     usePlayerStore.setState({
       currentTrack: mockSong,
@@ -488,13 +542,14 @@ describe('PlaybackController', () => {
     usePlayerStore.setState({ currentTrack: mockSong, hasUserInteracted: true })
     await act(async () => {
       render(<PlaybackController />)
-      await Promise.resolve()
     })
+    await flushPlaybackEffects()
 
     const onError = (audioEngine as unknown as {
       onErrorCallback: (e: unknown) => void
     }).onErrorCallback
     act(() => onError(new Error('320k failed')))
+    await flushPlaybackEffects()
 
     expect(loadSpy).toHaveBeenCalledWith(`/api/song/stream?id=${mockSong.id}&br=320000`)
     expect(loadSpy).toHaveBeenCalledWith(`/api/song/stream?id=${mockSong.id}&br=128000`)
@@ -506,14 +561,15 @@ describe('PlaybackController', () => {
     usePlayerStore.setState({ currentTrack: mockSong, hasUserInteracted: true })
     await act(async () => {
       render(<PlaybackController />)
-      await Promise.resolve()
     })
+    await flushPlaybackEffects()
 
     const onError = (audioEngine as unknown as {
       onErrorCallback: (e: unknown) => void
     }).onErrorCallback
     act(() => onError(new Error('320k failed')))
     act(() => onError(new Error('128k failed')))
+    await flushPlaybackEffects()
 
     expect(usePlayerStore.getState().playbackError).toBe('128k failed')
     expect(usePlayerStore.getState().isPlaying).toBe(false)
@@ -544,6 +600,7 @@ describe('PlaybackController', () => {
     await act(async () => {
       render(<PlaybackController />)
     })
+    await flushPlaybackEffects()
     // Manually fire the registered engine callbacks
     const onPlay = (audioMod.audioEngine as unknown as {
       onPlayCallback: () => void
@@ -566,6 +623,7 @@ describe('PlaybackController', () => {
 
     act(() => onError?.(new Error('boom')))
     act(() => onError?.(new Error('boom')))
+    await flushPlaybackEffects()
     expect(usePlayerStore.getState().playbackError).toBe('boom')
 
     act(() => onEnd?.())

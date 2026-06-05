@@ -1,7 +1,8 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
-import { PageTransitionRoute } from '@/components/common/PageTransition'
+import { PageTransitionRoute } from '@/components/layout/PageTransitionRoute'
 
 /**
  * Client-side wrapper that triggers the `PageTransition` whenever
@@ -11,7 +12,7 @@ import { PageTransitionRoute } from '@/components/common/PageTransition'
 export function PageTransitionShell({
   children,
 }: {
-  children: React.ReactNode
+  children: ReactNode
 }) {
   const pathname = usePathname()
   return <PageTransitionRoute routeKey={pathname}>{children}</PageTransitionRoute>

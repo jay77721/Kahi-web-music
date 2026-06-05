@@ -53,8 +53,14 @@ const SUBTITLE_SIZE: Record<BentoSize, string> = {
   lg: 'text-sm',
 }
 
+const IMAGE_SIZES: Record<BentoSize, string> = {
+  sm: '(max-width: 768px) 50vw, 25vw',
+  md: '(max-width: 768px) 50vw, 33vw',
+  lg: '(max-width: 768px) 100vw, 33vw',
+}
+
 /**
- * BentoCard — generic mosaic tile for the discover page.
+ * BentoCard: generic mosaic tile for the discover page.
  *
  * Visuals:
  * - 1:1 cover image with a hover scale-up + gradient mask.
@@ -80,7 +86,7 @@ export function BentoCard(props: BentoCardProps) {
     children,
   } = props
 
-  const ariaLabel = subtitle ? `${title} — ${subtitle}` : title
+  const ariaLabel = subtitle ? `${title}: ${subtitle}` : title
 
   const inner = (
     <motion.div
@@ -104,9 +110,10 @@ export function BentoCard(props: BentoCardProps) {
             src={imageUrl(cover, size === 'lg' ? 400 : 200)}
             alt=""
             fill
-            sizes="(max-width: 768px) 50vw, 33vw"
+            sizes={IMAGE_SIZES[size]}
             className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
             loading="lazy"
+            decoding="async"
           />
           <div
             className="absolute inset-0"

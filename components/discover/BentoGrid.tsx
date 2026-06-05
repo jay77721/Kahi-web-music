@@ -23,18 +23,16 @@ interface NewSongItem {
   picUrl: string
 }
 
-interface ArtistItem {
-  id: number
-  name: string
-  picUrl: string
-  albumSize?: number
-}
-
 interface TopListCover {
   id: number
   name: string
   coverImgUrl: string
 }
+
+const BENTO_SWR_OPTIONS = {
+  revalidateOnFocus: false,
+  dedupingInterval: 60_000,
+} as const
 
 const FALLBACK_RADAR = {
   title: '私人雷达',
@@ -88,7 +86,8 @@ export function BentoGrid() {
       const result = await ncmApi.personalized(1)
       const list = (result as { result?: RecommendPlaylist[] } | undefined)?.result || []
       return list[0]
-    })
+    }),
+    BENTO_SWR_OPTIONS
   )
 
   const { data: newSongData, error: newSongError, mutate: mutateNewSong } = useSWR(
@@ -96,7 +95,8 @@ export function BentoGrid() {
     swrFetcher(async () => {
       const list = await ncmApi.personalizedNewSong<NewSongItem>(1)
       return list[0]
-    })
+    }),
+    BENTO_SWR_OPTIONS
   )
 
   const { data: topListData, error: topListError, mutate: mutateTopList } = useSWR(
@@ -104,20 +104,13 @@ export function BentoGrid() {
     swrFetcher(async () => {
       const list = await ncmApi.toplist<TopListCover>()
       return list.slice(0, 2)
-    })
-  )
-
-  const { data: artistData, error: artistError, mutate: mutateArtists } = useSWR(
-    'bento-artists',
-    swrFetcher(async () => {
-      return await ncmApi.topArtists<ArtistItem>(4)
-    })
+    }),
+    BENTO_SWR_OPTIONS
   )
 
   const radar = radarData
   const newSong = newSongData
   const hotList = topListData || []
-  const artists = artistData || []
 
   const container = {
     hidden: { opacity: 0 },
@@ -132,13 +125,12 @@ export function BentoGrid() {
     show: { opacity: 1, y: 0, transition: { duration: 0.4 } },
   } as const
 
-  const allFailed = radarError && newSongError && topListError && artistError
+  const allFailed = radarError && newSongError && topListError
 
   const retryAll = () => {
     mutateRadar()
     mutateNewSong()
     mutateTopList()
-    mutateArtists()
   }
 
   if (allFailed) {
@@ -183,7 +175,7 @@ export function BentoGrid() {
           icon={Radio}
           badge={FALLBACK_RADAR.badge}
           accent={FALLBACK_RADAR.accent}
-          href={radar ? `/playlist/${radar.id}` : '/discover/radar'}
+          href={radar ? `/playlist/${radar.id}` : '/daily'}
           className="h-full"
         />
       </motion.div>
@@ -232,32 +224,24 @@ export function BentoGrid() {
           icon={Sparkles}
           badge={FALLBACK_NEW_SONG.badge}
           accent={FALLBACK_NEW_SONG.accent}
-          href="/discover/newsongs"
+          href={newSong ? `/song/${newSong.id}` : '/search'}
           className="h-full"
         />
       </motion.div>
 
-      {/* Artist cards — small (3×1) × 4 */}
-      {artists.slice(0, 4).map((artist) => (
-        <motion.div
-          key={`artist-${artist.id}`}
-          role="listitem"
-          variants={item}
-          className="col-span-6 md:col-span-3 row-span-1"
-        >
-          <BentoCard
-            size="sm"
-            title={artist.name}
-            subtitle={artist.albumSize ? `${artist.albumSize} 张专辑` : '艺人'}
-            cover={imageUrl(artist.picUrl, 200)}
-            icon={UserStar}
-            badge={FALLBACK_ARTIST.badge}
-            accent={FALLBACK_ARTIST.accent}
-            href={`/artist/${artist.id}`}
-            className="h-full"
-          />
-        </motion.div>
-      ))}
+      {/* Artist discovery shortcut: no first-screen fetch or cover image. */}
+      <motion.div role="listitem" variants={item} className="col-span-12 row-span-1">
+        <BentoCard
+          size="md"
+          title={FALLBACK_ARTIST.title}
+          subtitle={FALLBACK_ARTIST.subtitle}
+          icon={UserStar}
+          badge={FALLBACK_ARTIST.badge}
+          accent={FALLBACK_ARTIST.accent}
+          href="/search"
+          className="h-full"
+        />
+      </motion.div>
     </motion.div>
   )
 }

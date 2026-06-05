@@ -8,7 +8,7 @@ import { usePlayerStore } from '@/stores/playerStore'
 import { imageUrl } from '@/lib/format'
 
 interface RecentPlayedProps {
-  /** Maximum number of items to render. Defaults to 12. */
+  /** Maximum number of items to render. Defaults to 6 for the home first screen. */
   maxItems?: number
 }
 
@@ -33,7 +33,7 @@ const itemVariants = {
  * the global player store. When the history is empty, renders a
  * subtle empty-state hint.
  */
-export function RecentPlayed({ maxItems = 12 }: RecentPlayedProps) {
+export function RecentPlayed({ maxItems = 6 }: RecentPlayedProps) {
   const history = useHistoryStore((s) => s.history)
   const playSong = usePlayerStore((s) => s.playSong)
 
@@ -95,6 +95,7 @@ export function RecentPlayed({ maxItems = 12 }: RecentPlayedProps) {
                   sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"
                   className="object-cover transition-transform duration-500 ease-out group-hover:scale-110"
                   loading="lazy"
+                  decoding="async"
                 />
                 <div
                   className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent"

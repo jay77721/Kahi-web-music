@@ -120,7 +120,7 @@ describe('RecentPlayed', () => {
       expect(getAllByRole('listitem')).toHaveLength(5)
     })
 
-    test('uses default 12 when maxItems omitted', () => {
+    test('uses default 6 when maxItems omitted', () => {
       useHistoryStore.setState({
         history: Array.from({ length: 20 }, (_, i) =>
           makeHistoryEntry(i + 1, `Song ${i + 1}`)
@@ -128,7 +128,7 @@ describe('RecentPlayed', () => {
       })
 
       const { getAllByRole } = render(<RecentPlayed />)
-      expect(getAllByRole('listitem')).toHaveLength(12)
+      expect(getAllByRole('listitem')).toHaveLength(6)
     })
 
     test('uses accessible aria-label including the song name', () => {
@@ -138,6 +138,17 @@ describe('RecentPlayed', () => {
 
       const { getByLabelText } = render(<RecentPlayed />)
       expect(getByLabelText('播放 晴天')).toBeTruthy()
+    })
+
+    test('marks cover images for async decoding', () => {
+      useHistoryStore.setState({
+        history: [makeHistoryEntry(1, 'Async Cover')],
+      })
+
+      const { container } = render(<RecentPlayed />)
+      const image = container.querySelector('img')
+      expect(image).toHaveAttribute('loading', 'lazy')
+      expect(image).toHaveAttribute('decoding', 'async')
     })
   })
 

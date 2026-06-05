@@ -29,7 +29,7 @@ export function RankingPreview() {
         const playlist = (data as { playlist?: { tracks?: Song[]; coverImgUrl?: string } } | undefined)?.playlist
         return {
           ...r,
-          tracks: getPreviewTracks(playlist?.tracks),
+          tracks: playlist?.tracks || [],
           coverUrl: playlist?.coverImgUrl || '',
         }
       })

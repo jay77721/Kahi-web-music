@@ -107,16 +107,16 @@ describe('AudioEngine', () => {
   })
 
   describe('load', () => {
-    test('skips loading when url is empty', () => {
+    test('skips loading when url is empty', async () => {
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-      engine.load('')
+      await engine.load('')
       expect(warnSpy).toHaveBeenCalled()
       expect(mockState.howlInstances).toHaveLength(0)
       warnSpy.mockRestore()
     })
 
-    test('constructs a Howl with the given url and html5: true', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('constructs a Howl with the given url and html5: true', async () => {
+      await engine.load('https://example.com/audio.mp3')
       expect(mockState.howlInstances).toHaveLength(1)
       const config = mockState.configs[0]
       expect(config.src).toEqual(['https://example.com/audio.mp3'])
@@ -126,39 +126,39 @@ describe('AudioEngine', () => {
       expect(config.format).toEqual(['mp3'])
     })
 
-    test('preserves a volume set before load', () => {
+    test('preserves a volume set before load', async () => {
       engine.setVolume(0.42)
-      engine.load('https://example.com/audio.mp3')
+      await engine.load('https://example.com/audio.mp3')
       expect(mockState.configs[0].volume).toBe(0.42)
       expect(engine.getVolume()).toBe(0.42)
     })
 
-    test('keeps the current volume when loading a new url', () => {
-      engine.load('https://example.com/a.mp3')
+    test('keeps the current volume when loading a new url', async () => {
+      await engine.load('https://example.com/a.mp3')
       engine.setVolume(0.35)
-      engine.load('https://example.com/b.mp3')
+      await engine.load('https://example.com/b.mp3')
       expect(mockState.configs[1].volume).toBe(0.35)
       expect(engine.getVolume()).toBe(0.35)
     })
 
-    test('skips reload when the same url is loaded twice', () => {
-      engine.load('https://example.com/audio.mp3')
-      engine.load('https://example.com/audio.mp3')
+    test('skips reload when the same url is loaded twice', async () => {
+      await engine.load('https://example.com/audio.mp3')
+      await engine.load('https://example.com/audio.mp3')
       expect(mockState.howlInstances).toHaveLength(1)
     })
 
-    test('unloads the previous Howl when loading a different url', () => {
-      engine.load('https://example.com/a.mp3')
+    test('unloads the previous Howl when loading a different url', async () => {
+      await engine.load('https://example.com/a.mp3')
       const first = mockState.howlInstances[0] as { unload: ReturnType<typeof vi.fn> }
-      engine.load('https://example.com/b.mp3')
+      await engine.load('https://example.com/b.mp3')
       expect(first.unload).toHaveBeenCalled()
       expect(mockState.howlInstances).toHaveLength(2)
     })
   })
 
   describe('play / pause / stop', () => {
-    beforeEach(() => {
-      engine.load('https://example.com/audio.mp3')
+    beforeEach(async () => {
+      await engine.load('https://example.com/audio.mp3')
     })
 
     test('play delegates to the howl', () => {
@@ -181,13 +181,13 @@ describe('AudioEngine', () => {
   })
 
   describe('seek', () => {
-    test('returns the current time when called with no arg', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('returns the current time when called with no arg', async () => {
+      await engine.load('https://example.com/audio.mp3')
       expect(engine.seek()).toBe(0)
     })
 
-    test('seeks to the provided time', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('seeks to the provided time', async () => {
+      await engine.load('https://example.com/audio.mp3')
       engine.seek(42)
       const howl = mockState.howlInstances[0] as { seek: ReturnType<typeof vi.fn> }
       expect(howl.seek).toHaveBeenCalledWith(42)
@@ -196,8 +196,8 @@ describe('AudioEngine', () => {
   })
 
   describe('setVolume / getVolume', () => {
-    test('clamps volume to [0, 1]', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('clamps volume to [0, 1]', async () => {
+      await engine.load('https://example.com/audio.mp3')
       engine.setVolume(5)
       const howl = mockState.howlInstances[0] as { volume: ReturnType<typeof vi.fn> }
       expect(howl.volume).toHaveBeenLastCalledWith(1)
@@ -205,8 +205,8 @@ describe('AudioEngine', () => {
       expect(howl.volume).toHaveBeenLastCalledWith(0)
     })
 
-    test('reflects the engine volume', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('reflects the engine volume', async () => {
+      await engine.load('https://example.com/audio.mp3')
       engine.setVolume(0.42)
       expect(engine.getVolume()).toBeCloseTo(0.42)
     })
@@ -218,8 +218,8 @@ describe('AudioEngine', () => {
   })
 
   describe('getCurrentTime / getDuration / isPlaying / getState', () => {
-    test('getCurrentTime returns seek() value', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('getCurrentTime returns seek() value', async () => {
+      await engine.load('https://example.com/audio.mp3')
       engine.seek(12)
       expect(engine.getCurrentTime()).toBe(12)
     })
@@ -228,15 +228,15 @@ describe('AudioEngine', () => {
       expect(engine.getDuration()).toBe(0)
     })
 
-    test('getState returns "playing" while the underlying howl plays', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('getState returns "playing" while the underlying howl plays', async () => {
+      await engine.load('https://example.com/audio.mp3')
       const howl = mockState.howlInstances[0] as { playing: ReturnType<typeof vi.fn> }
       howl.playing.mockReturnValueOnce(true)
       expect(engine.getState()).toBe('playing')
     })
 
-    test('getState returns "paused" when loaded and not playing', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('getState returns "paused" when loaded and not playing', async () => {
+      await engine.load('https://example.com/audio.mp3')
       const howl = mockState.howlInstances[0] as {
         state: ReturnType<typeof vi.fn>
         playing: ReturnType<typeof vi.fn>
@@ -246,8 +246,8 @@ describe('AudioEngine', () => {
       expect(engine.getState()).toBe('paused')
     })
 
-    test('getState returns "loading" while the source is still loading', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('getState returns "loading" while the source is still loading', async () => {
+      await engine.load('https://example.com/audio.mp3')
       const howl = mockState.howlInstances[0] as {
         state: ReturnType<typeof vi.fn>
         playing: ReturnType<typeof vi.fn>
@@ -259,8 +259,8 @@ describe('AudioEngine', () => {
   })
 
   describe('event handlers', () => {
-    test('onPlay / onPause / onEnd store callbacks', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('onPlay / onPause / onEnd store callbacks', async () => {
+      await engine.load('https://example.com/audio.mp3')
       const onPlay = vi.fn()
       const onPause = vi.fn()
       const onEnd = vi.fn()
@@ -280,8 +280,8 @@ describe('AudioEngine', () => {
       expect(onEnd).toHaveBeenCalled()
     })
 
-    test('onError forwards the error from the howl on load error', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('onError forwards the error from the howl on load error', async () => {
+      await engine.load('https://example.com/audio.mp3')
       const onError = vi.fn()
       engine.onError(onError)
       const howl = mockState.howlInstances[0] as {
@@ -292,8 +292,8 @@ describe('AudioEngine', () => {
       expect(onError).toHaveBeenCalledWith(err)
     })
 
-    test('onError also fires on play errors', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('onError also fires on play errors', async () => {
+      await engine.load('https://example.com/audio.mp3')
       const onError = vi.fn()
       engine.onError(onError)
       const howl = mockState.howlInstances[0] as {
@@ -303,8 +303,8 @@ describe('AudioEngine', () => {
       expect(onError).toHaveBeenCalledWith('network-fail')
     })
 
-    test('onLoad forwards successful Howl load events', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('onLoad forwards successful Howl load events', async () => {
+      await engine.load('https://example.com/audio.mp3')
       const onLoad = vi.fn()
       engine.onLoad(onLoad)
       const howl = mockState.howlInstances[0] as {
@@ -314,8 +314,8 @@ describe('AudioEngine', () => {
       expect(onLoad).toHaveBeenCalled()
     })
 
-    test('unsubscribe clears the matching callback', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('unsubscribe clears the matching callback', async () => {
+      await engine.load('https://example.com/audio.mp3')
       const onPlay = vi.fn()
       const unsubscribe = engine.onPlay(onPlay)
 
@@ -329,8 +329,8 @@ describe('AudioEngine', () => {
       expect(onPlay).not.toHaveBeenCalled()
     })
 
-    test('an older unsubscribe does not clear a newer callback', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('an older unsubscribe does not clear a newer callback', async () => {
+      await engine.load('https://example.com/audio.mp3')
       const oldOnPlay = vi.fn()
       const newOnPlay = vi.fn()
       const unsubscribeOld = engine.onPlay(oldOnPlay)
@@ -347,15 +347,15 @@ describe('AudioEngine', () => {
       expect(newOnPlay).toHaveBeenCalled()
     })
 
-    test('ignores stale events from an unloaded Howl instance', () => {
+    test('ignores stale events from an unloaded Howl instance', async () => {
       const onLoad = vi.fn()
       engine.onLoad(onLoad)
-      engine.load('https://example.com/a.mp3')
+      await engine.load('https://example.com/a.mp3')
       const first = mockState.howlInstances[0] as {
         _handlers: Record<string, ((...args: unknown[]) => void) | null>
       }
 
-      engine.load('https://example.com/b.mp3')
+      await engine.load('https://example.com/b.mp3')
       first._handlers.onload?.()
 
       expect(onLoad).not.toHaveBeenCalled()
@@ -367,8 +367,8 @@ describe('AudioEngine', () => {
       expect(onLoad).toHaveBeenCalledTimes(1)
     })
 
-    test('reset also clears all event callbacks', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('reset also clears all event callbacks', async () => {
+      await engine.load('https://example.com/audio.mp3')
       const onPlay = vi.fn()
       engine.onPlay(onPlay)
       engine.reset()
@@ -382,18 +382,18 @@ describe('AudioEngine', () => {
   })
 
   describe('destroy', () => {
-    test('destroy unloads the howl and clears the url', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('destroy unloads the howl and clears the url', async () => {
+      await engine.load('https://example.com/audio.mp3')
       const howl = mockState.howlInstances[0] as { unload: ReturnType<typeof vi.fn> }
       engine.destroy()
       expect(howl.unload).toHaveBeenCalled()
       expect(engine.getState()).toBe('error')
     })
 
-    test('destroy clears the loaded url so the same url can be loaded again', () => {
-      engine.load('https://example.com/audio.mp3')
+    test('destroy clears the loaded url so the same url can be loaded again', async () => {
+      await engine.load('https://example.com/audio.mp3')
       engine.destroy()
-      engine.load('https://example.com/audio.mp3')
+      await engine.load('https://example.com/audio.mp3')
       expect(mockState.howlInstances).toHaveLength(2)
     })
   })

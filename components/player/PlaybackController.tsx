@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { usePlayerStore } from '@/stores/playerStore'
 import { useHistoryStore } from '@/stores/historyStore'
 import { useUIStore } from '@/stores/uiStore'
-import { audioEngine } from '@/lib/audio'
 import { ncmApi } from '@/lib/api'
 import { normalizeLyricData } from '@/lib/api-adapters'
 import { parseLyricResponse } from '@/lib/lrc'
@@ -20,8 +19,17 @@ const STORE_TIME_UPDATE_INTERVAL_MS = 250
 const PRIMARY_STREAM_BITRATE = 320000
 const FALLBACK_STREAM_BITRATE = 128000
 
+type AudioEngineSingleton = typeof import('@/lib/audio').audioEngine
+
+let audioEnginePromise: Promise<AudioEngineSingleton> | null = null
+
 function streamUrl(trackId: number, bitrate: number): string {
   return `/api/song/stream?id=${trackId}&br=${bitrate}`
+}
+
+function importAudioEngine(): Promise<AudioEngineSingleton> {
+  audioEnginePromise ??= import('@/lib/audio').then((module) => module.audioEngine)
+  return audioEnginePromise
 }
 
 /**
@@ -41,10 +49,16 @@ export function PlaybackController() {
   const seek = usePlayerStore((state) => state.seek)
 
   const currentTrackIdRef = useRef<number | null>(null)
+  const audioEngineRef = useRef<AudioEngineSingleton | null>(null)
   const streamRetryRef = useRef<{ trackId: number | null; retried: boolean }>({
     trackId: null,
     retried: false,
   })
+
+  const getAudioEngine = useCallback(async () => {
+    audioEngineRef.current ??= await importAudioEngine()
+    return audioEngineRef.current
+  }, [])
 
   // Restore persisted state on mount (client-side only)
   useEffect(() => {
@@ -56,19 +70,25 @@ export function PlaybackController() {
   // Track change → fetch URL → load → play
   useEffect(() => {
     if (!currentTrack) return
+    let cancelled = false
+    const trackId = currentTrack.id
 
-    // Skip if same track is already playing
-    if (currentTrackIdRef.current === currentTrack.id && audioEngine.getState() === 'playing') {
-      return
-    }
-    currentTrackIdRef.current = currentTrack.id
-
-    const loadAndPlay = () => {
+    const loadAndPlay = async () => {
       try {
+        const audioEngine = await getAudioEngine()
+        if (cancelled) return
+
+        // Skip if same track is already playing
+        if (currentTrackIdRef.current === trackId && audioEngine.getState() === 'playing') {
+          return
+        }
+        currentTrackIdRef.current = trackId
         clearPlaybackError()
 
-        streamRetryRef.current = { trackId: currentTrack.id, retried: false }
-        audioEngine.load(streamUrl(currentTrack.id, PRIMARY_STREAM_BITRATE))
+        streamRetryRef.current = { trackId, retried: false }
+        await audioEngine.load(streamUrl(trackId, PRIMARY_STREAM_BITRATE))
+        if (cancelled) return
+
         const { volume, isMuted } = usePlayerStore.getState()
         audioEngine.setVolume(isMuted ? 0 : volume)
 
@@ -77,15 +97,17 @@ export function PlaybackController() {
           audioEngine.play()
         }
       } catch (e) {
+        if (cancelled) return
         setPlaybackError(e instanceof Error ? e.message : '加载失败')
         setIsPlaying(false)
       }
     }
 
-    loadAndPlay()
+    void loadAndPlay()
+    return () => { cancelled = true }
     // currentTrack is captured via currentTrack.id; whole object intentionally omitted
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTrack?.id, setIsPlaying, setPlaybackError, clearPlaybackError])
+  }, [currentTrack?.id, getAudioEngine, setIsPlaying, setPlaybackError, clearPlaybackError])
 
   // Load lyrics
   useEffect(() => {
@@ -110,79 +132,103 @@ export function PlaybackController() {
 
   // AudioEngine events → store
   useEffect(() => {
+    if (!currentTrack) return
+    let cancelled = false
+    let unsubscribe: Array<() => void> = []
     let lastStoreTimeUpdateAt: number | null = null
     const syncCurrentTime = (time: number) => {
       usePlayerStore.getState().setCurrentTime(time)
       lastStoreTimeUpdateAt = Date.now()
     }
-    const flushCurrentTime = () => {
-      syncCurrentTime(audioEngine.getCurrentTime())
-    }
-    const onPlay = () => { clearPlaybackError(); setIsPlaying(true) }
-    const onPause = () => { flushCurrentTime(); setIsPlaying(false) }
-    const onEnd = () => { flushCurrentTime(); setIsPlaying(false); next() }
-    const retryLowerBitrate = (): boolean => {
-      const { currentTrack, hasUserInteracted, isPlaying, volume, isMuted } = usePlayerStore.getState()
-      const retry = streamRetryRef.current
-      if (!currentTrack || retry.trackId !== currentTrack.id || retry.retried) return false
 
-      retry.retried = true
-      try {
-        audioEngine.load(streamUrl(currentTrack.id, FALLBACK_STREAM_BITRATE))
-        audioEngine.setVolume(isMuted ? 0 : volume)
-        if (hasUserInteracted && isPlaying) audioEngine.play()
-        return true
-      } catch {
-        return false
+    const bindAudioEvents = async () => {
+      const audioEngine = await getAudioEngine()
+      if (cancelled) return
+
+      const flushCurrentTime = () => {
+        syncCurrentTime(audioEngine.getCurrentTime())
       }
-    }
-    const onError = (err: unknown) => {
-      if (retryLowerBitrate()) return
-      setPlaybackError(err instanceof Error ? err.message : '播放出错')
-      setIsPlaying(false)
-    }
-    const onLoad = () => {
-      const dur = audioEngine.getDuration()
-      if (dur > 0) usePlayerStore.getState().setDuration(dur)
-    }
-    const onTimeUpdate = (time: number) => {
-      const now = Date.now()
-      if (
-        lastStoreTimeUpdateAt === null ||
-        now - lastStoreTimeUpdateAt >= STORE_TIME_UPDATE_INTERVAL_MS
-      ) {
-        syncCurrentTime(time)
+      const onPlay = () => { clearPlaybackError(); setIsPlaying(true) }
+      const onPause = () => { flushCurrentTime(); setIsPlaying(false) }
+      const onEnd = () => { flushCurrentTime(); setIsPlaying(false); next() }
+      const retryLowerBitrate = async (): Promise<boolean> => {
+        const { currentTrack, hasUserInteracted, isPlaying, volume, isMuted } = usePlayerStore.getState()
+        const retry = streamRetryRef.current
+        if (!currentTrack || retry.trackId !== currentTrack.id || retry.retried) return false
+
+        retry.retried = true
+        try {
+          await audioEngine.load(streamUrl(currentTrack.id, FALLBACK_STREAM_BITRATE))
+          if (cancelled) return false
+          audioEngine.setVolume(isMuted ? 0 : volume)
+          if (hasUserInteracted && isPlaying) audioEngine.play()
+          return true
+        } catch {
+          return false
+        }
       }
+      const onError = (err: unknown) => {
+        void (async () => {
+          if (await retryLowerBitrate()) return
+          if (cancelled) return
+          setPlaybackError(err instanceof Error ? err.message : '播放出错')
+          setIsPlaying(false)
+        })()
+      }
+      const onLoad = () => {
+        const dur = audioEngine.getDuration()
+        if (dur > 0) usePlayerStore.getState().setDuration(dur)
+      }
+      const onTimeUpdate = (time: number) => {
+        const now = Date.now()
+        if (
+          lastStoreTimeUpdateAt === null ||
+          now - lastStoreTimeUpdateAt >= STORE_TIME_UPDATE_INTERVAL_MS
+        ) {
+          syncCurrentTime(time)
+        }
+      }
+
+      unsubscribe = [
+        audioEngine.onPlay(onPlay),
+        audioEngine.onPause(onPause),
+        audioEngine.onEnd(onEnd),
+        audioEngine.onError(onError),
+        audioEngine.onLoad(onLoad),
+        audioEngine.onTimeUpdate(onTimeUpdate),
+      ]
     }
 
-    const unsubscribe = [
-      audioEngine.onPlay(onPlay),
-      audioEngine.onPause(onPause),
-      audioEngine.onEnd(onEnd),
-      audioEngine.onError(onError),
-      audioEngine.onLoad(onLoad),
-      audioEngine.onTimeUpdate(onTimeUpdate),
-    ]
+    void bindAudioEvents()
 
     return () => {
+      cancelled = true
       unsubscribe.forEach((off) => off())
     }
-  }, [setIsPlaying, setPlaybackError, clearPlaybackError, next])
+  }, [currentTrack, getAudioEngine, setIsPlaying, setPlaybackError, clearPlaybackError, next])
 
   // Bind Media Session action handlers once (play/pause/next/prev/seek)
   useEffect(() => {
     setMediaActionHandlers({
       play: () => {
         setHasUserInteracted()
-        if (!audioEngine.isPlaying()) audioEngine.play()
+        if (!usePlayerStore.getState().currentTrack) return
+        setIsPlaying(true)
+        void getAudioEngine().then((audioEngine) => {
+          if (!audioEngine.isPlaying()) audioEngine.play()
+        })
       },
-      pause: () => audioEngine.pause(),
+      pause: () => {
+        const audioEngine = audioEngineRef.current
+        if (audioEngine) audioEngine.pause()
+        else setIsPlaying(false)
+      },
       nextTrack: () => next(),
       previousTrack: () => prev(),
       seek: (time) => seek(time),
     })
     return () => clearMediaSession()
-  }, [setHasUserInteracted, next, prev, seek])
+  }, [getAudioEngine, setHasUserInteracted, setIsPlaying, next, prev, seek])
 
   // Sync Media Session metadata + playback state with the current track
   useEffect(() => {
@@ -224,11 +270,18 @@ export function PlaybackController() {
     const controls = {
       togglePlay: () => {
         setHasUserInteracted()
-        if (audioEngine.isPlaying()) {
-          audioEngine.pause()
-        } else {
-          audioEngine.play()
-        }
+        const { currentTrack, isPlaying } = usePlayerStore.getState()
+        if (!currentTrack) return
+
+        void getAudioEngine().then((audioEngine) => {
+          if (audioEngine.isPlaying() || isPlaying) {
+            audioEngine.pause()
+            usePlayerStore.getState().setIsPlaying(false)
+          } else {
+            usePlayerStore.getState().setIsPlaying(true)
+            audioEngine.play()
+          }
+        })
       },
       next: () => usePlayerStore.getState().next(),
       prev: () => usePlayerStore.getState().prev(),
@@ -236,12 +289,23 @@ export function PlaybackController() {
         setHasUserInteracted()
         usePlayerStore.getState().playSong(song as Song)
       },
-      getState: () => ({
-        isPlaying: audioEngine.isPlaying(),
-        state: audioEngine.getState(),
-        currentTime: audioEngine.getCurrentTime(),
-        duration: audioEngine.getDuration(),
-      }),
+      getState: () => {
+        const audioEngine = audioEngineRef.current
+        if (!audioEngine) {
+          return {
+            isPlaying: false,
+            state: 'error',
+            currentTime: 0,
+            duration: 0,
+          }
+        }
+        return {
+          isPlaying: audioEngine.isPlaying(),
+          state: audioEngine.getState(),
+          currentTime: audioEngine.getCurrentTime(),
+          duration: audioEngine.getDuration(),
+        }
+      },
     }
     ;(window as unknown as Window).__playbackCtrl = controls
     return () => {
@@ -249,7 +313,7 @@ export function PlaybackController() {
         delete (window as unknown as Window).__playbackCtrl
       }
     }
-  }, [setHasUserInteracted])
+  }, [getAudioEngine, setHasUserInteracted])
 
   return null
 }
