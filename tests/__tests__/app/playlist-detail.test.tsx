@@ -220,7 +220,7 @@ describe('PlaylistDetailPage', () => {
     vi.clearAllMocks()
   })
 
-  test('fetches only the initial 30 track slice for first paint', async () => {
+  test('uses tracks from playlist detail without requesting the track/all fallback', async () => {
     mockUseSWR.mockReturnValue({
       data: undefined,
       isLoading: true,
@@ -228,6 +228,27 @@ describe('PlaylistDetailPage', () => {
       mutate: mockMutate,
     })
     mockNcmApi.playlistDetail.mockResolvedValue({ playlist: makePlaylist(120) })
+
+    await renderPlaylistPage()
+
+    expect(mockUseSWR.mock.calls[0]?.[0]).toBe('playlist-detail-1')
+    const fetcher = mockUseSWR.mock.calls[0]?.[1] as () => Promise<NormalizedPlaylistDetail>
+    const result = await fetcher()
+
+    expect(mockNcmApi.playlistDetail).toHaveBeenCalledWith('1')
+    expect(mockNcmApi.playlistTrackAll).not.toHaveBeenCalled()
+    expect(result.tracks).toHaveLength(30)
+  })
+
+  test('requests the initial track/all fallback when playlist detail has no tracks', async () => {
+    mockUseSWR.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      error: undefined,
+      mutate: mockMutate,
+    })
+    const playlistWithoutTracks = { ...makePlaylist(120), tracks: [] }
+    mockNcmApi.playlistDetail.mockResolvedValue({ playlist: playlistWithoutTracks })
     mockNcmApi.playlistTrackAll.mockResolvedValue({ songs: makeSongs(100) })
 
     await renderPlaylistPage()

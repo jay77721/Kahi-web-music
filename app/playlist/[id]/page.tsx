@@ -54,10 +54,16 @@ async function fetchPlaylistDetailSlice(
   id: string,
   trackLimit: number
 ): Promise<NormalizedPlaylistDetail> {
-  const [detail, tracks] = await Promise.all([
-    ncmApi.playlistDetail(id).catch(() => null),
-    ncmApi.playlistTrackAll(id, trackLimit).catch(() => null),
-  ])
+  const detail = await ncmApi.playlistDetail(id).catch(() => null)
+  const detailOnly = normalizePlaylistDetail(detail)
+  if (detailOnly.tracks.length > 0) {
+    return {
+      ...detailOnly,
+      tracks: detailOnly.tracks.slice(0, trackLimit),
+    }
+  }
+
+  const tracks = await ncmApi.playlistTrackAll(id, trackLimit).catch(() => null)
   const normalized = normalizePlaylistDetail(detail, tracks)
 
   return {
