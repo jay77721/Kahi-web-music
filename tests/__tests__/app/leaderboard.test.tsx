@@ -1,7 +1,7 @@
 'use client'
 
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, act } from '@testing-library/react'
+import { render, screen, cleanup, act, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 
 // ---------------------------------------------------------------------------
@@ -91,6 +91,13 @@ function swrState<T>(overrides: Partial<{ data: T; isLoading: boolean; error: un
     mutate: vi.fn(),
     ...overrides,
   }
+}
+
+function makeTracks(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    id: index + 1,
+    name: `Song ${index + 1}`,
+  }))
 }
 
 beforeEach(() => {
@@ -247,5 +254,39 @@ describe('LeaderboardPage', () => {
     })
 
     expect(screen.getByTestId('leaderboard-loading')).toBeInTheDocument()
+  })
+
+  test('renders a lighter initial leaderboard and expands to the top 50 on demand', async () => {
+    mockUseSWR.mockImplementation((key: string | null) => {
+      if (key === 'toplist') {
+        return swrState({
+          data: [{ id: 3779629, name: '新歌榜', coverImgUrl: 'https://x/1.jpg' }],
+        })
+      }
+      if (key === 'top-list-3779629') {
+        return swrState({
+          data: {
+            name: '新歌榜',
+            coverImgUrl: 'https://x/1.jpg',
+            tracks: makeTracks(60) as never,
+          },
+        })
+      }
+      return swrState()
+    })
+
+    const { default: LeaderboardPage } = await import('@/app/leaderboard/page')
+    render(<LeaderboardPage />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('song-table')).toHaveTextContent('30 songs')
+    })
+    expect(screen.getByText('已显示 30/50 首 · 共 60 首')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('leaderboard-load-full'))
+
+    expect(screen.getByTestId('song-table')).toHaveTextContent('50 songs')
+    expect(screen.getByText('已显示 50/50 首 · 共 60 首')).toBeInTheDocument()
+    expect(screen.queryByTestId('leaderboard-load-full')).not.toBeInTheDocument()
   })
 })

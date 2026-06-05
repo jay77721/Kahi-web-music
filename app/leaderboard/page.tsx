@@ -4,10 +4,11 @@ import { Suspense, useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
 import Image from 'next/image'
-import { Trophy, ListMusic, ChevronRight } from 'lucide-react'
+import { Trophy, ListMusic, ChevronRight, ChevronDown } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { SongTable } from '@/components/common/SongTable'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
 import { LeaderboardTabs, type LeaderboardTabItem } from '@/components/leaderboard/LeaderboardTabs'
 import { ncmApi } from '@/lib/api'
 import {
@@ -27,6 +28,8 @@ const OFFICIAL_CHARTS: LeaderboardTabItem<number>[] = [
   { id: 19723756, label: '飙升榜' },
   { id: 60131, label: '原创榜' },
 ]
+const INITIAL_TRACK_LIMIT = 30
+const FULL_TRACK_LIMIT = 50
 
 function parseChartId(raw: string | null): number | null {
   if (!raw) return null
@@ -46,6 +49,7 @@ function LeaderboardPageContent() {
   const searchParams = useSearchParams()
   const chartIdFromUrl = parseChartId(searchParams.get('id'))
   const [selectedId, setSelectedId] = useState<number | null>(chartIdFromUrl)
+  const [expandedChartId, setExpandedChartId] = useState<number | null>(null)
   const { playQueue } = usePlayerStore()
   const selectedIdRef = useRef<number | null>(chartIdFromUrl)
 
@@ -78,7 +82,10 @@ function LeaderboardPageContent() {
     : OFFICIAL_CHARTS
 
   const tracks = detail?.tracks ?? []
-  const visibleTracks = tracks.slice(0, 50)
+  const displayLimit = expandedChartId === selectedId ? FULL_TRACK_LIMIT : INITIAL_TRACK_LIMIT
+  const visibleTracks = tracks.slice(0, displayLimit)
+  const cappedTrackCount = Math.min(tracks.length, FULL_TRACK_LIMIT)
+  const canExpandTracks = visibleTracks.length < cappedTrackCount
 
   return (
     <AppShell>
@@ -204,7 +211,7 @@ function LeaderboardPageContent() {
                   <h2 className="text-xl md:text-2xl font-bold truncate">{detail.name}</h2>
                   <p className="text-xs text-[var(--text-tertiary)] mt-1 flex items-center gap-1">
                     <ListMusic className="w-3.5 h-3.5" aria-hidden />
-                    前 {visibleTracks.length} 首 · 共 {tracks.length} 首
+                    已显示 {visibleTracks.length}/{cappedTrackCount} 首 · 共 {tracks.length} 首
                   </p>
                 </div>
               </div>
@@ -212,6 +219,21 @@ function LeaderboardPageContent() {
                 songs={visibleTracks}
                 onPlayAll={() => visibleTracks.length > 0 && playQueue(visibleTracks, 0)}
               />
+              {canExpandTracks && selectedId ? (
+                <div className="mt-5 flex justify-center">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    data-testid="leaderboard-load-full"
+                    onClick={() => setExpandedChartId(selectedId)}
+                    className="rounded-full px-5 text-[var(--text-primary)] hover:bg-[var(--bg-hover)]"
+                  >
+                    <ChevronDown className="w-4 h-4 mr-1.5" aria-hidden />
+                    加载完整前 {FULL_TRACK_LIMIT} 首
+                  </Button>
+                </div>
+              ) : null}
             </div>
           ) : (
             <EmptyState message="该榜单暂无数据" />
