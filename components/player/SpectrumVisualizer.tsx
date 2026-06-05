@@ -17,6 +17,7 @@ interface SpectrumVisualizerProps {
 
 const CANVAS_HEIGHT = 96
 const FALLBACK_DECAY = 0.92
+const SETTLED_HEIGHT = 0.01
 const DEFAULT_ACCENT = '#1ed760'
 
 /**
@@ -91,6 +92,7 @@ export const SpectrumVisualizer = memo(function SpectrumVisualizer({
 
       // Update bar heights
       const data = dataRef.current
+      let shouldContinue = Boolean(analyser && isPlaying && data)
       if (analyser && isPlaying && data) {
         analyser.getByteFrequencyData(data)
         const slice = Math.max(1, Math.floor((data.length || 1) / barCount))
@@ -106,7 +108,9 @@ export const SpectrumVisualizer = memo(function SpectrumVisualizer({
       } else {
         // Decay when paused / no analyser.
         for (let i = 0; i < barCount; i++) {
-          heightsRef.current[i] = (heightsRef.current[i] ?? 0) * FALLBACK_DECAY
+          const nextHeight = (heightsRef.current[i] ?? 0) * FALLBACK_DECAY
+          heightsRef.current[i] = nextHeight < SETTLED_HEIGHT ? 0 : nextHeight
+          shouldContinue ||= nextHeight >= SETTLED_HEIGHT
         }
       }
 
@@ -130,7 +134,7 @@ export const SpectrumVisualizer = memo(function SpectrumVisualizer({
         ctx2d.fill()
       }
 
-      rafIdRef.current = requestAnimationFrame(draw)
+      rafIdRef.current = shouldContinue ? requestAnimationFrame(draw) : null
     }
 
     rafIdRef.current = requestAnimationFrame(draw)
