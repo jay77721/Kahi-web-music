@@ -80,6 +80,27 @@
      never looks unstyled. */
   --color-dynamic-bg: oklch(0.18 0 0);
 
+  /* shadcn / Base UI runtime aliases. Tailwind utilities read the @theme
+     values above, while a few inline styles and third-party components read
+     these CSS custom properties directly. Keep them mapped to the Kahi token
+     names so both paths share the same visual system. */
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+  --card: var(--bg-elevated);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-elevated);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-foreground);
+  --secondary: var(--bg-surface);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--bg-surface);
+  --muted-foreground: var(--text-tertiary);
+  --input: var(--bg-overlay);
+  --ring: var(--accent-glow);
+  --radius: var(--radius-lg);
+  --destructive: #ef4444;
+
   /* ── Spacing scale ── */
   --space-xs: 4px;
   --space-sm: 8px;

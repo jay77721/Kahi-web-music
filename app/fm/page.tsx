@@ -49,6 +49,10 @@ export default function FMPage() {
     [mutate]
   )
 
+  const handleNext = useCallback(() => {
+    void mutate()
+  }, [mutate])
+
   if (!hasRestoredSession || !isLoggedIn) return null
 
   const current = fmSongs?.[0] ?? null
@@ -69,6 +73,7 @@ export default function FMPage() {
           isLoading={isInitialLoading}
           hasError={Boolean(error)}
           onDislike={handleAdvance}
+          onNext={handleNext}
           onRetry={() => void mutate()}
         />
       </div>

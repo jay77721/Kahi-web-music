@@ -17,6 +17,7 @@ interface FMMainPlayerProps {
   isLoading?: boolean
   hasError?: boolean
   onDislike: (id: number) => void
+  onNext: () => void
   onRetry?: () => void
   className?: string
 }
@@ -48,9 +49,11 @@ export const FMMainPlayer = memo(function FMMainPlayer({
   isLoading = false,
   hasError = false,
   onDislike,
+  onNext,
   onRetry,
   className,
 }: FMMainPlayerProps) {
+  const [likedSongIds, setLikedSongIds] = useState<Set<number>>(() => new Set())
   const prefersReducedMotion = useReducedMotion()
   const currentTrackId = usePlayerStore((state) => state.currentTrack?.id ?? null)
   const isPlaying = usePlayerStore((state) => state.isPlaying)
@@ -102,6 +105,7 @@ export const FMMainPlayer = memo(function FMMainPlayer({
   }, [color])
 
   const isActive = song ? currentTrackId === song.id : false
+  const isLiked = song ? likedSongIds.has(song.id) : false
   const showPlaying = isActive && isPlaying
   const spinClass = prefersReducedMotion
     ? ''
@@ -127,6 +131,19 @@ export const FMMainPlayer = memo(function FMMainPlayer({
     if (!song) return
     onDislike(song.id)
   }, [onDislike, song])
+
+  const handleToggleLike = useCallback(() => {
+    if (!song) return
+    setLikedSongIds((current) => {
+      const next = new Set(current)
+      if (next.has(song.id)) {
+        next.delete(song.id)
+      } else {
+        next.add(song.id)
+      }
+      return next
+    })
+  }, [song])
 
   const handleSeek = useCallback(
     (value: number | readonly number[]) => {
@@ -197,9 +214,11 @@ export const FMMainPlayer = memo(function FMMainPlayer({
 
       <FMActions
         isPlaying={showPlaying}
+        isLiked={isLiked}
         onDislike={handleDislike}
         onPlayPause={handlePlayPause}
-        onNext={() => onDislike(song.id)}
+        onNext={onNext}
+        onLike={handleToggleLike}
       />
     </section>
   )
@@ -290,6 +309,10 @@ function FMProgress({ currentTime, duration, isActive, onSeek }: FMProgressProps
         value={Math.min(currentTime, max)}
         onChange={(e) => onSeek(Number(e.target.value))}
         aria-label="播放进度"
+        aria-valuemin={0}
+        aria-valuemax={max}
+        aria-valuenow={Math.min(currentTime, max)}
+        aria-valuetext={`${currentTimeLabel} / ${durationLabel}`}
         className="fm-progress__input w-full"
         data-testid="fm-progress-input"
       />
@@ -303,12 +326,14 @@ function FMProgress({ currentTime, duration, isActive, onSeek }: FMProgressProps
 
 interface FMActionsProps {
   isPlaying: boolean
+  isLiked: boolean
   onDislike: () => void
   onPlayPause: () => void
   onNext: () => void
+  onLike: () => void
 }
 
-function FMActions({ isPlaying, onDislike, onPlayPause, onNext }: FMActionsProps) {
+function FMActions({ isPlaying, isLiked, onDislike, onPlayPause, onNext, onLike }: FMActionsProps) {
   return (
     <div
       className="w-full max-w-md px-6 mt-6 mb-10 flex flex-wrap items-center justify-center gap-2 sm:justify-between"
@@ -329,8 +354,8 @@ function FMActions({ isPlaying, onDislike, onPlayPause, onNext }: FMActionsProps
       <Button
         variant="ghost"
         size="icon"
-        onClick={onDislike}
-        className="w-12 h-12 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+        disabled
+        className="w-12 h-12 text-[var(--text-tertiary)]"
         aria-label="上一首 (FM 模式与下一首相同)"
         data-testid="fm-prev"
       >
@@ -363,12 +388,19 @@ function FMActions({ isPlaying, onDislike, onPlayPause, onNext }: FMActionsProps
       <Button
         variant="ghost"
         size="icon"
-        onClick={onDislike}
-        className="w-12 h-12 text-[var(--accent)] hover:text-[var(--accent-hover)] hover:bg-[var(--bg-accent-subtle)]"
-        aria-label="收藏"
+        onClick={onLike}
+        className={cn(
+          'w-12 h-12 hover:bg-[var(--bg-accent-subtle)]',
+          isLiked
+            ? 'text-[var(--accent)] hover:text-[var(--accent-hover)]'
+            : 'text-[var(--text-tertiary)] hover:text-[var(--accent)]'
+        )}
+        aria-label={isLiked ? '取消收藏' : '收藏'}
+        aria-pressed={isLiked}
+        data-state={isLiked ? 'liked' : 'idle'}
         data-testid="fm-like"
       >
-        <Heart className="w-6 h-6" />
+        <Heart className="w-6 h-6" fill={isLiked ? 'currentColor' : 'none'} />
       </Button>
     </div>
   )

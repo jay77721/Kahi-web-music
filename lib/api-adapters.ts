@@ -8,7 +8,7 @@ import type {
 import type { Album } from '@/types/album'
 import type { Artist, ArtistDetail } from '@/types/artist'
 import type { CommentResponse } from '@/types/comment'
-import type { DjProgramToplistItem, DjRadio, DjRadioHot } from '@/types/dj'
+import type { DjProgram, DjProgramToplistItem, DjRadio, DjRadioHot } from '@/types/dj'
 import type { MV } from '@/types/mv'
 import type { Playlist } from '@/types/playlist'
 import type { SearchSuggestResponse } from '@/types/search'
@@ -408,6 +408,14 @@ export function normalizeDjHotList(raw: unknown): DjRadioHot[] {
     ...radio,
     rank: typeof (radio as DjRadioHot).rank === 'number' ? (radio as DjRadioHot).rank : index + 1,
   }))
+}
+
+export function normalizeDjProgramList(raw: unknown): DjProgram[] {
+  if (Array.isArray(raw)) return raw as DjProgram[]
+
+  return asArray<DjProgram>(
+    readFirstField(raw, ['programs', 'data', 'list'])
+  )
 }
 
 export function normalizeDjProgramToplist(raw: unknown): DjProgramToplistItem[] {

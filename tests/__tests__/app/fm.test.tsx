@@ -196,6 +196,7 @@ describe('FMPage', () => {
     // The five controls are keyboard-reachable buttons.
     expect(screen.getByTestId('fm-dislike')).toBeInTheDocument()
     expect(screen.getByTestId('fm-prev')).toBeInTheDocument()
+    expect(screen.getByTestId('fm-prev')).toBeDisabled()
     expect(screen.getByTestId('fm-play')).toBeInTheDocument()
     expect(screen.getByTestId('fm-next')).toBeInTheDocument()
     expect(screen.getByTestId('fm-like')).toBeInTheDocument()
@@ -237,6 +238,39 @@ describe('FMPage', () => {
 
     expect(mockFmTrash).toHaveBeenCalledWith(42)
     expect(mutate).toHaveBeenCalled()
+  })
+
+  test('next control refreshes FM without trashing the current song', async () => {
+    mockLoggedIn()
+    const mutate = vi.fn()
+    mockUseSWR.mockReturnValue(swrState({ data: [FM_SONG], mutate }))
+
+    const { default: FMPage } = await import('@/app/fm/page')
+    render(<FMPage />)
+
+    fireEvent.click(screen.getByTestId('fm-next'))
+
+    expect(mockFmTrash).not.toHaveBeenCalled()
+    expect(mutate).toHaveBeenCalledTimes(1)
+  })
+
+  test('like control toggles pressed state without trashing or refreshing FM', async () => {
+    mockLoggedIn()
+    const mutate = vi.fn()
+    mockUseSWR.mockReturnValue(swrState({ data: [FM_SONG], mutate }))
+
+    const { default: FMPage } = await import('@/app/fm/page')
+    render(<FMPage />)
+
+    const like = screen.getByTestId('fm-like')
+    expect(like).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(like)
+
+    expect(like).toHaveAttribute('aria-pressed', 'true')
+    expect(like).toHaveAttribute('data-state', 'liked')
+    expect(mockFmTrash).not.toHaveBeenCalled()
+    expect(mutate).not.toHaveBeenCalled()
   })
 
   test('play button starts playback when the song is not the current track', async () => {
