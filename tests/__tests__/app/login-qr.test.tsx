@@ -2,21 +2,26 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { QRLoginPanel } from '@/app/login/_components/QRLoginPanel'
 
-const mocks = vi.hoisted(() => ({
-  routerPush: vi.fn(),
-  setProfile: vi.fn(),
-  loginQrKey: vi.fn(),
-  loginQrCreate: vi.fn(),
-  requestFlexible: vi.fn(),
-  userAccount: vi.fn(),
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
-  },
-}))
+const mocks = vi.hoisted(() => {
+  const routerPush = vi.fn()
+
+  return {
+    routerPush,
+    router: { push: routerPush },
+    setProfile: vi.fn(),
+    loginQrKey: vi.fn(),
+    loginQrCreate: vi.fn(),
+    requestFlexible: vi.fn(),
+    userAccount: vi.fn(),
+    toast: {
+      success: vi.fn(),
+      error: vi.fn(),
+    },
+  }
+})
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mocks.routerPush }),
+  useRouter: () => mocks.router,
 }))
 
 vi.mock('@/stores/userStore', () => ({
