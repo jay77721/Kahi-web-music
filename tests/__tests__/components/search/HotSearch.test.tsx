@@ -34,8 +34,8 @@ describe('HotSearch', () => {
   test('renders the loading skeleton when isLoading is true', () => {
     swrState.isLoading = true
     const { container } = render(<HotSearch onSelect={vi.fn()} />)
-    // The loading state has 10 skeleton elements (one for each hot tag)
-    expect(container.querySelectorAll('[class*="animate"]').length).toBeGreaterThanOrEqual(0)
+    // One title skeleton plus ten hot-tag skeletons.
+    expect(container.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(11)
     // Heading is intentionally hidden during loading
     expect(screen.queryByText('热搜榜')).toBeNull()
   })

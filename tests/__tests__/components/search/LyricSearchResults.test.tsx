@@ -17,20 +17,6 @@ vi.mock('swr', () => ({
   default: (key: unknown, fetcher: unknown) => mockUseSWR(key, fetcher),
 }))
 
-vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
-}))
-
-vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { ...rest } = props
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img {...rest} alt={(rest.alt as string) ?? ''} />
-  },
-}))
-
 vi.mock('@/lib/api', () => ({
   ncmApi: {
     get searchLyric() {

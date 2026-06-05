@@ -42,10 +42,6 @@ vi.mock('sonner', () => ({
   toast: mocks.toast,
 }))
 
-vi.mock('next/image', () => ({
-  default: 'img',
-}))
-
 describe('QRLoginPanel', () => {
   beforeEach(() => {
     vi.useFakeTimers()

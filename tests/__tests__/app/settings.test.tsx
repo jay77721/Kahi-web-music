@@ -87,13 +87,6 @@ vi.mock('@/components/settings/SettingsSection', () => ({
     ),
 }))
 
-vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { alt, src, ...rest } = props
-    return React.createElement('img', { alt: (alt as string) ?? '', src: (src as string) ?? '', ...rest })
-  },
-}))
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

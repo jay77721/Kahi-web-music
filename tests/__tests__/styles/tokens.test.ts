@@ -11,6 +11,13 @@ import { readFileSync, existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const TOKENS_PATH = resolve(__dirname, '../../../styles/tokens.css')
+const STYLE_PATHS = [
+  resolve(__dirname, '../../../app/globals.css'),
+  resolve(__dirname, '../../../styles/cards.css'),
+  resolve(__dirname, '../../../styles/layout.css'),
+  resolve(__dirname, '../../../styles/player.css'),
+  TOKENS_PATH,
+] as const
 
 const LOGIN_PAGE_COLOR_TOKENS = [
   '--bg-primary',
@@ -150,5 +157,16 @@ describe('styles/tokens.css', () => {
     expect(source).toMatch(/Brand\s*\/\s*accent/i)
     expect(source).toMatch(/Easings/i)
     expect(source).toMatch(/Z-index/i)
+  })
+
+  it('does not append a second easing to composite transition tokens', () => {
+    const duplicateTransitionPattern = /var\(--transition-[^)]+\)\s+var\(--ease-[^)]+\)/
+
+    for (const stylePath of STYLE_PATHS) {
+      const styleSource = existsSync(stylePath) ? readFileSync(stylePath, 'utf-8') : ''
+      expect(styleSource, `${stylePath} should use --duration-* when overriding easing`).not.toMatch(
+        duplicateTransitionPattern
+      )
+    }
   })
 })

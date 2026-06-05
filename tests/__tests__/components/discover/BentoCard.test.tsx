@@ -7,17 +7,6 @@ import type { HTMLAttributes, ReactNode } from 'react'
 import { BentoCard } from '@/components/discover/BentoCard'
 
 // ---------------------------------------------------------------------------
-// Mock next/image so the test environment doesn't require a real image
-// ---------------------------------------------------------------------------
-vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { alt, src, className } = props
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img alt={(alt as string) ?? ''} src={src as string} className={className as string} />
-  },
-}))
-
-// ---------------------------------------------------------------------------
 // Mock framer-motion to plain divs so we can assert on the rendered DOM
 // without dealing with transforms / animation timing.
 // ---------------------------------------------------------------------------

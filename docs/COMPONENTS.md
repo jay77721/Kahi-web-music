@@ -395,7 +395,7 @@
 
 ## 🧱 `components/ui/` — shadcn/ui Primitives
 
-Local thin wrappers over `@base-ui/react` / Radix UI, styled with Tailwind. Each follows the standard shadcn API.
+Local thin wrappers over `@base-ui/react`, styled with Tailwind. Each follows the standard shadcn API.
 
 | Component | Purpose |
 |-----------|---------|
@@ -436,4 +436,4 @@ Local thin wrappers over `@base-ui/react` / Radix UI, styled with Tailwind. Each
 
 ---
 
-<p align="center"><sub>Last updated: 2026-06-03</sub></p>
+<p align="center"><sub>Last updated: 2026-06-05</sub></p>

@@ -20,8 +20,6 @@ export function PlayingIndicator({
   size = 'sm',
   className,
 }: PlayingIndicatorProps) {
-  const [first, second, third] = BAR_HEIGHTS[size]
-
   return (
     <span
       className={cn(
@@ -32,18 +30,13 @@ export function PlayingIndicator({
       role="presentation"
       aria-hidden="true"
     >
-      <span
-        className="playing-indicator__bar"
-        style={{ height: `${first}px` }}
-      />
-      <span
-        className="playing-indicator__bar"
-        style={{ height: `${second}px` }}
-      />
-      <span
-        className="playing-indicator__bar"
-        style={{ height: `${third}px` }}
-      />
+      {BAR_HEIGHTS[size].map((height, index) => (
+        <span
+          key={index}
+          className="playing-indicator__bar"
+          style={{ height: `${height}px` }}
+        />
+      ))}
     </span>
   )
 }

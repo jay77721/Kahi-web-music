@@ -24,6 +24,7 @@ const LIKED_BACKGROUND_STYLE: CSSProperties = {
     linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 50%, var(--bg-secondary) 100%)
   `,
 }
+const EMPTY_SONGS: Song[] = []
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
@@ -75,22 +76,22 @@ export default function LikedPage() {
       return fetchSongDetailsByIds(ids)
     }
   )
+  const songs = data ?? EMPTY_SONGS
+  const total = songs.length
 
   const handlePlayAll = useCallback(() => {
-    if (!data || data.length === 0) return
+    if (songs.length === 0) return
     setPlayMode('sequential')
-    playQueue(data, 0)
-  }, [data, playQueue, setPlayMode])
+    playQueue(songs, 0)
+  }, [songs, playQueue, setPlayMode])
 
   const handleShuffle = useCallback(() => {
-    if (!data || data.length === 0) return
+    if (songs.length === 0) return
     setPlayMode('shuffle')
-    playQueue(shuffle(data), 0)
-  }, [data, playQueue, setPlayMode])
+    playQueue(shuffle(songs), 0)
+  }, [songs, playQueue, setPlayMode])
 
   if (!hasRestoredSession || !isLoggedIn) return null
-
-  const total = data?.length ?? 0
 
   return (
     <AppShell>
@@ -169,9 +170,9 @@ export default function LikedPage() {
               重试
             </Button>
           </div>
-        ) : data && data.length > 0 ? (
+        ) : total > 0 ? (
           <SongTable
-            songs={data}
+            songs={songs}
             onPlayAll={handlePlayAll}
             animated={false}
           />

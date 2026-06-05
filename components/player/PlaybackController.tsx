@@ -17,6 +17,12 @@ import {
 import type { Song } from '@/types/api'
 
 const STORE_TIME_UPDATE_INTERVAL_MS = 250
+const PRIMARY_STREAM_BITRATE = 320000
+const FALLBACK_STREAM_BITRATE = 128000
+
+function streamUrl(trackId: number, bitrate: number): string {
+  return `/api/song/stream?id=${trackId}&br=${bitrate}`
+}
 
 /**
  * PlaybackController - 独立于 UI 的播放逻辑
@@ -57,18 +63,12 @@ export function PlaybackController() {
     }
     currentTrackIdRef.current = currentTrack.id
 
-    let cancelled = false
-
-    const loadAndPlay = (br = 320000) => {
+    const loadAndPlay = () => {
       try {
         clearPlaybackError()
 
-        const url = `/api/song/stream?id=${currentTrack.id}&br=${br}`
-
-        if (cancelled) return
-
         streamRetryRef.current = { trackId: currentTrack.id, retried: false }
-        audioEngine.load(url)
+        audioEngine.load(streamUrl(currentTrack.id, PRIMARY_STREAM_BITRATE))
         const { volume, isMuted } = usePlayerStore.getState()
         audioEngine.setVolume(isMuted ? 0 : volume)
 
@@ -77,15 +77,12 @@ export function PlaybackController() {
           audioEngine.play()
         }
       } catch (e) {
-        if (!cancelled) {
-          setPlaybackError(e instanceof Error ? e.message : '加载失败')
-          setIsPlaying(false)
-        }
+        setPlaybackError(e instanceof Error ? e.message : '加载失败')
+        setIsPlaying(false)
       }
     }
 
     loadAndPlay()
-    return () => { cancelled = true }
     // currentTrack is captured via currentTrack.id; whole object intentionally omitted
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTrack?.id, setIsPlaying, setPlaybackError, clearPlaybackError])
@@ -131,7 +128,7 @@ export function PlaybackController() {
 
       retry.retried = true
       try {
-        audioEngine.load(`/api/song/stream?id=${currentTrack.id}&br=128000`)
+        audioEngine.load(streamUrl(currentTrack.id, FALLBACK_STREAM_BITRATE))
         audioEngine.setVolume(isMuted ? 0 : volume)
         if (hasUserInteracted && isPlaying) audioEngine.play()
         return true
@@ -189,10 +186,7 @@ export function PlaybackController() {
 
   // Sync Media Session metadata + playback state with the current track
   useEffect(() => {
-    if (!currentTrack) {
-      setMediaPlaybackState('none')
-      return
-    }
+    if (!currentTrack) return
 
     const artistNames = (currentTrack.ar ?? []).map((a) => a.name).join(' / ')
     const albumName = currentTrack.al?.name ?? ''

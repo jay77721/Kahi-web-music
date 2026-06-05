@@ -22,6 +22,19 @@ export interface EqualizerBounceOptions {
   maxHeight?: number
 }
 
+function createBars(
+  barCount: number,
+  duration: number,
+  minHeight: number,
+  maxHeight: number
+): EqualizerBar[] {
+  const delayStep = duration / barCount / 2
+  return Array.from({ length: barCount }, (_, i) => ({
+    delay: i * delayStep,
+    height: minHeight + Math.random() * (maxHeight - minHeight),
+  }))
+}
+
 /**
  * Generates equalizer bar configurations for a bouncing music equalizer animation.
  *
@@ -43,22 +56,14 @@ export function useEqualizerBounce(
   } = options
 
   const [bars, setBars] = useState<EqualizerBar[]>(() =>
-    Array.from({ length: barCount }, (_, i) => ({
-      delay: i * (duration / barCount / 2),
-      height: minHeight + Math.random() * (maxHeight - minHeight),
-    }))
+    createBars(barCount, duration, minHeight, maxHeight)
   )
 
   useEffect(() => {
     if (!isPlaying) return
 
     const interval = setInterval(() => {
-      setBars(
-        Array.from({ length: barCount }, (_, i) => ({
-          delay: i * (duration / barCount / 2),
-          height: minHeight + Math.random() * (maxHeight - minHeight),
-        }))
-      )
+      setBars(createBars(barCount, duration, minHeight, maxHeight))
     }, duration)
 
     return () => clearInterval(interval)

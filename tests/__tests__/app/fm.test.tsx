@@ -56,17 +56,6 @@ vi.mock('@/lib/api', () => ({
   },
 }))
 
-vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { alt, src, ...rest } = props
-    return React.createElement('img', {
-      alt: (alt as string) ?? '',
-      src: (src as string) ?? '',
-      ...rest,
-    })
-  },
-}))
-
 vi.mock('@/components/layout/AppShell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) =>
     React.createElement('div', { 'data-testid': 'app-shell' }, children),

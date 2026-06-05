@@ -75,13 +75,6 @@ vi.mock('@/components/player/PlayerOverlays', () => ({
   PlayerOverlays: () => null,
 }))
 
-vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { alt, ...rest } = props
-    return React.createElement('img', { alt: (alt as string) ?? '', ...rest })
-  },
-}))
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

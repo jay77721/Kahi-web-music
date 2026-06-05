@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react'
 import { describe, expect, test, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { Banner } from '@/components/discover/Banner'
@@ -26,23 +25,6 @@ vi.mock('swr', () => ({
     isValidating: false,
     mutate: vi.fn(),
   }),
-}))
-
-vi.mock('next/image', () => ({
-  default: ({
-    alt,
-    className,
-    src,
-    style,
-  }: {
-    alt: string
-    className?: string
-    src: string
-    style?: CSSProperties
-  }) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img alt={alt} className={className} src={src} style={style} />
-  ),
 }))
 
 describe('Banner', () => {

@@ -8,18 +8,6 @@ import { useHistoryStore } from '@/stores/historyStore'
 import { usePlayerStore } from '@/stores/playerStore'
 import { mockSong } from '@/tests/helpers/mock-data'
 
-// ---------------------------------------------------------------------------
-// Mock next/image to plain <img>
-// ---------------------------------------------------------------------------
-vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { alt = '', src = '', ...rest } = props
-    delete rest.fill
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img alt={alt as string} src={src as string} {...rest} />
-  },
-}))
-
 type MotionMockProps<TElement> = HTMLAttributes<TElement> & {
   children?: ReactNode
   initial?: unknown

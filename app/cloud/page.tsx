@@ -61,7 +61,8 @@ export default function CloudPage() {
 
   if (!hasRestoredSession || !isLoggedIn) return null
 
-  const total = data?.length ?? 0
+  const songs = data ?? []
+  const total = songs.length
 
   return (
     <AppShell>
@@ -116,8 +117,8 @@ export default function CloudPage() {
               重试
             </Button>
           </div>
-        ) : data && data.length > 0 ? (
-          <SongTable songs={data} onPlayAll={() => playQueue(data, 0)} />
+        ) : total > 0 ? (
+          <SongTable songs={songs} onPlayAll={() => playQueue(songs, 0)} />
         ) : (
           <div
             data-testid="cloud-empty"

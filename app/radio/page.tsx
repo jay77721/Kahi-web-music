@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import useSWR from 'swr'
@@ -18,7 +18,10 @@ import type { DjRadio, DjRadioHot, DjProgramToplistItem } from '@/types/dj'
 
 type TabType = 'all' | 'hot' | 'toplist'
 
-const tabs: { key: TabType; label: string; icon: React.ReactNode }[] = [
+const RADIO_GRID_CLASS = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4'
+const RADIO_CARD_SKELETON_COUNT = 12
+
+const tabs: { key: TabType; label: string; icon: ReactNode }[] = [
   { key: 'all', label: '全部电台', icon: <Radio className="w-4 h-4" /> },
   { key: 'hot', label: '热门电台', icon: <Headphones className="w-4 h-4" /> },
   { key: 'toplist', label: '精品节目', icon: <Play className="w-4 h-4" /> },
@@ -101,58 +104,30 @@ function HotRadioSection() {
   })
 
   if (error) {
-    return (
-      <motion.div variants={fadeIn} className="text-center py-16">
-        <p className="text-[var(--text-tertiary)]">加载失败，请稍后重试</p>
-      </motion.div>
-    )
+    return <RadioErrorState />
   }
 
   return (
-    <motion.div
-      key="hot-content"
-      variants={staggerContainer}
-      initial="hidden"
-      animate="visible"
-      exit="hidden"
-      className="space-y-6"
-    >
-      {/* Section header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-1 h-6 rounded-full bg-[var(--accent)]" />
-          <h2 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">
-            热门电台
-          </h2>
-          <Badge variant="secondary" className="text-xs">HOT</Badge>
-        </div>
+    <RadioSection
+      title="热门电台"
+      badge={<Badge variant="secondary" className="text-xs">HOT</Badge>}
+      action={
         <Link
           href="#"
           className="flex items-center gap-1 text-xs text-[var(--text-tertiary)] hover:text-[var(--accent-text)] transition-colors"
         >
           查看全部 <ChevronRight className="w-3.5 h-3.5" />
         </Link>
-      </div>
-
-      {/* Cards grid */}
+      }
+    >
       {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <RadioCardSkeleton key={i} />
-          ))}
-        </div>
-      ) : data && data.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {data?.map((radio) => (
-            <motion.div key={radio.id} variants={staggerItem}>
-              <RadioCard radio={radio} />
-            </motion.div>
-          ))}
-        </div>
+        <RadioCardGridSkeleton />
+      ) : data?.length ? (
+        <RadioCardGrid radios={data} />
       ) : (
         <RadioEmptyState title="暂无热门电台" />
       )}
-    </motion.div>
+    </RadioSection>
   )
 }
 
@@ -165,53 +140,26 @@ function AllRadioSection() {
   })
 
   if (error) {
-    return (
-      <motion.div variants={fadeIn} className="text-center py-16">
-        <p className="text-[var(--text-tertiary)]">加载失败，请稍后重试</p>
-      </motion.div>
-    )
+    return <RadioErrorState />
   }
 
   return (
-    <motion.div
-      key="all-content"
-      variants={staggerContainer}
-      initial="hidden"
-      animate="visible"
-      exit="hidden"
-      className="space-y-6"
-    >
-      {/* Section header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-1 h-6 rounded-full bg-[var(--accent)]" />
-          <h2 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">
-            全部电台
-          </h2>
-        </div>
+    <RadioSection
+      title="全部电台"
+      action={
         <span className="text-xs text-[var(--text-tertiary)]">
           {data?.length || 0} 个电台
         </span>
-      </div>
-
+      }
+    >
       {isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <RadioCardSkeleton key={i} />
-          ))}
-        </div>
-      ) : data && data.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {data?.map((radio) => (
-            <motion.div key={radio.id} variants={staggerItem}>
-              <RadioCard radio={radio} />
-            </motion.div>
-          ))}
-        </div>
+        <RadioCardGridSkeleton />
+      ) : data?.length ? (
+        <RadioCardGrid radios={data} />
       ) : (
         <RadioEmptyState title="暂无电台内容" />
       )}
-    </motion.div>
+    </RadioSection>
   )
 }
 
@@ -224,50 +172,19 @@ function ProgramToplistSection() {
   })
 
   if (error) {
-    return (
-      <motion.div variants={fadeIn} className="text-center py-16">
-        <p className="text-[var(--text-tertiary)]">加载失败，请稍后重试</p>
-      </motion.div>
-    )
+    return <RadioErrorState />
   }
 
   return (
-    <motion.div
-      key="toplist-content"
-      variants={staggerContainer}
-      initial="hidden"
-      animate="visible"
-      exit="hidden"
-      className="space-y-6"
+    <RadioSection
+      title="精品节目排行"
+      badge={<Badge variant="outline" className="text-xs">TOP 20</Badge>}
     >
-      {/* Section header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-1 h-6 rounded-full bg-[var(--accent)]" />
-          <h2 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">
-            精品节目排行
-          </h2>
-          <Badge variant="outline" className="text-xs">TOP 20</Badge>
-        </div>
-      </div>
-
       {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-[var(--bg-elevated)]">
-              <Skeleton className="w-6 h-6 rounded bg-[var(--bg-overlay)]" />
-              <Skeleton className="w-12 h-12 rounded-lg bg-[var(--bg-overlay)]" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-3/4 bg-[var(--bg-overlay)]" />
-                <Skeleton className="h-3 w-1/2 bg-[var(--bg-overlay)]" />
-              </div>
-              <Skeleton className="h-8 w-8 rounded-full bg-[var(--bg-overlay)]" />
-            </div>
-          ))}
-        </div>
-      ) : data && data.length > 0 ? (
+        <ProgramToplistSkeleton />
+      ) : data?.length ? (
         <div className="space-y-1 stagger-children">
-          {data?.map((program, index) => (
+          {data.map((program, index) => (
             <motion.div
               key={program.id}
               variants={staggerItem}
@@ -339,7 +256,59 @@ function ProgramToplistSection() {
       ) : (
         <RadioEmptyState title="暂无精品节目" />
       )}
+    </RadioSection>
+  )
+}
+
+interface RadioSectionProps {
+  title: string
+  badge?: ReactNode
+  action?: ReactNode
+  children: ReactNode
+}
+
+function RadioSection({ title, badge, action, children }: RadioSectionProps) {
+  return (
+    <motion.div
+      variants={staggerContainer}
+      initial="hidden"
+      animate="visible"
+      exit="hidden"
+      className="space-y-6"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-1 h-6 rounded-full bg-[var(--accent)]" />
+          <h2 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">
+            {title}
+          </h2>
+          {badge}
+        </div>
+        {action}
+      </div>
+
+      {children}
     </motion.div>
+  )
+}
+
+function RadioErrorState() {
+  return (
+    <motion.div variants={fadeIn} className="text-center py-16">
+      <p className="text-[var(--text-tertiary)]">加载失败，请稍后重试</p>
+    </motion.div>
+  )
+}
+
+function RadioCardGrid({ radios }: { radios: readonly (DjRadio | DjRadioHot)[] }) {
+  return (
+    <div className={RADIO_GRID_CLASS}>
+      {radios.map((radio) => (
+        <motion.div key={radio.id} variants={staggerItem}>
+          <RadioCard radio={radio} />
+        </motion.div>
+      ))}
+    </div>
   )
 }
 
@@ -442,6 +411,34 @@ function RadioCardSkeleton() {
         <Skeleton className="h-4 w-full bg-[var(--bg-overlay)]" />
         <Skeleton className="h-3 w-2/3 bg-[var(--bg-overlay)]" />
       </div>
+    </div>
+  )
+}
+
+function RadioCardGridSkeleton() {
+  return (
+    <div className={RADIO_GRID_CLASS}>
+      {Array.from({ length: RADIO_CARD_SKELETON_COUNT }).map((_, index) => (
+        <RadioCardSkeleton key={index} />
+      ))}
+    </div>
+  )
+}
+
+function ProgramToplistSkeleton() {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: 10 }).map((_, index) => (
+        <div key={index} className="flex items-center gap-4 p-3 rounded-xl bg-[var(--bg-elevated)]">
+          <Skeleton className="w-6 h-6 rounded bg-[var(--bg-overlay)]" />
+          <Skeleton className="w-12 h-12 rounded-lg bg-[var(--bg-overlay)]" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-3/4 bg-[var(--bg-overlay)]" />
+            <Skeleton className="h-3 w-1/2 bg-[var(--bg-overlay)]" />
+          </div>
+          <Skeleton className="h-8 w-8 rounded-full bg-[var(--bg-overlay)]" />
+        </div>
+      ))}
     </div>
   )
 }

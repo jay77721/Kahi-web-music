@@ -1,4 +1,5 @@
 import type { ApiResponse, SearchResponse, LyricSearchResponse } from '@/types/api'
+import { readField } from '@/lib/api-shape'
 
 const BASE_URL = '/api'
 
@@ -13,17 +14,7 @@ const BASE_URL = '/api'
  * no matter which pattern the endpoint happens to follow.
  */
 export function unwrapField<T = unknown>(raw: unknown, field: string): T | undefined {
-  if (raw === null || raw === undefined) return undefined
-  if (typeof raw !== 'object') return undefined
-  const obj = raw as Record<string, unknown>
-  const direct = obj[field]
-  if (direct !== undefined) return direct as T
-  if (obj.data && typeof obj.data === 'object') {
-    const inner = obj.data as Record<string, unknown>
-    const nested = inner[field]
-    if (nested !== undefined) return nested as T
-  }
-  return undefined
+  return readField<T>(raw, field, { includeNull: true })
 }
 
 class NcmApiClient {
@@ -74,6 +65,16 @@ class NcmApiClient {
     }
   }
 
+  private buildUrl(endpoint: string, params: Record<string, unknown>): string {
+    const url = new URL(`${BASE_URL}${endpoint}`, window.location.origin)
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.append(key, String(value))
+      }
+    })
+    return url.toString()
+  }
+
   async request<T>(endpoint: string, params: Record<string, unknown> = {}, skipCache = false, typeTag?: string): Promise<T> {
     const cacheKey = this.getCacheKey(endpoint, params, typeTag)
 
@@ -116,14 +117,7 @@ class NcmApiClient {
   }
 
   private async executeRequest<T>(endpoint: string, params: Record<string, unknown>): Promise<T> {
-    const url = new URL(`${BASE_URL}${endpoint}`, window.location.origin)
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        url.searchParams.append(key, String(value))
-      }
-    })
-
-    const response = await fetch(url.toString(), {
+    const response = await fetch(this.buildUrl(endpoint, params), {
       credentials: 'include',
     })
 
@@ -197,14 +191,7 @@ class NcmApiClient {
     attempt = 1
   ): Promise<T> {
     try {
-      const url = new URL(`${BASE_URL}${endpoint}`, window.location.origin)
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          url.searchParams.append(key, String(value))
-        }
-      })
-
-      const response = await fetch(url.toString(), {
+      const response = await fetch(this.buildUrl(endpoint, params), {
         credentials: 'include',
       })
 

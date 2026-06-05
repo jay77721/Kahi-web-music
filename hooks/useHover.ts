@@ -41,25 +41,17 @@ export function useHover(options: UseHoverOptions = {}): UseHoverResult {
     if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current)
   }, [])
 
-  const handleMouseEnter = () => {
+  const scheduleHovered = (hovered: boolean, delay: number) => {
     clearTimers()
-    enterTimerRef.current = setTimeout(() => setIsHovered(true), enterDelay)
+    const timerRef = hovered ? enterTimerRef : leaveTimerRef
+    timerRef.current = setTimeout(() => setIsHovered(hovered), delay)
   }
 
-  const handleMouseLeave = () => {
-    clearTimers()
-    leaveTimerRef.current = setTimeout(() => setIsHovered(false), leaveDelay)
-  }
+  const handleMouseEnter = () => scheduleHovered(true, enterDelay)
+  const handleMouseLeave = () => scheduleHovered(false, leaveDelay)
 
-  const handleFocus = () => {
-    clearTimers()
-    enterTimerRef.current = setTimeout(() => setIsHovered(true), enterDelay)
-  }
-
-  const handleBlur = () => {
-    clearTimers()
-    leaveTimerRef.current = setTimeout(() => setIsHovered(false), leaveDelay)
-  }
+  const handleFocus = handleMouseEnter
+  const handleBlur = handleMouseLeave
 
   const setRef = (node: HTMLElement | null) => {
     if (nodeRef.current && nodeRef.current !== node) {

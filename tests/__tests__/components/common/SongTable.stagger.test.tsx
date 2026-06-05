@@ -3,8 +3,8 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { render } from '@testing-library/react'
 import { SongTable } from '@/components/common/SongTable'
-import { usePlayerStore } from '@/stores/playerStore'
-import { mockSong } from '@/tests/helpers/mock-data'
+import { makeMockSong as makeSong } from '@/tests/helpers/mock-data'
+import { createMockPlayerStore, resetMockPlayerStore } from '@/tests/helpers/player-store'
 
 // ---------------------------------------------------------------------------
 // Mock the player store
@@ -20,27 +20,11 @@ vi.mock('@/stores/playerStore', () => ({
 // stagger animation.
 // ---------------------------------------------------------------------------
 
-function makeSong(overrides: Partial<typeof mockSong> = {}): typeof mockSong {
-  return { ...mockSong, ...overrides } as typeof mockSong
-}
-
 describe('SongTable stagger animation', () => {
-  const mockStore = {
-    playSong: vi.fn(),
-    playQueue: vi.fn(),
-    addToQueue: vi.fn(),
-    currentTrack: null as typeof mockSong | null,
-    isPlaying: false,
-  }
+  const mockStore = createMockPlayerStore()
 
   beforeEach(() => {
-    vi.clearAllMocks()
-    mockStore.playSong.mockClear()
-    mockStore.playQueue.mockClear()
-    mockStore.addToQueue.mockClear()
-    mockStore.currentTrack = null
-    mockStore.isPlaying = false
-    ;(usePlayerStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockStore)
+    resetMockPlayerStore(mockStore)
   })
 
   // ---- animated=true (default) ----

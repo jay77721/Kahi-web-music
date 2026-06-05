@@ -18,6 +18,8 @@ function getRouteId(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value[0] ?? '' : value ?? ''
 }
 
+const SIMILAR_MV_LIMIT = 8
+
 export default function MVPage() {
   const params = useParams()
   const id = getRouteId(params?.id as string | string[] | undefined)
@@ -66,6 +68,7 @@ export default function MVPage() {
   const mv = data.mv
   const info = data.info
   const simiMvs = data.simiMvs ?? []
+  const similarPreview = simiMvs.slice(0, SIMILAR_MV_LIMIT)
   const tags = extractTags(mv.desc)
 
   return (
@@ -101,7 +104,7 @@ export default function MVPage() {
           />
         </section>
 
-        {simiMvs.length > 0 ? (
+        {similarPreview.length > 0 ? (
           <section data-testid="mv-similar">
             <header className="flex items-baseline justify-between mb-3">
               <h2 className="text-lg md:text-xl font-bold tracking-tight">相似 MV</h2>
@@ -110,7 +113,7 @@ export default function MVPage() {
               </span>
             </header>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {simiMvs.slice(0, 8).map((mvItem) => {
+              {similarPreview.map((mvItem) => {
                 const title = mvItem.name?.trim() || '未知 MV'
                 const artistName = mvItem.artistName?.trim() || '未知艺人'
                 return (

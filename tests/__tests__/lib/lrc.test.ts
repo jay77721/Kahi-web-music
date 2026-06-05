@@ -58,12 +58,6 @@ describe('parseLRC', () => {
     expect(result[0].time).toBeCloseTo(1.05, 3)
   })
 
-  test('parses "[00:01.05]" with two-digit milliseconds', () => {
-    const result = parseLRC('[00:01.05]text')
-    expect(result).toHaveLength(1)
-    expect(result[0].time).toBeCloseTo(1.05, 3)
-  })
-
   test('handles multiple lines in full lrc format', () => {
     const lrc = `[00:00.00]Song Title\n[00:12.50]Line one\n[00:18.30]Line two`
     const result = parseLRC(lrc)

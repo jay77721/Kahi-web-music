@@ -81,6 +81,36 @@ function clampQueueIndex(queue: Song[], index: number): number {
   return Math.min(queue.length - 1, Math.max(0, Math.trunc(index)))
 }
 
+function getQueueNavigationIndex(
+  queueLength: number,
+  queueIndex: number,
+  playMode: PlayMode,
+  direction: 1 | -1
+): number {
+  if (playMode === 'repeat-one') return queueIndex
+  if (playMode === 'shuffle') return Math.floor(Math.random() * queueLength)
+  if (direction === 1) return (queueIndex + 1) % queueLength
+  return queueIndex <= 0 ? queueLength - 1 : queueIndex - 1
+}
+
+function getQueueTrackStartState(song: Song, queueIndex: number) {
+  return {
+    currentTrack: song,
+    queueIndex,
+    isPlaying: true,
+    currentTime: 0,
+    lyrics: [],
+    currentLyricIndex: -1,
+    hasUserInteracted: true,
+  }
+}
+
+function restartRepeatOneTrack(playMode: PlayMode): void {
+  if (playMode !== 'repeat-one') return
+  audioEngine.seek(0)
+  audioEngine.play()
+}
+
 function isPlayMode(value: unknown): value is PlayMode {
   return playModeOrder.includes(value as PlayMode)
 }
@@ -192,66 +222,28 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const { queue, queueIndex, playMode } = get()
     if (queue.length === 0) return
 
-    let nextIndex: number
-    if (playMode === 'repeat-one') {
-      nextIndex = queueIndex
-    } else if (playMode === 'shuffle') {
-      nextIndex = Math.floor(Math.random() * queue.length)
-    } else {
-      nextIndex = (queueIndex + 1) % queue.length
-    }
-
+    const nextIndex = getQueueNavigationIndex(queue.length, queueIndex, playMode, 1)
     const nextSong = queue[nextIndex]
-    set({
-      currentTrack: nextSong,
-      queueIndex: nextIndex,
-      isPlaying: true,
-      currentTime: 0,
-      lyrics: [],
-      currentLyricIndex: -1,
-      hasUserInteracted: true,
-    })
+    set(getQueueTrackStartState(nextSong, nextIndex))
     storage.set(STORAGE_KEYS.PLAY_INDEX, nextIndex)
 
     // In repeat-one mode the track id does not change, so the PlaybackController
     // effect (which keys on currentTrack.id) won't re-trigger. Restart manually.
-    if (playMode === 'repeat-one') {
-      audioEngine.seek(0)
-      audioEngine.play()
-    }
+    restartRepeatOneTrack(playMode)
   },
 
   prev: () => {
     const { queue, queueIndex, playMode } = get()
     if (queue.length === 0) return
 
-    let prevIndex: number
-    if (playMode === 'repeat-one') {
-      prevIndex = queueIndex
-    } else if (playMode === 'shuffle') {
-      prevIndex = Math.floor(Math.random() * queue.length)
-    } else {
-      prevIndex = queueIndex <= 0 ? queue.length - 1 : queueIndex - 1
-    }
-
+    const prevIndex = getQueueNavigationIndex(queue.length, queueIndex, playMode, -1)
     const prevSong = queue[prevIndex]
-    set({
-      currentTrack: prevSong,
-      queueIndex: prevIndex,
-      isPlaying: true,
-      currentTime: 0,
-      lyrics: [],
-      currentLyricIndex: -1,
-      hasUserInteracted: true,
-    })
+    set(getQueueTrackStartState(prevSong, prevIndex))
     storage.set(STORAGE_KEYS.PLAY_INDEX, prevIndex)
 
     // In repeat-one mode the track id does not change, so the PlaybackController
     // effect (which keys on currentTrack.id) won't re-trigger. Restart manually.
-    if (playMode === 'repeat-one') {
-      audioEngine.seek(0)
-      audioEngine.play()
-    }
+    restartRepeatOneTrack(playMode)
   },
 
   seek: (time) => {

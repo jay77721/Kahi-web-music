@@ -45,6 +45,8 @@ function safeFormatDate(value: number | undefined): string {
   return formatDate(value)
 }
 
+const EMPTY_TRACKS: Song[] = []
+
 export default function PlaylistDetailPage() {
   const params = useParams()
   const id = getRouteId(params?.id as string | string[] | undefined)
@@ -62,7 +64,7 @@ export default function PlaylistDetailPage() {
     }
   )
 
-  const tracks: Song[] = useMemo(() => data?.tracks || [], [data?.tracks])
+  const tracks = data?.tracks ?? EMPTY_TRACKS
   const trackIds = useMemo(() => tracks.map((t) => String(t.id)), [tracks])
 
   const selection = useMultiSelect({

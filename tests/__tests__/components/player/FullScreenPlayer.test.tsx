@@ -3,23 +3,6 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, screen, within } from '@/tests/helpers/test-utils'
 
-// Mock the swr module so SWRConfig is available in the test wrapper.
-const sharedCache = new Map<string, { data?: unknown; error?: unknown; isValidating?: boolean; isLoading?: boolean }>()
-vi.mock('swr', async (importOriginal) => {
-  const actual = (await importOriginal()) as Record<string, unknown>
-  const fakeMutate = async (key: string, data: unknown) => {
-    const entry = sharedCache.get(key) ?? {}
-    entry.data = data
-    sharedCache.set(key, entry)
-    return data
-  }
-  return {
-    ...actual,
-    useSWRConfig: () => ({ cache: sharedCache, mutate: fakeMutate }),
-    mutate: fakeMutate,
-  }
-})
-
 // Mock the player store to control what FullScreenPlayer sees
 const mockStore = {
   currentTrack: null as null | {

@@ -34,6 +34,8 @@ const MIN_LYRIC_LENGTH = 1
 const UNKNOWN_ALBUM = '未知专辑'
 const UNKNOWN_ARTIST = '未知艺人'
 const UNKNOWN_SONG = '未知歌曲'
+const EMPTY_LYRICS: LyricLine[] = []
+const EMPTY_SONGS: Song[] = []
 
 function getRouteId(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value[0] ?? '' : value ?? ''
@@ -78,9 +80,9 @@ export default function SongDetailPage() {
     }
   )
 
-  const song = useMemo(() => data?.song ?? null, [data?.song])
-  const lyrics = useMemo(() => data?.lyrics ?? [], [data?.lyrics])
-  const simiSongs = useMemo(() => data?.simiSongs ?? [], [data?.simiSongs])
+  const song = data?.song ?? null
+  const lyrics = data?.lyrics ?? EMPTY_LYRICS
+  const simiSongs = data?.simiSongs ?? EMPTY_SONGS
 
   const isCurrent = currentTrackId === song?.id
   const lyricCurrentTime = isCurrent ? currentTime : 0
