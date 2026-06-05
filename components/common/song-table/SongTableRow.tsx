@@ -20,6 +20,7 @@ const rowVariants: Variants = {
 }
 
 const ARTWORK_OBSERVER_OPTIONS = { rootMargin: '240px 0px' } as const
+const ROW_ARTWORK_IMAGE_SIZE = 56
 
 function useDeferredArtwork(enabled: boolean) {
   const [shouldRender, setShouldRender] = useState(!enabled)
@@ -192,10 +193,12 @@ export const SongTableRow = memo(function SongTableRow({
           <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 shadow-md">
             {shouldRenderArtwork ? (
               <Image
-                src={imageUrl(song.al.picUrl, 80)}
+                src={imageUrl(song.al.picUrl, ROW_ARTWORK_IMAGE_SIZE)}
                 alt={song.al?.name ? `${song.al.name} 封面` : `${song.name} 专辑封面`}
-                width={80}
-                height={80}
+                width={ROW_ARTWORK_IMAGE_SIZE}
+                height={ROW_ARTWORK_IMAGE_SIZE}
+                sizes="40px"
+                quality={70}
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
