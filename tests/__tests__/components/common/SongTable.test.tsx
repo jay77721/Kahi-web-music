@@ -381,7 +381,7 @@ describe('SongTable', () => {
       expect(screen.getByRole('button', { name: '打开歌曲 Named Action Song 的更多操作菜单' })).toBeInTheDocument()
     })
 
-    test('uses one shared context menu that updates between row triggers', () => {
+    test('uses one shared context menu that updates between row triggers', async () => {
       const songs = [
         makeSong({ id: 1, name: 'Menu Song A' }),
         makeSong({ id: 2, name: 'Menu Song B' }),
@@ -389,11 +389,11 @@ describe('SongTable', () => {
       render(<SongTable songs={songs} />)
 
       fireEvent.click(screen.getByRole('button', { name: '打开歌曲 Menu Song A 的更多操作菜单' }))
-      expect(screen.getByRole('menu', { name: 'Menu Song A 的操作菜单' })).toBeInTheDocument()
+      expect(await screen.findByRole('menu', { name: 'Menu Song A 的操作菜单' })).toBeInTheDocument()
       expect(screen.getAllByRole('menu')).toHaveLength(1)
 
       fireEvent.click(screen.getByRole('button', { name: '打开歌曲 Menu Song B 的更多操作菜单' }))
-      expect(screen.getByRole('menu', { name: 'Menu Song B 的操作菜单' })).toBeInTheDocument()
+      expect(await screen.findByRole('menu', { name: 'Menu Song B 的操作菜单' })).toBeInTheDocument()
       expect(screen.queryByRole('menu', { name: 'Menu Song A 的操作菜单' })).not.toBeInTheDocument()
       expect(screen.getAllByRole('menu')).toHaveLength(1)
     })
@@ -406,7 +406,7 @@ describe('SongTable', () => {
       const trigger = screen.getByRole('button', { name: '打开歌曲 Focus Menu Song 的更多操作菜单' })
       await user.click(trigger)
 
-      const menu = screen.getByRole('menu', { name: 'Focus Menu Song 的操作菜单' })
+      const menu = await screen.findByRole('menu', { name: 'Focus Menu Song 的操作菜单' })
       await waitFor(() => expect(within(menu).getAllByRole('menuitem')[0]).toHaveFocus())
 
       await user.keyboard('{Escape}')
@@ -428,7 +428,7 @@ describe('SongTable', () => {
       const trigger = screen.getByRole('button', { name: '打开歌曲 Outside Close Song 的更多操作菜单' })
       const outsideTarget = screen.getByRole('button', { name: 'Outside target' })
       await user.click(trigger)
-      expect(screen.getByRole('menu', { name: 'Outside Close Song 的操作菜单' })).toBeInTheDocument()
+      expect(await screen.findByRole('menu', { name: 'Outside Close Song 的操作菜单' })).toBeInTheDocument()
 
       await user.click(outsideTarget)
 
