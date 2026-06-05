@@ -10,6 +10,7 @@ import type { UserProfile } from '@/types/user'
 // ---------------------------------------------------------------------------
 
 const mockRouterPush = vi.fn()
+const mockRouterReplace = vi.fn()
 const mockUseUserStore = vi.fn()
 const mockUsePlayerStore = vi.fn()
 const mockUseDominantColor = vi.fn()
@@ -20,7 +21,7 @@ vi.mock('next/navigation', async () => {
   const actual = await vi.importActual<typeof import('next/navigation')>('next/navigation')
   return {
     ...actual,
-    useRouter: () => ({ push: mockRouterPush, replace: vi.fn(), back: vi.fn() }),
+    useRouter: () => ({ push: mockRouterPush, replace: mockRouterReplace, back: vi.fn() }),
   }
 })
 
@@ -83,8 +84,14 @@ const FAKE_PROFILE: UserProfile = {
   listenSongs: 6789,
 }
 
-function makeUserStore(overrides: Partial<{ isLoggedIn: boolean; profile: UserProfile | null }> = {}) {
-  return { isLoggedIn: true, profile: FAKE_PROFILE, ...overrides }
+function makeUserStore(
+  overrides: Partial<{
+    isLoggedIn: boolean
+    profile: UserProfile | null
+    hasRestoredSession: boolean
+  }> = {}
+) {
+  return { isLoggedIn: true, profile: FAKE_PROFILE, hasRestoredSession: true, ...overrides }
 }
 
 function makePlayerStore() {
@@ -117,6 +124,7 @@ function makeSongList() {
 describe('CloudPage', () => {
   beforeEach(() => {
     mockRouterPush.mockReset()
+    mockRouterReplace.mockReset()
     mockUseUserStore.mockReset()
     mockUsePlayerStore.mockReset()
     mockUseDominantColor.mockReset()
@@ -163,7 +171,7 @@ describe('CloudPage', () => {
       await Promise.resolve()
     })
 
-    expect(mockRouterPush).toHaveBeenCalledWith('/login')
+    expect(mockRouterReplace).toHaveBeenCalledWith('/login')
     expect(screen.queryByTestId('cloud-page')).not.toBeInTheDocument()
   })
 

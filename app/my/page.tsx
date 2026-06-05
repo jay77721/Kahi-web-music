@@ -117,7 +117,7 @@ function MyPageContent() {
   const backgroundStyle = useMemo(() => buildBgStyle(color), [color])
 
   useEffect(() => {
-    if (hasRestoredSession && !isLoggedIn) router.push('/login')
+    if (hasRestoredSession && !isLoggedIn) router.replace('/login')
   }, [hasRestoredSession, isLoggedIn, router])
 
   const { data: likedSongs, isLoading: likedLoading } = useSWR<Song[]>(
@@ -223,7 +223,7 @@ function MyPageContent() {
                   onClick={() => {
                     if (confirm('确定清空播放历史？')) clearHistory()
                   }}
-                  className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
+                  className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent-text)] transition-colors"
                 >
                   清空历史
                 </button>
@@ -261,7 +261,7 @@ function MyPageContent() {
                 <button
                   type="button"
                   onClick={handleRefreshPlaylists}
-                  className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
+                  className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent-text)] transition-colors"
                 >
                   刷新
                 </button>

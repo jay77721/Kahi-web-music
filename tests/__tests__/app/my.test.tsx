@@ -10,6 +10,7 @@ import type { UserProfile } from '@/types/user'
 // ---------------------------------------------------------------------------
 
 const mockRouterPush = vi.fn()
+const mockRouterReplace = vi.fn()
 const mockUseUserStore = vi.fn()
 const mockUsePlayerStore = vi.fn()
 const mockUseHistoryStore = vi.fn()
@@ -20,7 +21,7 @@ vi.mock('next/navigation', async () => {
   const actual = await vi.importActual<typeof import('next/navigation')>('next/navigation')
   return {
     ...actual,
-    useRouter: () => ({ push: mockRouterPush, replace: vi.fn(), back: vi.fn() }),
+    useRouter: () => ({ push: mockRouterPush, replace: mockRouterReplace, back: vi.fn() }),
     useSearchParams: () => mockUseSearchParams(),
   }
 })
@@ -139,6 +140,7 @@ function makeHistoryStore() {
 describe('MyPage', () => {
   beforeEach(() => {
     mockRouterPush.mockReset()
+    mockRouterReplace.mockReset()
     mockUseUserStore.mockReset()
     mockUsePlayerStore.mockReset()
     mockUseHistoryStore.mockReset()
@@ -183,12 +185,12 @@ describe('MyPage', () => {
     const { default: MyPage } = await import('@/app/my/page')
     render(<MyPage />)
 
-    // Wait for the useEffect to fire (router.push is sync after mount).
+    // Wait for the useEffect to fire (router.replace is sync after mount).
     await act(async () => {
       await Promise.resolve()
     })
 
-    expect(mockRouterPush).toHaveBeenCalledWith('/login')
+    expect(mockRouterReplace).toHaveBeenCalledWith('/login')
     expect(screen.queryByTestId('my-page')).not.toBeInTheDocument()
     expect(screen.queryByTestId('my-page-placeholder')).not.toBeInTheDocument()
     expect(screen.queryByRole('status', { name: 'Loading profile' })).not.toBeInTheDocument()
@@ -244,7 +246,7 @@ describe('MyPage', () => {
     expect(screen.getByRole('tab', { name: /本地历史/ })).toBeInTheDocument()
   })
 
-  test('does not call router.push when user is logged in', async () => {
+  test('does not redirect when user is logged in', async () => {
     const { default: MyPage } = await import('@/app/my/page')
     render(<MyPage />)
 
@@ -253,6 +255,7 @@ describe('MyPage', () => {
     })
 
     expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(mockRouterReplace).not.toHaveBeenCalled()
   })
 
   test('tolerates missing profile counts (0 defaults)', async () => {

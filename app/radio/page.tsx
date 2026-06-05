@@ -126,7 +126,7 @@ function HotRadioSection() {
         </div>
         <Link
           href="#"
-          className="flex items-center gap-1 text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
+          className="flex items-center gap-1 text-xs text-[var(--text-tertiary)] hover:text-[var(--accent-text)] transition-colors"
         >
           查看全部 <ChevronRight className="w-3.5 h-3.5" />
         </Link>
@@ -270,7 +270,7 @@ function ProgramToplistSection() {
               {/* Rank */}
               <div className={cn(
                 'w-6 text-center text-sm font-bold tabular-nums min-w-[24px]',
-                index < 3 ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)]'
+                index < 3 ? 'text-[var(--accent-text)]' : 'text-[var(--text-tertiary)]'
               )}>
                 {index + 1}
               </div>
@@ -294,7 +294,7 @@ function ProgramToplistSection() {
 
               {/* Info */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[var(--text-primary)] truncate group-hover:text-[var(--accent)] transition-colors">
+                <p className="text-sm font-medium text-[var(--text-primary)] truncate group-hover:text-[var(--accent-text)] transition-colors">
                   {program.name}
                 </p>
                 <div className="flex items-center gap-2 mt-0.5">
@@ -397,7 +397,7 @@ function RadioCard({ radio }: RadioCardProps) {
 
         {/* Info */}
         <div className="p-3">
-          <h3 className="text-sm font-medium text-[var(--text-primary)] truncate group-hover:text-[var(--accent)] transition-colors">
+          <h3 className="text-sm font-medium text-[var(--text-primary)] truncate group-hover:text-[var(--accent-text)] transition-colors">
             {radio.name}
           </h3>
           <div className="flex items-center justify-between mt-1.5">

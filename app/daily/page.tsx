@@ -19,7 +19,7 @@ const DAILY_LIMIT = 30
 
 export default function DailyPage() {
   const router = useRouter()
-  const { isLoggedIn } = useUserStore()
+  const { isLoggedIn, hasRestoredSession } = useUserStore()
   const { playQueue } = usePlayerStore()
 
   const { data, isLoading, error, mutate } = useSWR<Song[]>(
@@ -40,10 +40,10 @@ export default function DailyPage() {
   )
 
   useEffect(() => {
-    if (!isLoggedIn) router.push('/login')
-  }, [isLoggedIn, router])
+    if (hasRestoredSession && !isLoggedIn) router.replace('/login')
+  }, [hasRestoredSession, isLoggedIn, router])
 
-  if (!isLoggedIn) return null
+  if (!hasRestoredSession || !isLoggedIn) return null
 
   return (
     <AppShell>

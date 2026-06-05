@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Search, User, Sun, Moon } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,12 @@ export function Header() {
   const [searchValue, setSearchValue] = useState('')
   const { theme, setTheme, setSearchOpen } = useUIStore()
   const { isLoggedIn, profile } = useUserStore()
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      router.prefetch('/login')
+    }
+  }, [isLoggedIn, router])
 
   const handleSearch = useCallback(
     (e: React.FormEvent) => {
@@ -76,16 +82,13 @@ export function Header() {
             </div>
           </Link>
         ) : (
-          <Link href="/login">
-            <Button
-              variant="ghost"
-              size="sm"
-              aria-label="登录"
-              className="h-9 w-9 p-0 rounded-full text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-all duration-150 md:h-8 md:w-auto md:px-3 md:rounded-[min(var(--radius-md),12px)]"
-            >
-              <User className="w-4 h-4 md:mr-1.5" />
-              <span className="hidden md:inline">登录</span>
-            </Button>
+          <Link
+            href="/login"
+            aria-label="登录"
+            className="inline-flex h-9 w-9 shrink-0 select-none items-center justify-center rounded-full border border-transparent bg-clip-padding p-0 text-sm font-medium whitespace-nowrap text-[var(--text-secondary)] outline-none transition-all duration-150 hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:h-8 md:w-auto md:rounded-[min(var(--radius-md),12px)] md:px-3"
+          >
+            <User className="w-4 h-4 md:mr-1.5" />
+            <span className="hidden md:inline">登录</span>
           </Link>
         )}
       </div>

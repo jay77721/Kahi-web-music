@@ -154,7 +154,7 @@ export function BentoGrid() {
         <Button
           variant="ghost"
           size="sm"
-          className="text-[var(--accent)] hover:bg-[var(--accent)]/10 gap-1.5"
+          className="text-[var(--accent-text)] hover:bg-[var(--accent)]/10 gap-1.5"
           onClick={retryAll}
         >
           <RefreshCw className="w-3.5 h-3.5" />

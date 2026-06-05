@@ -48,6 +48,12 @@ describe('MiniPlayer', () => {
     expect(container.firstChild).toBeNull()
   })
 
+  test('renders as a named mini player region when a track is set', () => {
+    usePlayerStore.setState({ currentTrack: mockSong })
+    render(<MiniPlayer />)
+    expect(screen.getByRole('region', { name: '迷你播放器' })).toBeInTheDocument()
+  })
+
   test('renders track name and artist when a track is set', () => {
     usePlayerStore.setState({ currentTrack: mockSong })
     render(<MiniPlayer />)

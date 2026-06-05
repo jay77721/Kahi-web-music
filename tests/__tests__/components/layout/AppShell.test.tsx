@@ -17,4 +17,11 @@ describe('AppShell', () => {
     const { container } = render(<AppShell><span>Content</span></AppShell>)
     expect(container.querySelector('div')).toBeTruthy()
   })
+
+  test('renders header login as a single interactive link', () => {
+    const { container } = render(<AppShell><span>Content</span></AppShell>)
+
+    expect(container.querySelector('header a[href="/login"]')).toBeTruthy()
+    expect(container.querySelector('header a[href="/login"] button')).toBeNull()
+  })
 })

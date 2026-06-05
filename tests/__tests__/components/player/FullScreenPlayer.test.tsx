@@ -1,7 +1,7 @@
 'use client'
 
-import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render } from '@/tests/helpers/test-utils'
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@/tests/helpers/test-utils'
 
 // Mock the swr module so SWRConfig is available in the test wrapper.
 const sharedCache = new Map<string, { data?: unknown; error?: unknown; isValidating?: boolean; isLoading?: boolean }>()
@@ -81,6 +81,7 @@ import { FullScreenPlayer } from '@/components/player/FullScreenPlayer'
 
 describe('FullScreenPlayer', () => {
   beforeEach(() => {
+    cleanup()
     vi.clearAllMocks()
     mockStore.currentTrack = null
     mockStore.isPlaying = false
@@ -88,6 +89,10 @@ describe('FullScreenPlayer', () => {
     mockStore.lyrics = []
     mockStore.currentLyricIndex = -1
     mockUI.fullScreenPlayerOpen = false
+  })
+
+  afterEach(() => {
+    cleanup()
   })
 
   test('renders nothing when fullScreenPlayerOpen is false', () => {
@@ -100,6 +105,42 @@ describe('FullScreenPlayer', () => {
     mockStore.currentTrack = null
     const { container } = render(<FullScreenPlayer />)
     expect(container.firstChild).toBeNull()
+  })
+
+  test('renders as a modal dialog and moves focus into the overlay when opened', () => {
+    const opener = document.createElement('button')
+    document.body.appendChild(opener)
+    opener.focus()
+    mockUI.fullScreenPlayerOpen = true
+    mockStore.currentTrack = {
+      id: 1,
+      name: 'Test',
+      ar: [{ id: 1, name: 'Artist' }],
+      al: { id: 1, name: 'Album', picUrl: 'https://example.com/cover.jpg' },
+      mv: 0,
+    }
+
+    render(<FullScreenPlayer />)
+
+    const dialog = screen.getByRole('dialog', { name: '全屏播放器' })
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(dialog).toHaveFocus()
+  })
+
+  test('closes the modal dialog when Escape is pressed', () => {
+    mockUI.fullScreenPlayerOpen = true
+    mockStore.currentTrack = {
+      id: 1,
+      name: 'Test',
+      ar: [{ id: 1, name: 'Artist' }],
+      al: { id: 1, name: 'Album', picUrl: 'https://example.com/cover.jpg' },
+      mv: 0,
+    }
+    render(<FullScreenPlayer />)
+
+    fireEvent.keyDown(screen.getByRole('dialog', { name: '全屏播放器' }), { key: 'Escape' })
+
+    expect(mockUI.setFullScreenPlayerOpen).toHaveBeenCalledWith(false)
   })
 
   test('passes the cover URL to useDominantColor when opened with a track', () => {

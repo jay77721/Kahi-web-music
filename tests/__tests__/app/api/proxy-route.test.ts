@@ -69,6 +69,43 @@ describe('API proxy route CORS', () => {
     expect(deniedResponse.headers.get('Access-Control-Allow-Origin')).toBeNull()
   })
 
+  test('forwards only NCM allowlisted cookies to upstream API', async () => {
+    await GET(
+      createRequest('https://app.example.test/api/login/status', {
+        headers: {
+          Cookie: 'app_session=app; MUSIC_U=user; theme=dark; __csrf=csrf; next-auth.session-token=auth; NMTID=nmtid; MUSIC_A=music-a',
+          'User-Agent': 'KahiTest/1.0',
+        },
+      }),
+      { params: Promise.resolve({ path: ['login', 'status'] }) },
+    )
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.example.test/login/status',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Cookie: 'MUSIC_U=user; __csrf=csrf; NMTID=nmtid; MUSIC_A=music-a',
+          'User-Agent': 'KahiTest/1.0',
+        }),
+      }),
+    )
+  })
+
+  test('does not set upstream Cookie header when no NCM allowlisted cookies exist', async () => {
+    await GET(
+      createRequest('https://app.example.test/api/login/status', {
+        headers: {
+          Cookie: 'app_session=app; theme=dark; next-auth.session-token=auth',
+          'User-Agent': 'KahiTest/1.0',
+        },
+      }),
+      { params: Promise.resolve({ path: ['login', 'status'] }) },
+    )
+
+    const [, init] = vi.mocked(global.fetch).mock.calls[0]
+    expect(init?.headers).toEqual({ 'User-Agent': 'KahiTest/1.0' })
+  })
+
   test('rejects GET requests to mutating endpoints', async () => {
     for (const path of [
       ['comment', 'like'],

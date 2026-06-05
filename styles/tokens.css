@@ -62,6 +62,7 @@
 
   /* ── Brand / accent (Spotify-green) ── */
   --accent: #1ed760;
+  --accent-text: var(--accent);
   --accent-hover: #1fdf64;
   --accent-foreground: #000000;
   --accent-glow: rgba(30, 215, 96, 0.3);
@@ -174,6 +175,7 @@
 
   /* ── Brand / accent (slightly deeper for AA contrast on white) ── */
   --accent: #1ea755;
+  --accent-text: #0b7d36;
   --accent-hover: #189a4a;
   --accent-foreground: #000000;
   --accent-glow: rgba(30, 167, 96, 0.28);

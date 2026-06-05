@@ -49,6 +49,8 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback
 }
 
+let restoreSessionPromise: Promise<void> | null = null
+
 export const useUserStore = create<UserState>((set) => ({
   isLoggedIn: false,
   hasRestoredSession: false,
@@ -101,40 +103,48 @@ export const useUserStore = create<UserState>((set) => ({
     }
   },
 
-  restore: async () => {
-    let cachedProfile: UserProfile | null = null
+  restore: () => {
+    if (restoreSessionPromise) return restoreSessionPromise
 
-    try {
-      storage.remove(STORAGE_KEYS.USER_COOKIE)
-      cachedProfile = storage.get<UserProfile | null>(STORAGE_KEYS.USER_PROFILE, null)
+    restoreSessionPromise = (async () => {
+      let cachedProfile: UserProfile | null = null
 
-      set({
-        cookie: null,
-        profile: cachedProfile,
-        isLoggedIn: false,
-        hasRestoredSession: false,
-        restoreError: null,
-      })
+      try {
+        storage.remove(STORAGE_KEYS.USER_COOKIE)
+        cachedProfile = storage.get<UserProfile | null>(STORAGE_KEYS.USER_PROFILE, null)
 
-      const status = (await ncmApi.loginStatus()) as unknown as LoginStatusResult
-      const isVerifiedSession = hasVerifiedSession(status)
-      const verifiedProfile = isVerifiedSession ? status.profile ?? null : null
+        set({
+          cookie: null,
+          profile: cachedProfile,
+          isLoggedIn: false,
+          hasRestoredSession: false,
+          restoreError: null,
+        })
 
-      set({
-        cookie: null,
-        profile: verifiedProfile ?? cachedProfile,
-        isLoggedIn: isVerifiedSession,
-        hasRestoredSession: true,
-        restoreError: null,
-      })
-    } catch (error) {
-      set({
-        cookie: null,
-        profile: cachedProfile,
-        isLoggedIn: false,
-        hasRestoredSession: true,
-        restoreError: getErrorMessage(error, '恢复登录状态失败'),
-      })
-    }
+        const status = (await ncmApi.loginStatus()) as unknown as LoginStatusResult
+        const isVerifiedSession = hasVerifiedSession(status)
+        const verifiedProfile = isVerifiedSession ? status.profile ?? null : null
+
+        set({
+          cookie: null,
+          profile: verifiedProfile ?? cachedProfile,
+          isLoggedIn: isVerifiedSession,
+          hasRestoredSession: true,
+          restoreError: null,
+        })
+      } catch (error) {
+        set({
+          cookie: null,
+          profile: cachedProfile,
+          isLoggedIn: false,
+          hasRestoredSession: true,
+          restoreError: getErrorMessage(error, '恢复登录状态失败'),
+        })
+      } finally {
+        restoreSessionPromise = null
+      }
+    })()
+
+    return restoreSessionPromise
   },
 }))

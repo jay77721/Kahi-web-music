@@ -1,7 +1,7 @@
 'use client'
 
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, fireEvent } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import type { PlayMode } from '@/types/api'
 
@@ -11,9 +11,13 @@ import type { PlayMode } from '@/types/api'
 
 const mockUseUIStore = vi.fn()
 const mockUsePlayerStore = vi.fn()
+const mockUseUserStore = vi.fn()
+const mockToastSuccess = vi.fn()
+const mockToastError = vi.fn()
 
 let uiState: Record<string, unknown> = {}
 let playerState: Record<string, unknown> = {}
+let userState: Record<string, unknown> = {}
 
 vi.mock('next/navigation', async () => {
   const actual = await vi.importActual<typeof import('next/navigation')>('next/navigation')
@@ -31,6 +35,18 @@ vi.mock('@/stores/uiStore', () => ({
 vi.mock('@/stores/playerStore', () => ({
   usePlayerStore: (selector?: (s: Record<string, unknown>) => unknown) =>
     selector ? mockUsePlayerStore(selector) : mockUsePlayerStore(),
+}))
+
+vi.mock('@/stores/userStore', () => ({
+  useUserStore: (selector?: (s: Record<string, unknown>) => unknown) =>
+    selector ? mockUseUserStore(selector) : mockUseUserStore(),
+}))
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: mockToastSuccess,
+    error: mockToastError,
+  },
 }))
 
 vi.mock('@/components/layout/AppShell', () => ({
@@ -98,14 +114,30 @@ function makePlayerState(overrides: Partial<{ playMode: PlayMode; setPlayMode: (
   }
 }
 
-function setupStores(uiOverrides: Parameters<typeof makeUiState>[0] = {}, playerOverrides: Parameters<typeof makePlayerState>[0] = {}) {
+function makeUserState(overrides: Partial<{ isLoggedIn: boolean; logout: () => Promise<void> }> = {}) {
+  return {
+    isLoggedIn: false,
+    logout: vi.fn(),
+    ...overrides,
+  }
+}
+
+function setupStores(
+  uiOverrides: Parameters<typeof makeUiState>[0] = {},
+  playerOverrides: Parameters<typeof makePlayerState>[0] = {},
+  userOverrides: Parameters<typeof makeUserState>[0] = {},
+) {
   uiState = makeUiState(uiOverrides)
   playerState = makePlayerState(playerOverrides)
+  userState = makeUserState(userOverrides)
   mockUseUIStore.mockImplementation((selector?: (s: Record<string, unknown>) => unknown) =>
     selector ? selector(uiState) : uiState,
   )
   mockUsePlayerStore.mockImplementation((selector?: (s: Record<string, unknown>) => unknown) =>
     selector ? selector(playerState) : playerState,
+  )
+  mockUseUserStore.mockImplementation((selector?: (s: Record<string, unknown>) => unknown) =>
+    selector ? selector(userState) : userState,
   )
 }
 
@@ -115,8 +147,10 @@ function setupStores(uiOverrides: Parameters<typeof makeUiState>[0] = {}, player
 
 describe('SettingsPage', () => {
   beforeEach(() => {
+    window.localStorage.clear()
     mockUseUIStore.mockReset()
     mockUsePlayerStore.mockReset()
+    mockUseUserStore.mockReset()
     setupStores()
   })
 
@@ -220,6 +254,22 @@ describe('SettingsPage', () => {
     expect(setPlayMode).toHaveBeenCalledWith('shuffle')
   })
 
+  test('restores persisted local settings after mount', async () => {
+    window.localStorage.setItem('kahi-web-music:play:quality', JSON.stringify('hires'))
+    window.localStorage.setItem('kahi-web-music:download:dir', JSON.stringify('D:/Music'))
+    window.localStorage.setItem('kahi-web-music:notifications:enabled', JSON.stringify(false))
+
+    const { default: SettingsPage } = await import('@/app/settings/page')
+    render(<SettingsPage />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('settings-quality')).toHaveValue('hires')
+    })
+    expect(screen.getByTestId('settings-download-dir')).toHaveValue('D:/Music')
+    expect(screen.getByTestId('toggle-启用桌面通知')).toHaveAttribute('aria-checked', 'false')
+    expect(window.localStorage.getItem('kahi-web-music:play:quality')).toBe(JSON.stringify('hires'))
+  })
+
   test('reflects the current play mode in the segmented control checked state', async () => {
     setupStores({}, { playMode: 'shuffle' })
 
@@ -228,6 +278,33 @@ describe('SettingsPage', () => {
 
     expect(screen.getByTestId('segment-shuffle')).toHaveAttribute('aria-checked', 'true')
     expect(screen.getByTestId('segment-sequential')).toHaveAttribute('aria-checked', 'false')
+  })
+
+  test('shows logout action for logged-in users and reports success', async () => {
+    const logout = vi.fn().mockResolvedValue(undefined)
+    setupStores({}, {}, { isLoggedIn: true, logout })
+
+    const { default: SettingsPage } = await import('@/app/settings/page')
+    render(<SettingsPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: /退出登录/ }))
+
+    await waitFor(() => expect(logout).toHaveBeenCalledTimes(1))
+    expect(mockToastSuccess).toHaveBeenCalledWith('已退出登录')
+    expect(mockToastError).not.toHaveBeenCalled()
+  })
+
+  test('shows logout failure toast when server logout fails', async () => {
+    const logout = vi.fn().mockRejectedValue(new Error('服务器退出失败'))
+    setupStores({}, {}, { isLoggedIn: true, logout })
+
+    const { default: SettingsPage } = await import('@/app/settings/page')
+    render(<SettingsPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: /退出登录/ }))
+
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith('服务器退出失败'))
+    expect(mockToastSuccess).not.toHaveBeenCalled()
   })
 
   test('renders version + license in the about section', async () => {

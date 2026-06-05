@@ -25,6 +25,14 @@ const VINYL_SIZE_DESKTOP = 320
 // Re-extract the dominant color no more than once per `RESAMPLE_INTERVAL_MS`.
 // This keeps the UI responsive when the user scrubs the queue quickly.
 const RESAMPLE_INTERVAL_MS = 5_000
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',')
 
 export const FullScreenPlayer = memo(function FullScreenPlayer() {
   const fullScreenPlayerOpen = useUIStore((state) => state.fullScreenPlayerOpen)
@@ -154,7 +162,59 @@ function FullScreenPlayerContent() {
   // Desktop keeps using the on-screen controls and keyboard shortcuts.
   const isMobile = useIsMobile()
   const swipeRef = useRef<HTMLDivElement | null>(null)
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null)
   const handleClose = useCallback(() => setFullScreenPlayerOpen(false), [setFullScreenPlayerOpen])
+
+  useEffect(() => {
+    previouslyFocusedRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+
+    const overlay = swipeRef.current
+    overlay?.focus()
+
+    return () => {
+      previouslyFocusedRef.current?.focus()
+    }
+  }, [])
+
+  const handleOverlayKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      handleClose()
+      return
+    }
+
+    if (event.key !== 'Tab') return
+
+    const overlay = swipeRef.current
+    if (!overlay) return
+
+    const focusableElements = Array.from(
+      overlay.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+    ).filter((element) => element.offsetParent !== null || element === document.activeElement)
+
+    if (focusableElements.length === 0) {
+      event.preventDefault()
+      overlay.focus()
+      return
+    }
+
+    const firstElement = focusableElements[0]
+    const lastElement = focusableElements[focusableElements.length - 1]
+
+    if (event.shiftKey && document.activeElement === firstElement) {
+      event.preventDefault()
+      lastElement.focus()
+      return
+    }
+
+    if (!event.shiftKey && document.activeElement === lastElement) {
+      event.preventDefault()
+      firstElement.focus()
+    }
+  }, [handleClose])
+
   // Stabilise swipe handlers so useSwipe's effect doesn't tear down and
   // re-bind touch listeners on every render (#M2).
   const handleSwipeLeft = useCallback(() => {
@@ -242,6 +302,11 @@ function FullScreenPlayerContent() {
   return (
     <motion.div
       ref={swipeRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="全屏播放器"
+      tabIndex={-1}
+      onKeyDown={handleOverlayKeyDown}
       variants={panelVariants}
       initial="hidden"
       animate="visible"

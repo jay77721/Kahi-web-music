@@ -163,7 +163,7 @@ function AlbumCard({ album }: AlbumCardProps) {
         <p className="text-[10px] uppercase tracking-wider text-[var(--text-tertiary)]">
           所属专辑
         </p>
-        <p className="text-sm font-medium text-[var(--text-primary)] truncate group-hover:text-[var(--accent)] transition-colors">
+        <p className="text-sm font-medium text-[var(--text-primary)] truncate group-hover:text-[var(--accent-text)] transition-colors">
           {album.name}
         </p>
       </div>
@@ -224,7 +224,7 @@ function SimilarCard({ song, onClick }: SimilarCardProps) {
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
       </div>
-      <p className="text-sm font-medium text-[var(--text-primary)] truncate group-hover:text-[var(--accent)] transition-colors">
+      <p className="text-sm font-medium text-[var(--text-primary)] truncate group-hover:text-[var(--accent-text)] transition-colors">
         {song.name}
       </p>
       <p className="text-xs text-[var(--text-tertiary)] truncate">

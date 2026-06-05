@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { buildNcmCookieHeader } from '@/lib/server/ncm-cookies'
 
 const RATE_LIMIT_WINDOW_MS = 60_000
 const RATE_LIMIT_MAX_REQUESTS = 30
@@ -217,8 +218,7 @@ async function proxyRequest(request: NextRequest, path: string[]) {
     targetUrl.searchParams.append(key, value)
   })
 
-  // Forward cookies from the original request
-  const cookieHeader = request.headers.get('cookie') || ''
+  const cookieHeader = buildNcmCookieHeader(request)
 
   // Forward body only for methods that carry one. Use clone() so the
   // original request stream can still be read elsewhere if needed.
@@ -229,8 +229,10 @@ async function proxyRequest(request: NextRequest, path: string[]) {
   // callers (e.g., login, lyric upload) send form-urlencoded or multipart.
   const incomingContentType = request.headers.get('content-type')
   const forwardHeaders: Record<string, string> = {
-    'Cookie': cookieHeader,
     'User-Agent': request.headers.get('user-agent') || '',
+  }
+  if (cookieHeader) {
+    forwardHeaders.Cookie = cookieHeader
   }
   if (incomingContentType) {
     forwardHeaders['Content-Type'] = incomingContentType

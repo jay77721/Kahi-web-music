@@ -202,6 +202,24 @@ describe('userStore', () => {
       expect(storage.get(STORAGE_KEYS.USER_COOKIE, '')).toBe('')
     })
 
+    test('shares an in-flight restoration so StrictMode does not request login status twice', async () => {
+      localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_PROFILE}`, JSON.stringify(mockProfile))
+      const loginStatusSpy = vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+        code: 200,
+        account: { id: mockProfile.userId },
+        profile: mockProfile,
+      })
+
+      await Promise.all([
+        useUserStore.getState().restore(),
+        useUserStore.getState().restore(),
+      ])
+
+      expect(loginStatusSpy).toHaveBeenCalledTimes(1)
+      expect(useUserStore.getState().isLoggedIn).toBe(true)
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
+    })
+
     test('removes legacy cookie and stays logged out when only cookie exists', async () => {
       localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_COOKIE}`, JSON.stringify('cookie_only'))
       vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({

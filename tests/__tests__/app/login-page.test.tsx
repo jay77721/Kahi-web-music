@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { StrictMode } from 'react'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import LoginPage from '@/app/login/page'
 
@@ -75,5 +76,20 @@ describe('LoginPage session restoration gate', () => {
     await waitFor(() => {
       expect(mocks.routerReplace).toHaveBeenCalledWith('/my')
     })
+  })
+
+  test('redirects an authenticated StrictMode render to /my only once', async () => {
+    mocks.userStoreState.isLoggedIn = true
+
+    render(
+      <StrictMode>
+        <LoginPage />
+      </StrictMode>
+    )
+
+    await waitFor(() => {
+      expect(mocks.routerReplace).toHaveBeenCalledTimes(1)
+    })
+    expect(mocks.routerReplace).toHaveBeenCalledWith('/my')
   })
 })

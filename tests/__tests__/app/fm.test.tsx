@@ -10,6 +10,7 @@ import React from 'react'
 
 const mockUseSWR = vi.fn()
 const mockRouterPush = vi.fn()
+const mockRouterReplace = vi.fn()
 const mockUseUserStore = vi.fn()
 const mockUsePlayerStore = vi.fn()
 const mockUseDominantColor = vi.fn()
@@ -22,7 +23,7 @@ vi.mock('next/navigation', async () => {
   const actual = await vi.importActual<typeof import('next/navigation')>('next/navigation')
   return {
     ...actual,
-    useRouter: () => ({ push: mockRouterPush, replace: vi.fn(), back: vi.fn() }),
+    useRouter: () => ({ push: mockRouterPush, replace: mockRouterReplace, back: vi.fn() }),
   }
 })
 
@@ -90,8 +91,8 @@ const FM_SONG = {
   mv: 0,
 }
 
-function makeUserStore(overrides: { isLoggedIn?: boolean } = {}) {
-  return { isLoggedIn: true, ...overrides }
+function makeUserStore(overrides: { isLoggedIn?: boolean; hasRestoredSession?: boolean } = {}) {
+  return { isLoggedIn: true, hasRestoredSession: true, ...overrides }
 }
 
 function makePlayerStore() {
@@ -132,6 +133,7 @@ describe('FMPage', () => {
   beforeEach(() => {
     mockUseSWR.mockReset()
     mockRouterPush.mockReset()
+    mockRouterReplace.mockReset()
     mockUseUserStore.mockReset()
     mockUsePlayerStore.mockReset()
     mockUseDominantColor.mockReset()
@@ -162,7 +164,7 @@ describe('FMPage', () => {
       await Promise.resolve()
     })
 
-    expect(mockRouterPush).toHaveBeenCalledWith('/login')
+    expect(mockRouterReplace).toHaveBeenCalledWith('/login')
     expect(screen.queryByTestId('fm-page')).not.toBeInTheDocument()
   })
 
