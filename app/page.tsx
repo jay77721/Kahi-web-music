@@ -4,8 +4,6 @@ import { useMemo } from 'react'
 import { Banner } from '@/components/discover/Banner'
 import { BentoGrid } from '@/components/discover/BentoGrid'
 import { RecentPlayed } from '@/components/discover/RecentPlayed'
-import { PlayerBar } from '@/components/player/PlayerBar'
-import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { AppShell } from '@/components/layout/AppShell'
 
 function getGreeting(): string {
@@ -43,8 +41,6 @@ export default function HomePage() {
           <BentoGrid />
         </section>
       </div>
-      <PlayerBar />
-      <PlayerOverlays />
     </AppShell>
   )
 }

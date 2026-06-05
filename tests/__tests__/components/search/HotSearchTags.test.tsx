@@ -19,6 +19,12 @@ describe('HotSearchTags', () => {
     }
   })
 
+  test('exposes hot tags as a semantic list', () => {
+    render(<HotSearchTags onSelect={vi.fn()} />)
+    expect(screen.getByRole('list', { name: '热门搜索关键词' })).toBeInTheDocument()
+    expect(screen.getAllByRole('listitem')).toHaveLength(10)
+  })
+
   test('clicking a tag calls onSelect with that tag', () => {
     const onSelect = vi.fn()
     render(<HotSearchTags onSelect={onSelect} />)

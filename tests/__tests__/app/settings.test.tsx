@@ -132,7 +132,7 @@ describe('SettingsPage', () => {
     expect(screen.getByTestId('app-shell')).toBeInTheDocument()
     expect(screen.getByTestId('settings-page')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: '设置' })).toBeInTheDocument()
-    expect(screen.getByText('个性化你的 KaQi Music 体验')).toBeInTheDocument()
+    expect(screen.getByText('个性化你的 Kahi Music 体验')).toBeInTheDocument()
   })
 
   test('renders all expected sections (skeleton of full page)', async () => {

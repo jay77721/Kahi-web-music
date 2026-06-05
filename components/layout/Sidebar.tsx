@@ -184,7 +184,7 @@ export function Sidebar() {
             />
             <Music2 className="w-6 h-6 text-[var(--accent)] relative z-10" strokeWidth={2.5} />
           </div>
-          <span className="font-bold text-[18px] tracking-tight text-[var(--text-primary)]">KaQi Music</span>
+          <span className="font-bold text-[18px] tracking-tight text-[var(--text-primary)]">Kahi Music</span>
         </Link>
         <button
           onClick={toggleSidebar}

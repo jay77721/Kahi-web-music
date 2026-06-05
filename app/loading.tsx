@@ -42,13 +42,13 @@ export default function Loading() {
             className="text-sm font-semibold"
             style={{ color: 'var(--text-primary)' }}
           >
-            KaQi Music
+            Kahi Music
           </p>
           <p
             className="text-xs"
             style={{ color: 'var(--text-tertiary)' }}
           >
-            正在加载…
+            正在加载...
           </p>
         </div>
 

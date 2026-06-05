@@ -39,6 +39,7 @@ export function Header() {
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
             onFocus={() => setSearchOpen(true)}
+            aria-label="搜索音乐"
             className="w-full pl-10 h-9 bg-[var(--bg-surface)] border border-[var(--border)] rounded-full text-sm transition-all duration-200 placeholder:text-[var(--text-tertiary)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-light)] focus-visible:bg-[var(--bg-elevated)] focus-visible:border-[var(--border-strong)] focus-visible:ring-0"
           />
         </div>

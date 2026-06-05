@@ -10,11 +10,19 @@ interface LoginCellphoneResult {
   message?: string
 }
 
+interface LoginStatusResult {
+  code?: number
+  profile?: UserProfile | null
+  account?: unknown | null
+}
+
 interface UserState {
   isLoggedIn: boolean
   hasRestoredSession: boolean
   profile: UserProfile | null
   cookie: string | null
+  logoutError: string | null
+  restoreError: string | null
 
   setProfile: (profile: UserProfile) => void
   setCookie: (cookie: string) => void
@@ -24,8 +32,21 @@ interface UserState {
    * remains for compatibility with older localStorage-backed sessions.
    */
   login: (phone: string, captcha: string) => Promise<UserProfile>
-  logout: () => void
-  restore: () => void
+  logout: () => Promise<void>
+  restore: () => Promise<void>
+}
+
+function hasVerifiedSession(status: LoginStatusResult): boolean {
+  const statusCodeAllowsSession = status.code === undefined || status.code === 200
+  return statusCodeAllowsSession && status.profile != null
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  return fallback
 }
 
 export const useUserStore = create<UserState>((set) => ({
@@ -33,15 +54,17 @@ export const useUserStore = create<UserState>((set) => ({
   hasRestoredSession: false,
   profile: null,
   cookie: null,
+  logoutError: null,
+  restoreError: null,
 
   setProfile: (profile) => {
-    set({ profile, isLoggedIn: true, hasRestoredSession: true })
+    set({ profile, isLoggedIn: true, hasRestoredSession: true, restoreError: null })
     storage.set(STORAGE_KEYS.USER_PROFILE, profile)
   },
 
-  setCookie: (cookie) => {
-    set({ cookie, hasRestoredSession: true })
-    storage.set(STORAGE_KEYS.USER_COOKIE, cookie)
+  setCookie: () => {
+    storage.remove(STORAGE_KEYS.USER_COOKIE)
+    set({ cookie: null, hasRestoredSession: true })
   },
 
   login: async (phone, captcha) => {
@@ -50,23 +73,68 @@ export const useUserStore = create<UserState>((set) => ({
       throw new Error(res?.message || '登录失败，请检查手机号或验证码')
     }
     const profile = res.profile
-    set({ profile, isLoggedIn: true, hasRestoredSession: true })
+    set({ profile, isLoggedIn: true, hasRestoredSession: true, logoutError: null, restoreError: null })
     storage.set(STORAGE_KEYS.USER_PROFILE, profile)
     return profile
   },
 
-  logout: () => {
-    set({ isLoggedIn: false, hasRestoredSession: true, profile: null, cookie: null })
+  logout: async () => {
+    set({
+      isLoggedIn: false,
+      hasRestoredSession: true,
+      profile: null,
+      cookie: null,
+      logoutError: null,
+    })
     storage.remove(STORAGE_KEYS.USER_COOKIE)
     storage.remove(STORAGE_KEYS.USER_PROFILE)
     // Drop any cached API responses so the next user does not see the
     // previous account's data (e.g. user profile, playlists, account info).
     ncmApi.clearCache()
+
+    try {
+      await ncmApi.logout()
+    } catch (error) {
+      const message = getErrorMessage(error, '退出登录请求失败，服务器会话可能仍然有效')
+      set({ logoutError: message })
+      throw new Error(message)
+    }
   },
 
-  restore: () => {
-    const cookie = storage.get<string | null>(STORAGE_KEYS.USER_COOKIE, null)
-    const profile = storage.get<UserProfile | null>(STORAGE_KEYS.USER_PROFILE, null)
-    set({ cookie, profile, isLoggedIn: !!profile, hasRestoredSession: true })
+  restore: async () => {
+    let cachedProfile: UserProfile | null = null
+
+    try {
+      storage.remove(STORAGE_KEYS.USER_COOKIE)
+      cachedProfile = storage.get<UserProfile | null>(STORAGE_KEYS.USER_PROFILE, null)
+
+      set({
+        cookie: null,
+        profile: cachedProfile,
+        isLoggedIn: false,
+        hasRestoredSession: false,
+        restoreError: null,
+      })
+
+      const status = (await ncmApi.loginStatus()) as unknown as LoginStatusResult
+      const isVerifiedSession = hasVerifiedSession(status)
+      const verifiedProfile = isVerifiedSession ? status.profile ?? null : null
+
+      set({
+        cookie: null,
+        profile: verifiedProfile ?? cachedProfile,
+        isLoggedIn: isVerifiedSession,
+        hasRestoredSession: true,
+        restoreError: null,
+      })
+    } catch (error) {
+      set({
+        cookie: null,
+        profile: cachedProfile,
+        isLoggedIn: false,
+        hasRestoredSession: true,
+        restoreError: getErrorMessage(error, '恢复登录状态失败'),
+      })
+    }
   },
 }))

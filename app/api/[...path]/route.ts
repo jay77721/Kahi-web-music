@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const API_BASE = process.env.API_URL || 'http://localhost:3000'
 const RATE_LIMIT_WINDOW_MS = 60_000
 const RATE_LIMIT_MAX_REQUESTS = 30
 const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>()
@@ -16,6 +15,7 @@ const GET_MUTATION_ENDPOINTS = new Set([
   '/artist/sub',
   '/captcha/sent',
   '/comment',
+  '/comment/like',
   '/daily_signin',
   '/fm/trash',
   '/like',
@@ -30,6 +30,7 @@ const GET_MUTATION_ENDPOINTS = new Set([
   '/playlist/track/add',
   '/playlist/track/delete',
   '/playlist/update',
+  '/scrobble',
   '/user/cloud/add',
   '/user/cloud/del',
   '/user/follow',
@@ -60,14 +61,55 @@ function getCorsHeaders(request: NextRequest): HeadersInit {
   }
 }
 
+function applyCors(request: NextRequest, response: NextResponse): NextResponse {
+  const corsHeaders = getCorsHeaders(request)
+  for (const [key, value] of Object.entries(corsHeaders)) {
+    response.headers.set(key, value)
+  }
+  return response
+}
+
+function jsonWithCors(
+  request: NextRequest,
+  body: unknown,
+  init?: ResponseInit,
+): NextResponse {
+  return applyCors(request, NextResponse.json(body, init))
+}
+
+function emptyWithCors(request: NextRequest, init?: ResponseInit): NextResponse {
+  return applyCors(request, new NextResponse(null, init))
+}
+
+function getApiBase(): string {
+  if (process.env.API_URL) {
+    return process.env.API_URL
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return 'http://localhost:3000'
+  }
+
+  throw new Error('API_URL is required in production')
+}
+
 function getClientRateLimitKey(request: NextRequest): string {
-  const forwardedByPlatform = request.headers.get('x-vercel-forwarded-for')
-  const realIp = request.headers.get('x-real-ip')
-  return forwardedByPlatform || realIp || 'unknown'
+  return request.headers.get('x-vercel-forwarded-for') || 'unknown'
 }
 
 function shouldRateLimit(endpoint: string): boolean {
   return RATE_LIMITED_PATH_PATTERNS.some((pattern) => pattern.test(endpoint))
+}
+
+function isSafePathSegment(segment: string): boolean {
+  const normalizedSegment = segment.toLowerCase()
+  return segment !== '.'
+    && segment !== '..'
+    && !segment.includes('/')
+    && !segment.includes('\\')
+    && !normalizedSegment.includes('%2e')
+    && !normalizedSegment.includes('%2f')
+    && !normalizedSegment.includes('%5c')
 }
 
 function rateLimit(request: NextRequest, endpoint: string): NextResponse | null {
@@ -84,7 +126,8 @@ function rateLimit(request: NextRequest, endpoint: string): NextResponse | null 
   }
 
   if (bucket.count >= RATE_LIMIT_MAX_REQUESTS) {
-    return NextResponse.json(
+    return jsonWithCors(
+      request,
       { code: 429, message: 'Too many requests' },
       {
         status: 429,
@@ -123,10 +166,19 @@ function normalizeSetCookie(cookie: string): string {
 }
 
 async function proxyRequest(request: NextRequest, path: string[]) {
+  if (!path.every(isSafePathSegment)) {
+    return jsonWithCors(
+      request,
+      { code: 400, message: 'Invalid API path' },
+      { status: 400 },
+    )
+  }
+
   const endpoint = '/' + path.join('/')
   const method = request.method.toUpperCase()
   if (method === 'GET' && GET_MUTATION_ENDPOINTS.has(endpoint)) {
-    return NextResponse.json(
+    return jsonWithCors(
+      request,
       { code: 405, message: 'Use POST for this endpoint' },
       { status: 405 },
     )
@@ -140,7 +192,27 @@ async function proxyRequest(request: NextRequest, path: string[]) {
   const url = request.nextUrl
 
   // Build the target URL with query params
-  const targetUrl = new URL(endpoint, API_BASE)
+  let targetUrl: URL
+  try {
+    const apiBase = getApiBase()
+    const apiOrigin = new URL(apiBase).origin
+    targetUrl = new URL(endpoint, apiBase)
+    if (targetUrl.origin !== apiOrigin) {
+      return jsonWithCors(
+        request,
+        { code: 400, message: 'Invalid API path' },
+        { status: 400 },
+      )
+    }
+  } catch (error) {
+    console.error('[API Proxy] Invalid API_URL configuration:', error)
+    return jsonWithCors(
+      request,
+      { code: 500, message: 'Invalid API server configuration' },
+      { status: 500 },
+    )
+  }
+
   url.searchParams.forEach((value, key) => {
     targetUrl.searchParams.append(key, value)
   })
@@ -166,10 +238,10 @@ async function proxyRequest(request: NextRequest, path: string[]) {
     forwardHeaders['Content-Type'] = 'application/json'
   }
 
-  try {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 15000)
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 15000)
 
+  try {
     const response = await fetch(targetUrl.toString(), {
       method,
       headers: forwardHeaders,
@@ -179,23 +251,31 @@ async function proxyRequest(request: NextRequest, path: string[]) {
       cache: 'no-store',
     })
 
-    clearTimeout(timeout)
-
-    const data = await response.json()
-
-    // Forward Set-Cookie headers from the API
-    const nextResponse = NextResponse.json(data, {
-      status: response.status,
-    })
-
     const setCookies = response.headers.getSetCookie?.() || []
-    for (const cookie of setCookies) {
-      nextResponse.headers.append('Set-Cookie', normalizeSetCookie(cookie))
+    const contentType = response.headers.get('content-type') || ''
+    const hasResponseBody = response.status !== 204 && response.status !== 205
+
+    let nextResponse: NextResponse
+    if (!hasResponseBody) {
+      nextResponse = emptyWithCors(request, { status: response.status })
+    } else if (contentType.toLowerCase().includes('application/json')) {
+      const data = await response.json()
+      nextResponse = jsonWithCors(request, data, { status: response.status })
+    } else {
+      const text = await response.text()
+      nextResponse = applyCors(
+        request,
+        new NextResponse(text, {
+          status: response.status,
+          headers: contentType ? { 'Content-Type': contentType } : undefined,
+        }),
+      )
     }
 
-    const corsHeaders = getCorsHeaders(request)
-    for (const [key, value] of Object.entries(corsHeaders)) {
-      nextResponse.headers.set(key, value)
+    // Forward Set-Cookie headers from the API even when the upstream body is
+    // empty or non-JSON.
+    for (const cookie of setCookies) {
+      nextResponse.headers.append('Set-Cookie', normalizeSetCookie(cookie))
     }
 
     return nextResponse
@@ -203,16 +283,20 @@ async function proxyRequest(request: NextRequest, path: string[]) {
     console.error(`[API Proxy] Error proxying ${endpoint}:`, error)
 
     if (error instanceof Error && error.name === 'AbortError') {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { code: 504, message: 'API request timeout' },
         { status: 504 }
       )
     }
 
-    return NextResponse.json(
+    return jsonWithCors(
+      request,
       { code: 502, message: 'Failed to reach API server' },
       { status: 502 }
     )
+  } finally {
+    clearTimeout(timeout)
   }
 }
 

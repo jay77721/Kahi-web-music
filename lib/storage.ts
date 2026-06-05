@@ -36,6 +36,7 @@ export const STORAGE_KEYS = {
   PLAY_MODE: 'player:mode',
   VOLUME: 'player:volume',
   SEARCH_HISTORY: 'search:history',
+  // Legacy auth cookie key retained only so startup/logout can remove it.
   USER_COOKIE: 'user:cookie',
   USER_PROFILE: 'user:profile',
   THEME: 'ui:theme',

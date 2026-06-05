@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, AlertCircle, RefreshCw, Pause, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import useSWR from 'swr'
@@ -27,6 +27,8 @@ export function Banner() {
   )
 
   const [current, setCurrent] = useState(0)
+  const [isPaused, setIsPaused] = useState(false)
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const banners = data || []
 
   const next = useCallback(() => {
@@ -39,12 +41,30 @@ export function Banner() {
     setCurrent((c) => (c - 1 + banners.length) % banners.length)
   }, [banners.length])
 
+  useEffect(() => {
+    if (!window.matchMedia) return
+
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const updateMotionPreference = () => setPrefersReducedMotion(mediaQuery.matches)
+
+    updateMotionPreference()
+    mediaQuery.addEventListener('change', updateMotionPreference)
+    return () => mediaQuery.removeEventListener('change', updateMotionPreference)
+  }, [])
+
+  useEffect(() => {
+    setCurrent((index) => {
+      if (banners.length === 0) return 0
+      return Math.min(index, banners.length - 1)
+    })
+  }, [banners.length])
+
   // Auto-rotate
   useEffect(() => {
-    if (banners.length <= 1) return
+    if (banners.length <= 1 || isPaused || prefersReducedMotion) return
     const timer = setInterval(next, 5000)
     return () => clearInterval(timer)
-  }, [banners.length, next])
+  }, [banners.length, isPaused, next, prefersReducedMotion])
 
   if (isLoading) {
     return <Skeleton className="w-full aspect-[3/1] md:aspect-[4/1] rounded-2xl" />
@@ -78,10 +98,15 @@ export function Banner() {
     )
   }
 
-  const banner = banners[current]
+  const activeIndex = Math.min(current, banners.length - 1)
+  const banner = banners[activeIndex]
 
   return (
-    <div className="relative w-full aspect-[3/1] md:aspect-[4/1] rounded-2xl overflow-hidden group shadow-lg">
+    <div
+      className="relative w-full aspect-[3/1] md:aspect-[4/1] rounded-2xl overflow-hidden group shadow-lg"
+      onFocus={() => setIsPaused(true)}
+      onPointerDown={() => setIsPaused(true)}
+    >
       {/* Image with smooth crossfade */}
       {banners.map((b, i) => (
         <BlurImage
@@ -90,8 +115,8 @@ export function Banner() {
           alt={b.typeTitle}
           fill
           className="object-cover transition-opacity duration-700 ease-in-out"
-          style={{ opacity: i === current ? 1 : 0 }}
-          priority={i === current}
+          style={{ opacity: i === activeIndex ? 1 : 0 }}
+          priority={i === activeIndex}
         />
       ))}
 
@@ -111,33 +136,56 @@ export function Banner() {
       <Button
         variant="ghost"
         size="icon"
-        className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 hover:bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-full backdrop-blur-sm"
+        className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 hover:bg-black/60 text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all duration-300 rounded-full backdrop-blur-sm"
         onClick={prev}
+        aria-label="上一张推荐"
       >
         <ChevronLeft className="w-5 h-5" />
       </Button>
       <Button
         variant="ghost"
         size="icon"
-        className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 hover:bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-full backdrop-blur-sm"
+        className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 bg-black/40 hover:bg-black/60 text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all duration-300 rounded-full backdrop-blur-sm"
         onClick={next}
+        aria-label="下一张推荐"
       >
         <ChevronRight className="w-5 h-5" />
       </Button>
 
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute right-3 top-3 w-9 h-9 bg-black/40 hover:bg-black/60 text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all duration-300 rounded-full backdrop-blur-sm"
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={() => setIsPaused((paused) => !paused)}
+        aria-label={isPaused ? '恢复自动轮播' : '暂停自动轮播'}
+        aria-pressed={isPaused}
+      >
+        {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+      </Button>
+
       {/* Dots with accent color for active */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
         {banners.map((_, i) => (
           <button
             key={i}
-            className={`h-1.5 rounded-full transition-all duration-500 ${
-              i === current
-                ? 'bg-[var(--accent)] w-6 shadow-[0_0_8px_var(--accent-glow)]'
-                : 'bg-[var(--text-quaternary)] w-1.5 hover:bg-[var(--text-tertiary)]'
-            }`}
-            onClick={() => setCurrent(i)}
+            className="inline-flex h-6 min-w-6 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-black/40"
+            onClick={() => {
+              setIsPaused(true)
+              setCurrent(i)
+            }}
             aria-label={`切换到第 ${i + 1} 张`}
-          />
+            aria-current={i === activeIndex ? 'true' : undefined}
+          >
+            <span
+              aria-hidden="true"
+              className={`h-1.5 rounded-full transition-all duration-500 ${
+                i === activeIndex
+                  ? 'bg-[var(--accent)] w-6 shadow-[0_0_8px_var(--accent-glow)]'
+                  : 'bg-[var(--text-quaternary)] w-1.5 hover:bg-[var(--text-tertiary)]'
+              }`}
+            />
+          </button>
         ))}
       </div>
     </div>

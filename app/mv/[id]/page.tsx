@@ -12,8 +12,6 @@ import { MVInfo } from '@/components/mv/MVInfo'
 import { ncmApi } from '@/lib/api'
 import { normalizeMvBundle, type NormalizedMvDetail } from '@/lib/api-adapters'
 import { imageUrl } from '@/lib/format'
-import { PlayerBar } from '@/components/player/PlayerBar'
-import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import type { SimiMvResponse, MVDetailResponse } from '@/types/api'
 
 export default function MVPage() {
@@ -137,8 +135,6 @@ export default function MVPage() {
         ) : null}
 
       </div>
-      <PlayerBar />
-      <PlayerOverlays />
     </AppShell>
   )
 }

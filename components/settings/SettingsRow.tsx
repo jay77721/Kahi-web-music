@@ -8,7 +8,7 @@ interface SettingsRowProps {
   label: string
   /** Optional secondary description below the label. */
   description?: string
-  /** Control (switch, select, etc.) rendered on the right side. */
+  /** Control (switch, select, etc.) rendered beside or below the label. */
   control: ReactNode
   /** Optional icon shown before the label. */
   icon?: ReactNode
@@ -16,6 +16,8 @@ interface SettingsRowProps {
   controlId?: string
   /** Visually disabled state. */
   disabled?: boolean
+  /** Use stacked layout for wide controls such as segmented buttons. */
+  controlLayout?: 'inline' | 'stacked'
   className?: string
 }
 
@@ -30,13 +32,14 @@ export function SettingsRow({
   icon,
   controlId,
   disabled = false,
+  controlLayout = 'inline',
   className,
 }: SettingsRowProps) {
   const labelEl = (
     <span className="flex flex-col min-w-0">
-      <span className="text-sm font-medium text-white/90 truncate">{label}</span>
+      <span className="text-sm font-medium leading-5 text-[var(--text-primary)]">{label}</span>
       {description && (
-        <span className="text-xs text-white/40 mt-0.5">{description}</span>
+        <span className="mt-0.5 text-xs leading-5 text-[var(--text-tertiary)]">{description}</span>
       )}
     </span>
   )
@@ -46,16 +49,17 @@ export function SettingsRow({
       data-testid="settings-row"
       data-disabled={disabled || undefined}
       className={cn(
-        'flex items-center justify-between gap-4 px-4 py-3.5',
+        'flex flex-col gap-2.5 px-4 py-3',
+        controlLayout === 'inline' && 'sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-4',
         disabled && 'opacity-50 pointer-events-none',
         className,
       )}
     >
-      <div className="flex items-center gap-3 min-w-0 flex-1">
+      <div className="flex w-full items-start gap-3 min-w-0">
         {icon && (
           <span
             aria-hidden="true"
-            className="flex-shrink-0 w-8 h-8 rounded-lg bg-white/[0.04] flex items-center justify-center text-white/60"
+            className="flex size-8 flex-shrink-0 items-center justify-center rounded-md border border-[var(--border)] bg-[var(--bg-hover)] text-[var(--text-secondary)]"
           >
             {icon}
           </span>
@@ -68,7 +72,14 @@ export function SettingsRow({
           <div className="min-w-0 flex-1">{labelEl}</div>
         )}
       </div>
-      <div className="flex-shrink-0">{control}</div>
+      <div
+        className={cn(
+          'w-full min-w-0',
+          controlLayout === 'inline' && 'sm:w-auto sm:flex-shrink-0',
+        )}
+      >
+        {control}
+      </div>
     </div>
   )
 }

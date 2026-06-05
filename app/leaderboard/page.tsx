@@ -16,8 +16,6 @@ import {
   type NormalizedLeaderboardItem,
 } from '@/lib/api-adapters'
 import { imageUrl } from '@/lib/format'
-import { PlayerBar } from '@/components/player/PlayerBar'
-import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { usePlayerStore } from '@/stores/playerStore'
 import { cn } from '@/lib/utils'
 
@@ -203,8 +201,6 @@ export default function LeaderboardPage() {
           )}
         </section>
       </div>
-      <PlayerBar />
-      <PlayerOverlays />
     </AppShell>
   )
 }

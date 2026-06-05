@@ -9,9 +9,8 @@ import { SongTable } from '@/components/common/SongTable'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { ncmApi } from '@/lib/api'
-import { normalizeIdList, normalizeSongList } from '@/lib/api-adapters'
-import { PlayerBar } from '@/components/player/PlayerBar'
-import { PlayerOverlays } from '@/components/player/PlayerOverlays'
+import { normalizeIdList } from '@/lib/api-adapters'
+import { fetchSongDetailsByIds } from '@/lib/song-details'
 import { usePlayerStore } from '@/stores/playerStore'
 import { useUserStore } from '@/stores/userStore'
 import { useDominantColor } from '@/hooks/useDominantColor'
@@ -22,11 +21,9 @@ const LIKED_BACKGROUND_STYLE: CSSProperties = {
   backgroundImage: `
     radial-gradient(ellipse at 20% 0%, oklch(0.36 0.08 350 / 0.32) 0%, transparent 55%),
     radial-gradient(ellipse at 80% 100%, oklch(0.30 0.06 320 / 0.22) 0%, transparent 55%),
-    linear-gradient(180deg, #0a0a0a 0%, #110d10 50%, #0a0a0a 100%)
+    linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 50%, var(--bg-secondary) 100%)
   `,
 }
-
-const MAX_SONGS_PER_FETCH = 100
 
 function getErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
@@ -58,7 +55,7 @@ export default function LikedPage() {
       backgroundImage: `
         radial-gradient(ellipse at 20% 0%, ${color.oklch.replace(')', ' / 0.32)')} 0%, transparent 55%),
         radial-gradient(ellipse at 80% 100%, ${color.oklch.replace(')', ' / 0.22)')} 0%, transparent 55%),
-        linear-gradient(180deg, #0a0a0a 0%, #110d10 50%, #0a0a0a 100%)
+        linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 50%, var(--bg-secondary) 100%)
       `,
       transition: 'background-image 600ms ease-out',
     }
@@ -75,8 +72,7 @@ export default function LikedPage() {
       if (!uid) return []
       const ids = normalizeIdList(await ncmApi.likelist(uid))
       if (ids.length === 0) return []
-      const detail = await ncmApi.songDetail(ids.slice(0, MAX_SONGS_PER_FETCH).join(','))
-      return normalizeSongList(detail)
+      return fetchSongDetailsByIds(ids)
     }
   )
 
@@ -150,7 +146,7 @@ export default function LikedPage() {
         {isLoading ? (
           <div data-testid="liked-loading" className="space-y-2">
             {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full rounded-lg bg-[#181818]" />
+              <Skeleton key={i} className="h-12 w-full rounded-lg bg-[var(--bg-elevated)]" />
             ))}
           </div>
         ) : error ? (
@@ -184,8 +180,8 @@ export default function LikedPage() {
             data-testid="liked-empty"
             className="flex flex-col items-center justify-center py-20 text-center"
           >
-            <div className="w-20 h-20 rounded-full bg-white/[0.04] flex items-center justify-center mb-4 border border-white/[0.06]">
-              <Heart className="w-10 h-10 text-white/30" aria-hidden="true" />
+            <div className="w-20 h-20 rounded-full bg-[var(--bg-hover)] flex items-center justify-center mb-4 border border-[var(--border)]">
+              <Heart className="w-10 h-10 text-[var(--text-quaternary)]" aria-hidden="true" />
             </div>
             <p className="text-sm text-[var(--text-tertiary)] mb-1">还没有收藏的歌曲</p>
             <p className="text-xs text-[var(--text-tertiary)] opacity-70">
@@ -194,8 +190,6 @@ export default function LikedPage() {
           </div>
         )}
       </section>
-      <PlayerBar />
-      <PlayerOverlays />
     </AppShell>
   )
 }

@@ -27,26 +27,33 @@ const VINYL_SIZE_DESKTOP = 320
 const RESAMPLE_INTERVAL_MS = 5_000
 
 export const FullScreenPlayer = memo(function FullScreenPlayer() {
-  const { fullScreenPlayerOpen } = useUIStore()
-  const { currentTrack } = usePlayerStore()
+  const fullScreenPlayerOpen = useUIStore((state) => state.fullScreenPlayerOpen)
+  const currentTrackId = usePlayerStore((state) => state.currentTrack?.id ?? null)
 
   // Defer all heavy hooks (useDominantColor, useAudioAnalyser, …) to the
   // inner component so they are only mounted while the player is open.
   // Returning null here unmounts the inner component, which triggers the
   // useEffect cleanups inside the hooks (cancel rAF, cancel in-flight
-  // fetch, disconnect the WebAudio analyser node, …).
-  if (!fullScreenPlayerOpen || !currentTrack) return null
+  // fetch, disconnect the WebAudio analyser node, …). Subscribe only to the
+  // track id at this gate so playback ticks do not update a closed player.
+  if (!fullScreenPlayerOpen || currentTrackId === null) return null
 
   return <FullScreenPlayerContent />
 })
 
 function FullScreenPlayerContent() {
-  const {
-    currentTrack: rawCurrentTrack, isPlaying, currentTime, duration, playMode,
-    lyrics,
-    next, prev, seek, cyclePlayMode,
-  } = usePlayerStore()
-  const { fullScreenPlayerOpen, setFullScreenPlayerOpen } = useUIStore()
+  const rawCurrentTrack = usePlayerStore((state) => state.currentTrack)
+  const isPlaying = usePlayerStore((state) => state.isPlaying)
+  const currentTime = usePlayerStore((state) => state.currentTime)
+  const duration = usePlayerStore((state) => state.duration)
+  const playMode = usePlayerStore((state) => state.playMode)
+  const lyrics = usePlayerStore((state) => state.lyrics)
+  const next = usePlayerStore((state) => state.next)
+  const prev = usePlayerStore((state) => state.prev)
+  const seek = usePlayerStore((state) => state.seek)
+  const cyclePlayMode = usePlayerStore((state) => state.cyclePlayMode)
+  const fullScreenPlayerOpen = useUIStore((state) => state.fullScreenPlayerOpen)
+  const setFullScreenPlayerOpen = useUIStore((state) => state.setFullScreenPlayerOpen)
 
   // The outer <FullScreenPlayer> wrapper only mounts us when there is a
   // current track, so the assertion below is always safe at runtime. We

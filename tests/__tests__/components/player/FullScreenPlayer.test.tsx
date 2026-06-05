@@ -36,13 +36,16 @@ const mockStore = {
   lyrics: [],
   currentLyricIndex: -1,
   next: vi.fn(),
+  prev: vi.fn(),
   seek: vi.fn(),
   cyclePlayMode: vi.fn(),
   setHasUserInteracted: vi.fn(),
 }
 
 vi.mock('@/stores/playerStore', () => ({
-  usePlayerStore: () => mockStore,
+  usePlayerStore: (selector?: (state: typeof mockStore) => unknown) => (
+    selector ? selector(mockStore) : mockStore
+  ),
 }))
 
 const mockUI = {
@@ -50,7 +53,9 @@ const mockUI = {
   setFullScreenPlayerOpen: vi.fn(),
 }
 vi.mock('@/stores/uiStore', () => ({
-  useUIStore: () => mockUI,
+  useUIStore: (selector?: (state: typeof mockUI) => unknown) => (
+    selector ? selector(mockUI) : mockUI
+  ),
 }))
 
 // Stub the dynamic-color hook so we can assert what FullScreenPlayer feeds it

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo, type RefObject } from 'react'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import useSWR from 'swr'
 import { ncmApi } from '@/lib/api'
@@ -14,6 +14,7 @@ function escapeRegex(value: string): string {
 interface SearchSuggestionsProps {
   query: string
   onSelect: (keyword: string) => void
+  inputRef?: RefObject<HTMLInputElement | null>
 }
 
 type Section = 'songs' | 'artists' | 'albums' | 'playlists'
@@ -23,10 +24,14 @@ interface SuggestionSection {
   items: Array<{ id: number; name: string; sub?: string }>
 }
 
-export function SearchSuggestions({ query, onSelect }: SearchSuggestionsProps) {
+const LISTBOX_ID = 'search-suggestions-listbox'
+
+export function SearchSuggestions({ query, onSelect, inputRef }: SearchSuggestionsProps) {
   const [activeIndex, setActiveIndex] = useState(-1)
+  const [dismissedQuery, setDismissedQuery] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const debouncedQuery = useDebouncedValue(query, 300)
+  const trimmedQuery = query.trim()
 
   const { data, isLoading } = useSWR<SearchSuggestResponse>(
     debouncedQuery.trim() ? `/search/suggest:${debouncedQuery.trim()}` : null,
@@ -36,11 +41,13 @@ export function SearchSuggestions({ query, onSelect }: SearchSuggestionsProps) {
     { keepPreviousData: true }
   )
 
-  const sections: SuggestionSection[] = []
-  const result = data?.result
-  if (result) {
+  const sections = useMemo<SuggestionSection[]>(() => {
+    const nextSections: SuggestionSection[] = []
+    const result = data?.result
+    if (!result) return nextSections
+
     if (result.songs?.length) {
-      sections.push({
+      nextSections.push({
         section: 'songs',
         items: result.songs.map((s: SuggestSong) => ({
           id: s.id,
@@ -50,13 +57,13 @@ export function SearchSuggestions({ query, onSelect }: SearchSuggestionsProps) {
       })
     }
     if (result.artists?.length) {
-      sections.push({
+      nextSections.push({
         section: 'artists',
         items: result.artists.map((a: SuggestArtist) => ({ id: a.id, name: a.name })),
       })
     }
     if (result.albums?.length) {
-      sections.push({
+      nextSections.push({
         section: 'albums',
         items: result.albums.map((a: SuggestAlbum) => ({
           id: a.id,
@@ -66,7 +73,7 @@ export function SearchSuggestions({ query, onSelect }: SearchSuggestionsProps) {
       })
     }
     if (result.playlists?.length) {
-      sections.push({
+      nextSections.push({
         section: 'playlists',
         items: result.playlists.map((p: SuggestPlaylist) => ({
           id: p.id,
@@ -75,10 +82,19 @@ export function SearchSuggestions({ query, onSelect }: SearchSuggestionsProps) {
         })),
       })
     }
-  }
 
-  const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0)
-  const isOpen = query.trim().length > 0 && !isLoading && totalItems > 0
+    return nextSections
+  }, [data])
+
+  const flatItems = useMemo(
+    () => sections.flatMap((section) => section.items),
+    [sections]
+  )
+  const totalItems = flatItems.length
+  const isOpen = trimmedQuery.length > 0 && dismissedQuery !== trimmedQuery && (isLoading || totalItems > 0)
+  const boundedActiveIndex = activeIndex >= 0 && activeIndex < totalItems ? activeIndex : -1
+  const activeOptionId =
+    boundedActiveIndex >= 0 ? `suggestion-${boundedActiveIndex}` : undefined
 
   const sectionLabel: Record<Section, string> = {
     songs: '歌曲',
@@ -91,19 +107,102 @@ export function SearchSuggestions({ query, onSelect }: SearchSuggestionsProps) {
     (name: string) => {
       onSelect(name)
       setActiveIndex(-1)
+      setDismissedQuery(null)
     },
     [onSelect]
   )
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setActiveIndex(-1)
+    const input = inputRef?.current
+    if (!input) return
+
+    input.setAttribute('aria-autocomplete', 'list')
+    input.setAttribute('aria-expanded', String(isOpen))
+    if (isOpen) {
+      input.setAttribute('aria-controls', LISTBOX_ID)
+    } else {
+      input.removeAttribute('aria-controls')
+    }
+    if (activeOptionId) {
+      input.setAttribute('aria-activedescendant', activeOptionId)
+    } else {
+      input.removeAttribute('aria-activedescendant')
+    }
+
+    return () => {
+      input.removeAttribute('aria-activedescendant')
+      input.removeAttribute('aria-controls')
+      input.removeAttribute('aria-expanded')
+      input.removeAttribute('aria-autocomplete')
+    }
+  }, [activeOptionId, inputRef, isOpen])
+
+  useEffect(() => {
+    const input = inputRef?.current
+    if (!input) return
+
+    function handleInput() {
+      setActiveIndex(-1)
+      setDismissedQuery(null)
+    }
+
+    input.addEventListener('input', handleInput)
+    return () => input.removeEventListener('input', handleInput)
+  }, [inputRef])
+
+  useEffect(() => {
+    const input = inputRef?.current
+    if (!input || !isOpen) return
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'ArrowDown') {
+        if (totalItems === 0) return
+        event.preventDefault()
+        setActiveIndex((index) => {
+          const currentIndex = index >= 0 && index < totalItems ? index : -1
+          return (currentIndex + 1) % totalItems
+        })
+        return
       }
+
+      if (event.key === 'ArrowUp') {
+        if (totalItems === 0) return
+        event.preventDefault()
+        setActiveIndex((index) => {
+          const currentIndex = index >= 0 && index < totalItems ? index : -1
+          return currentIndex <= 0 ? totalItems - 1 : currentIndex - 1
+        })
+        return
+      }
+
+      if (event.key === 'Enter' && boundedActiveIndex >= 0) {
+        event.preventDefault()
+        handleSelect(flatItems[boundedActiveIndex].name)
+        return
+      }
+
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setActiveIndex(-1)
+        setDismissedQuery(trimmedQuery)
+      }
+    }
+
+    input.addEventListener('keydown', handleKeyDown)
+    return () => input.removeEventListener('keydown', handleKeyDown)
+  }, [boundedActiveIndex, flatItems, handleSelect, inputRef, isOpen, totalItems, trimmedQuery])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node
+      if (containerRef.current?.contains(target) || inputRef?.current?.contains(target)) return
+
+      setActiveIndex(-1)
+      setDismissedQuery(trimmedQuery)
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  }, [inputRef, trimmedQuery])
 
   const highlightText = useCallback(
     (text: string, query: string): React.ReactNode => {
@@ -132,8 +231,9 @@ export function SearchSuggestions({ query, onSelect }: SearchSuggestionsProps) {
       ref={containerRef}
       className="absolute top-full left-0 right-0 z-50 mt-2 overflow-hidden rounded-2xl border border-white/10 bg-[var(--bg-surface)] shadow-2xl shadow-black/40 backdrop-blur-xl"
       role="listbox"
-      id="search-suggestions-listbox"
+      id={LISTBOX_ID}
       aria-label="搜索建议"
+      aria-busy={isLoading}
     >
       {isLoading ? (
         <div className="p-4">
@@ -153,7 +253,7 @@ export function SearchSuggestions({ query, onSelect }: SearchSuggestionsProps) {
               </div>
               {section.items.map((item) => {
                 const currentIndex = flatCounter++
-                const isActive = currentIndex === activeIndex
+                const isActive = currentIndex === boundedActiveIndex
                 return (
                   <button
                     key={`${section.section}-${item.id}-${currentIndex}`}

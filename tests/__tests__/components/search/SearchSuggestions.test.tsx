@@ -1,5 +1,6 @@
-import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, fireEvent, waitFor } from '@testing-library/react'
+import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
+import { useRef } from 'react'
+import { render, fireEvent, waitFor, screen, cleanup } from '@testing-library/react'
 import { SearchSuggestions } from '@/components/search/SearchSuggestions'
 
 const { mockUseSWR, mockSearchSuggest } = vi.hoisted(() => ({
@@ -57,6 +58,10 @@ describe('SearchSuggestions', () => {
     })
   })
 
+  afterEach(() => {
+    cleanup()
+  })
+
   test('renders suggestion sections for non-empty query', async () => {
     const { container } = render(<SearchSuggestions query="周杰伦" onSelect={onSelect} />)
 
@@ -88,5 +93,60 @@ describe('SearchSuggestions', () => {
       fireEvent.click(option)
       expect(onSelect).toHaveBeenCalledWith('晴天')
     }
+  })
+
+  test('supports keyboard selection from the search input', async () => {
+    function Harness() {
+      const inputRef = useRef<HTMLInputElement>(null)
+      return (
+        <>
+          <input ref={inputRef} aria-label="search" />
+          <SearchSuggestions query="周杰伦" onSelect={onSelect} inputRef={inputRef} />
+        </>
+      )
+    }
+
+    render(<Harness />)
+
+    await screen.findByRole('listbox', { name: '搜索建议' })
+    const input = screen.getByRole('textbox', { name: 'search' })
+
+    await waitFor(() => {
+      expect(input).toHaveAttribute('aria-controls', 'search-suggestions-listbox')
+      expect(input).toHaveAttribute('aria-expanded', 'true')
+    })
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+
+    await waitFor(() => {
+      expect(input).toHaveAttribute('aria-activedescendant', 'suggestion-0')
+    })
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onSelect).toHaveBeenCalledWith('晴天')
+  })
+
+  test('closes suggestions with Escape', async () => {
+    function Harness() {
+      const inputRef = useRef<HTMLInputElement>(null)
+      return (
+        <>
+          <input ref={inputRef} aria-label="search" />
+          <SearchSuggestions query="周杰伦" onSelect={onSelect} inputRef={inputRef} />
+        </>
+      )
+    }
+
+    render(<Harness />)
+
+    await screen.findByRole('listbox', { name: '搜索建议' })
+    const input = screen.getByRole('textbox', { name: 'search' })
+
+    fireEvent.keyDown(input, { key: 'Escape' })
+
+    await waitFor(() => {
+      expect(screen.queryByRole('listbox', { name: '搜索建议' })).not.toBeInTheDocument()
+      expect(input).toHaveAttribute('aria-expanded', 'false')
+    })
   })
 })

@@ -4,6 +4,8 @@ import { useEffect } from 'react'
 import { Sidebar } from './Sidebar'
 import { MobileNav } from './MobileNav'
 import { Header } from './Header'
+import { PlayerBar } from '@/components/player/PlayerBar'
+import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useUIStore } from '@/stores/uiStore'
 import { usePlayerStore } from '@/stores/playerStore'
@@ -15,8 +17,9 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   const isMobile = useIsMobile()
-  const { setIsMobile } = useUIStore()
-  const { currentTrack } = usePlayerStore()
+  const setIsMobile = useUIStore((state) => state.setIsMobile)
+  const currentTrackId = usePlayerStore((state) => state.currentTrack?.id ?? null)
+  const hasCurrentTrack = currentTrackId !== null
 
   useEffect(() => {
     setIsMobile(isMobile)
@@ -37,14 +40,18 @@ export function AppShell({ children }: AppShellProps) {
           id="main-content"
           className={cn(
             'flex-1 overflow-y-auto',
-            isMobile && currentTrack && 'pb-32',
-            isMobile && !currentTrack && 'pb-16',
-            !isMobile && 'pb-4'
+            isMobile && hasCurrentTrack && 'pb-32',
+            isMobile && !hasCurrentTrack && 'pb-16',
+            !isMobile && hasCurrentTrack && 'pb-24',
+            !isMobile && !hasCurrentTrack && 'pb-4'
           )}
         >
           {children}
         </main>
       </div>
+
+      <PlayerBar />
+      <PlayerOverlays />
 
       {/* Mobile bottom nav */}
       {isMobile && <MobileNav />}

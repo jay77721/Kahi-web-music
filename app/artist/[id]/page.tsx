@@ -28,8 +28,6 @@ import {
   type NormalizedArtistDetail,
 } from '@/lib/api-adapters'
 import { formatCount, imageUrl } from '@/lib/format'
-import { PlayerBar } from '@/components/player/PlayerBar'
-import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { usePlayerStore } from '@/stores/playerStore'
 import { cn } from '@/lib/utils'
 import type { Album } from '@/types/album'
@@ -440,8 +438,6 @@ export default function ArtistPage() {
           </div>
         )}
       </div>
-      <PlayerBar />
-      <PlayerOverlays />
     </AppShell>
   )
 }

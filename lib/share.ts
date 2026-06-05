@@ -47,7 +47,7 @@ export function getEmbedCode(
   const url = getShareUrl(type, id, baseUrl)
   const label = TYPE_LABELS[type]
   const safeUrl = url.replace(/"/g, '&quot;')
-  return `<iframe src="${safeUrl}" width="100%" height="380" frameborder="0" title="KaHi Music - ${label}"></iframe>`
+  return `<iframe src="${safeUrl}" width="100%" height="380" frameborder="0" title="Kahi Music - ${label}"></iframe>`
 }
 
 export interface CopyResult {
@@ -114,7 +114,7 @@ export function buildWebShareData(
   const url = getShareUrl(type, id, baseUrl)
   return {
     title,
-    text: `${title} - KaHi Music`,
+    text: `${title} - Kahi Music`,
     url,
   }
 }

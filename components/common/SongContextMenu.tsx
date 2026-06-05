@@ -41,16 +41,20 @@ interface SongContextMenuState {
   song: Song | null
 }
 
+type CloseMenuOptions = {
+  restoreFocus?: boolean
+}
+
 interface SongContextMenuController {
-  openMenu: (song: Song, x: number, y: number) => void
-  closeMenu: () => void
+  openMenu: (song: Song, x: number, y: number, triggerElement?: HTMLElement | null) => void
+  closeMenu: (options?: CloseMenuOptions) => void
 }
 
 interface ContextMenuInnerProps {
   song: Song
   x: number
   y: number
-  onClose: () => void
+  onClose: (options?: CloseMenuOptions) => void
 }
 
 const MENU_WIDTH = 210
@@ -100,13 +104,29 @@ function ContextMenuInner({ song, x, y, onClose }: ContextMenuInnerProps) {
   const position = getMenuPosition(x, y)
 
   useEffect(() => {
-    const close = (event: MouseEvent) => {
+    const firstMenuItem = menuRef.current?.querySelector<HTMLButtonElement>(
+      '[role="menuitem"]:not(:disabled)'
+    )
+
+    ;(firstMenuItem ?? menuRef.current)?.focus()
+  }, [])
+
+  useEffect(() => {
+    const closeOnOutsidePointer = (event: MouseEvent) => {
       if (menuRef.current?.contains(event.target as Node)) return
-      onClose()
+      onClose({ restoreFocus: false })
     }
 
-    window.addEventListener('mousedown', close)
-    return () => window.removeEventListener('mousedown', close)
+    const closeOnEscape = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+
+    window.addEventListener('mousedown', closeOnOutsidePointer)
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      window.removeEventListener('mousedown', closeOnOutsidePointer)
+      window.removeEventListener('keydown', closeOnEscape)
+    }
   }, [onClose])
 
   useEffect(() => {
@@ -211,13 +231,14 @@ function ContextMenuInner({ song, x, y, onClose }: ContextMenuInnerProps) {
     <div
       ref={menuRef}
       role="menu"
+      tabIndex={-1}
       aria-label={`${song.name} 的操作菜单`}
-      className="fixed z-[100] w-[210px] rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl py-1.5 animate-fade-in overflow-hidden backdrop-blur-xl"
+      className="fixed z-[100] w-[210px] rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl py-1.5 animate-fade-in overflow-hidden backdrop-blur-xl focus:outline-none"
       style={{ left: position.left, top: position.top }}
     >
       <button
         type="button"
-        onClick={onClose}
+        onClick={() => onClose()}
         aria-label="关闭歌曲操作菜单"
         className="absolute top-2 right-2 p-1 rounded-full hover:bg-[var(--bg-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] transition-colors"
       >
@@ -266,6 +287,7 @@ function ContextMenuInner({ song, x, y, onClose }: ContextMenuInnerProps) {
 }
 
 export function SongContextMenu({ children }: SongContextMenuProps) {
+  const returnFocusRef = useRef<HTMLElement | null>(null)
   const [menu, setMenu] = useState<SongContextMenuState>({
     isOpen: false,
     x: 0,
@@ -273,12 +295,25 @@ export function SongContextMenu({ children }: SongContextMenuProps) {
     song: null,
   })
 
-  const openMenu = useCallback((song: Song, x: number, y: number) => {
+  const openMenu = useCallback((song: Song, x: number, y: number, triggerElement?: HTMLElement | null) => {
+    const activeElement =
+      typeof document !== 'undefined' && document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null
+
+    returnFocusRef.current = triggerElement ?? activeElement
     setMenu({ isOpen: true, x, y, song })
   }, [])
 
-  const closeMenu = useCallback(() => {
-    setMenu((current) => ({ ...current, isOpen: false }))
+  const closeMenu = useCallback((options: CloseMenuOptions = {}) => {
+    const { restoreFocus = true } = options
+    setMenu((current) => ({ ...current, isOpen: false, song: null }))
+    const returnFocusTo = returnFocusRef.current
+    returnFocusRef.current = null
+
+    if (restoreFocus && returnFocusTo?.isConnected) {
+      returnFocusTo.focus()
+    }
   }, [])
 
   const controller = useMemo(

@@ -127,6 +127,21 @@ class NcmApiClient {
       credentials: 'include',
     })
 
+    return this.parseResponse<T>(response)
+  }
+
+  async requestPost<T>(endpoint: string, params: Record<string, unknown> = {}): Promise<T> {
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+
+    return this.parseResponse<T>(response)
+  }
+
+  private async parseResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
       throw new Error(`API Error: ${response.status} ${response.statusText}`)
     }
@@ -237,7 +252,7 @@ class NcmApiClient {
   songComment = (id: number | string, limit = 20, offset = 0) =>
     this.request('/comment/music', { id, limit, offset })
   scrobble = (id: number | string, sourceid: number | string) =>
-    this.request('/scrobble', { id, sourceid })
+    this.requestPost('/scrobble', { id, sourceid })
 
   // Search
   search = (keywords: string, type = 1, limit = 30, offset = 0) =>
@@ -263,21 +278,21 @@ class NcmApiClient {
   playlistTrackAll = (id: number | string, limit = 50, offset = 0) =>
     this.request('/playlist/track/all', { id, limit, offset })
   playlistTrackAdd = (id: number | string, songIds: (number | string)[]) =>
-    this.request('/playlist/track/add', { id, op: 0, tracks: songIds.join(',') })
+    this.requestPost('/playlist/track/add', { id, op: 0, tracks: songIds.join(',') })
   playlistTrackDelete = (id: number | string, songIds: (number | string)[]) =>
-    this.request('/playlist/track/delete', { id, tracks: songIds.join(',') })
+    this.requestPost('/playlist/track/delete', { id, tracks: songIds.join(',') })
   playlistOrderUpdate = (ids: (number | string)[]) =>
-    this.request('/playlist/order/update', { ids: ids.join(',') })
+    this.requestPost('/playlist/order/update', { ids: ids.join(',') })
   playlistCoverUpdate = (id: number | string, url: string) =>
-    this.request('/playlist/cover/update', { id, url })
+    this.requestPost('/playlist/cover/update', { id, url })
   playlistCreate = (name: string, privacy = 0) =>
-    this.request('/playlist/create', { name, privacy })
+    this.requestPost('/playlist/create', { name, privacy })
   playlistUpdate = (id: number | string, name?: string, desc?: string) =>
-    this.request('/playlist/update', { id, name, desc })
+    this.requestPost('/playlist/update', { id, name, desc })
   playlistDelete = (id: number | string) =>
-    this.request('/playlist/delete', { id })
+    this.requestPost('/playlist/delete', { id })
   playlistSubscribe = (id: number | string, t: 1 | 2) =>
-    this.request('/playlist/subscribe', { id, t })
+    this.requestPost('/playlist/subscribe', { id, t })
   playlistSubscribers = (playlistId: number | string, limit = 50, offset = 0) =>
     this.request('/playlist/subscribers', { id: playlistId, limit, offset })
   playlistCatlist = (returnHotTags = true) =>
@@ -295,7 +310,7 @@ class NcmApiClient {
     this.request('/artist/mv', { id, limit, offset })
   artistDesc = (id: number | string) => this.request('/artist/desc', { id })
   artistSub = (id: number | string, t: 1 | 2) =>
-    this.request('/artist/sub', { id, t })
+    this.requestPost('/artist/sub', { id, t })
   simiArtist = (id: number | string) => this.request('/simi/artist', { id })
   topArtists = async <T = unknown>(limit = 50, offset = 0): Promise<T[]> => {
     const raw = await this.request('/top/artists', { limit, offset })
@@ -306,7 +321,7 @@ class NcmApiClient {
   album = (id: number | string) => this.request('/album', { id })
   albumNew = (limit = 12, area = 'ALL') => this.request('/album/new', { limit, area })
   albumSub = (id: number | string, t: 1 | 2) =>
-    this.request('/album/sub', { id, t })
+    this.requestPost('/album/sub', { id, t })
   albumDetailDynamic = (id: number | string) =>
     this.request('/album/detail/dynamic', { id })
   topAlbum = (limit = 12, area = 'ALL', offset = 0) =>
@@ -325,7 +340,7 @@ class NcmApiClient {
   videoDetail = (vid: number | string) => this.request('/video/detail', { vid })
   videoTimeline = () => this.request('/video/timeline')
   videoGroupList = () => this.request('/video/group/list')
-  videoLike = (vid: string, t: number) => this.request('/video/like', { vid, t })
+  videoLike = (vid: string, t: number) => this.requestPost('/video/like', { vid, t })
 
   // Comment
   commentMusic = (id: number | string, limit = 20, offset = 0) =>
@@ -339,7 +354,7 @@ class NcmApiClient {
   commentHot = (id: number | string, type = 0, limit = 20, offset = 0) =>
     this.request('/comment/hot', { id, type, limit, offset })
   commentLike = (id: number | string, cid: number | string, t = 1) =>
-    this.request('/comment/like', { id, cid, t })
+    this.requestPost('/comment/like', { id, cid, t })
   commentNew = (id: number | string, type = 0, limit = 20, offset = 0, before?: number) =>
     this.request('/comment/new', { id, type, limit, offset, before })
   commentEvent = (id: number | string) =>
@@ -349,7 +364,7 @@ class NcmApiClient {
   commentVideo = (id: number | string, limit = 20, offset = 0) =>
     this.request('/comment/video', { id, limit, offset })
   commentReply = (parentCommentId: number, content: string, type: number, bizId: number) =>
-    this.request('/comment', { parentCommentId, content, type, id: bizId })
+    this.requestPost('/comment', { parentCommentId, content, type, id: bizId })
   commentFloor = (commentId: number, type: number, bizId: number) =>
     this.request('/comment/floor', { commentId, type, id: bizId })
 
@@ -369,8 +384,8 @@ class NcmApiClient {
   djhot = (size = 12) => this.request('/djradio/hot', { size })
 
   // Cloud Disk
-  cloudAdd = (songId: number) => this.request('/user/cloud/add', { songId })
-  cloudDel = (id: number) => this.request('/user/cloud/del', { id })
+  cloudAdd = (songId: number) => this.requestPost('/user/cloud/add', { songId })
+  cloudDel = (id: number) => this.requestPost('/user/cloud/del', { id })
 
   // User
   userAccount = () => this.request('/user/account')
@@ -379,7 +394,7 @@ class NcmApiClient {
     this.request('/user/playlist', { uid, limit, offset })
   userRecord = (uid: number | string, type = 0) => this.request('/user/record', { uid, type })
   userFollow = (id: number | string, t = 1) =>
-    this.request('/user/follow', { id, t })
+    this.requestPost('/user/follow', { id, t })
   userUpdate = (uid: number | string, options?: {
     nickname?: string
     signature?: string
@@ -387,7 +402,7 @@ class NcmApiClient {
     birthday?: number
     province?: number
     city?: number
-  }) => this.request('/user/update', { uid, ...options })
+  }) => this.requestPost('/user/update', { uid, ...options })
   userEvent = (uid: number | string, limit = 30, lasttime?: number) =>
     this.request('/user/event', { uid, limit, lasttime })
   userFollows = (uid: number | string) =>
@@ -398,7 +413,7 @@ class NcmApiClient {
   userVipInfo = () => this.request('/user/vip/info')
   userSocialStatus = () => this.request('/user/social/status')
   likelist = (uid: number | string) => this.request('/likelist', { uid })
-  like = (id: number | string, like = true) => this.request('/like', { id, like })
+  like = (id: number | string, like = true) => this.requestPost('/like', { id, like })
   songLikeCheck = (ids: (number | string)[]) =>
     this.request('/song/like/check', { ids: ids.join(',') })
   userCloud = (limit = 100, offset = 0) =>
@@ -410,24 +425,24 @@ class NcmApiClient {
 
   // Login
   loginCellphone = (phone: string, captcha: string) =>
-    this.request('/login/cellphone', { phone, captcha })
-  captchaSent = (phone: string) => this.request('/captcha/sent', { phone })
+    this.requestPost('/login/cellphone', { phone, captcha })
+  captchaSent = (phone: string) => this.requestPost('/captcha/sent', { phone })
   loginQrKey = () => this.request('/login/qr/key')
   loginQrCreate = (key: string, qrimg = true) =>
     this.request('/login/qr/create', { key, qrimg })
   loginQrCheck = (key: string) => this.request('/login/qr/check', { key })
-  loginStatus = () => this.request('/login/status')
-  loginRefresh = () => this.request('/login/refresh')
-  logout = () => this.request('/logout')
+  loginStatus = () => this.request('/login/status', {}, true)
+  loginRefresh = () => this.requestPost('/login/refresh')
+  logout = () => this.requestPost('/logout')
 
   // Daily / Recommend
   recommendSongs = () => this.request('/recommend/songs')
-  dailySignin = () => this.request('/daily_signin')
+  dailySignin = () => this.requestPost('/daily_signin')
 
   // Personal FM
   personalFm = () => this.request('/personal_fm')
   personalFmMode = (mode?: number) => this.request('/personal_fm/mode', { mode })
-  fmTrash = (id: number | string) => this.request('/fm/trash', { id })
+  fmTrash = (id: number | string) => this.requestPost('/fm/trash', { id })
 
   // Similar
   simiSong = (id: number | string) => this.request('/simi/song', { id })

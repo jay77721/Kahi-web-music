@@ -14,13 +14,30 @@ import { cn } from '@/lib/utils'
 
 export function PlayerBar() {
   const isMobile = useIsMobile()
-  const {
-    currentTrack, isPlaying, currentTime, duration, volume, isMuted, playMode,
-    playbackError,
-    setCurrentTime, setVolume, toggleMute,
-    next, prev, cyclePlayMode,
-  } = usePlayerStore()
-  const { togglePlayQueue, playQueueOpen } = useUIStore()
+  const currentTrackId = usePlayerStore((state) => state.currentTrack?.id ?? null)
+
+  if (isMobile || currentTrackId === null) return null
+
+  return <PlayerBarContent />
+}
+
+function PlayerBarContent() {
+  const currentTrack = usePlayerStore((state) => state.currentTrack)
+  const isPlaying = usePlayerStore((state) => state.isPlaying)
+  const currentTime = usePlayerStore((state) => state.currentTime)
+  const duration = usePlayerStore((state) => state.duration)
+  const volume = usePlayerStore((state) => state.volume)
+  const isMuted = usePlayerStore((state) => state.isMuted)
+  const playMode = usePlayerStore((state) => state.playMode)
+  const playbackError = usePlayerStore((state) => state.playbackError)
+  const setCurrentTime = usePlayerStore((state) => state.setCurrentTime)
+  const setVolume = usePlayerStore((state) => state.setVolume)
+  const toggleMute = usePlayerStore((state) => state.toggleMute)
+  const next = usePlayerStore((state) => state.next)
+  const prev = usePlayerStore((state) => state.prev)
+  const cyclePlayMode = usePlayerStore((state) => state.cyclePlayMode)
+  const togglePlayQueue = useUIStore((state) => state.togglePlayQueue)
+  const playQueueOpen = useUIStore((state) => state.playQueueOpen)
   const isSeeking = useRef(false)
 
   const handleTogglePlay = useCallback(() => {
@@ -50,11 +67,15 @@ export function PlayerBar() {
 
   const playModeIcon = playMode === 'repeat-one' ? Repeat1 : playMode === 'shuffle' ? Shuffle : Repeat
   const PlayModeIcon = playModeIcon
+  const playModeLabel = playMode === 'repeat-one' ? '单曲循环' : playMode === 'shuffle' ? '随机播放' : '列表循环'
 
-  if (isMobile || !currentTrack) return null
+  if (!currentTrack) return null
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 h-[72px] glass flex items-center px-4 gap-4"
+    <div
+      className="fixed bottom-0 left-0 right-0 z-50 h-[72px] glass flex items-center px-4 gap-4"
+      role="region"
+      aria-label="播放器"
       style={{ borderTop: '1px solid transparent', borderImage: 'linear-gradient(to right, var(--accent), transparent) 1' }}>
       {/* Track info */}
       <div className="flex items-center gap-3 w-[240px] min-w-[180px]">
@@ -84,7 +105,7 @@ export function PlayerBar() {
       {/* Center: controls + progress */}
       <div className="flex-1 flex flex-col items-center gap-1 max-w-[600px] mx-auto">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="w-8 h-8 text-[var(--text-secondary)] hover:text-[var(--text-primary)]" onClick={cyclePlayMode} aria-label={playMode === 'repeat-one' ? '单曲循环' : playMode === 'shuffle' ? '随机播放' : '列表循环'}>
+          <Button variant="ghost" size="icon" className="w-8 h-8 text-[var(--text-secondary)] hover:text-[var(--text-primary)]" onClick={cyclePlayMode} aria-label={`切换播放模式，当前${playModeLabel}`}>
             <PlayModeIcon className="w-4 h-4" />
           </Button>
           <Button variant="ghost" size="icon" className="w-8 h-8 text-[var(--text-primary)] hover:text-[var(--accent)]" onClick={prev} aria-label="上一首">
@@ -108,7 +129,15 @@ export function PlayerBar() {
           <span className="text-[10px] text-[var(--text-tertiary)] w-10 text-right tabular-nums">
             {formatDuration(currentTime * 1000)}
           </span>
-          <Slider value={[currentTime]} max={duration || 100} step={0.1} onValueChange={handleSeek} className={cn('flex-1 player-slider', isPlaying && 'progress-glow')} />
+          <Slider
+            value={[currentTime]}
+            max={duration || 100}
+            step={0.1}
+            onValueChange={handleSeek}
+            className={cn('flex-1 player-slider', isPlaying && 'progress-glow')}
+            aria-label="播放进度"
+            aria-valuetext={`${formatDuration(currentTime * 1000)} / ${formatDuration((duration || 0) * 1000)}`}
+          />
           <span className="text-[10px] text-[var(--text-tertiary)] w-10 tabular-nums">
             {formatDuration((duration || 0) * 1000)}
           </span>
@@ -117,11 +146,27 @@ export function PlayerBar() {
 
       {/* Right: volume + queue */}
       <div className="flex items-center gap-2 w-[200px] justify-end">
-        <Button variant="ghost" size="icon" className="w-8 h-8 text-[var(--text-secondary)] hover:text-[var(--text-primary)]" onClick={toggleMute} aria-label="音量">
+        <Button variant="ghost" size="icon" className="w-8 h-8 text-[var(--text-secondary)] hover:text-[var(--text-primary)]" onClick={toggleMute} aria-label={isMuted || volume === 0 ? '取消静音' : '静音'}>
           {isMuted || volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
         </Button>
-        <Slider value={[isMuted ? 0 : volume]} max={1} step={0.01} onValueChange={handleVolumeChange} className="w-24 player-slider" />
-        <Button variant="ghost" size="icon" className={cn('w-8 h-8', playQueueOpen ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]')} onClick={togglePlayQueue} aria-label="播放列表">
+        <Slider
+          value={[isMuted ? 0 : volume]}
+          max={1}
+          step={0.01}
+          onValueChange={handleVolumeChange}
+          className="w-24 player-slider"
+          aria-label="音量"
+          aria-valuetext={`${Math.round((isMuted ? 0 : volume) * 100)}%`}
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn('w-8 h-8', playQueueOpen ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]')}
+          onClick={togglePlayQueue}
+          aria-label="播放列表"
+          aria-expanded={playQueueOpen}
+          aria-pressed={playQueueOpen}
+        >
           <List className="w-4 h-4" />
         </Button>
       </div>

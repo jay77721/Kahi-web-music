@@ -17,7 +17,7 @@ export const mockSong = {
   publishTime: 1057324800000,
   noCopyrightRcmd: null,
   mv: 0,
-};
+}
 
 export const mockArtist = {
   id: 101,
@@ -28,7 +28,7 @@ export const mockArtist = {
   mvSize: 50,
   followed: false,
   briefDesc: '华语流行歌手',
-};
+}
 
 export const mockAlbum = {
   id: 201,
@@ -41,7 +41,7 @@ export const mockAlbum = {
   tags: ['流行', '华语'],
   size: 11,
   songs: [mockSong],
-};
+}
 
 export const mockPlaylist = {
   id: 3001,
@@ -53,17 +53,17 @@ export const mockPlaylist = {
   trackCount: 50,
   tracks: [mockSong],
   subscribed: false,
-};
+}
 
 export const mockComment = {
   id: 5001,
   user: { userId: 1, nickname: '乐迷', avatarUrl: 'https://pics.example.com/user/1.jpg' },
-  content: '太好听了！百听不厌',
+  content: '太好听了，百听不厌',
   time: 1699900000000,
   likedCount: 128,
   liked: false,
   replyCount: 5,
-};
+}
 
 export const mockMV = {
   id: 6001,
@@ -73,7 +73,7 @@ export const mockMV = {
   playCount: 5000000,
   publishTime: 1057324800000,
   duration: 269,
-};
+}
 
 export const mockUser = {
   userId: 1,
@@ -84,7 +84,7 @@ export const mockUser = {
   follows: 120,
   followers: 3400,
   playlists: [mockPlaylist],
-};
+}
 
 export const mockSearchResult = {
   result: {
@@ -94,24 +94,23 @@ export const mockSearchResult = {
     albums: { albumCount: 40, albums: [mockAlbum] },
     mvs: { mvCount: 20, mvs: [mockMV] },
   },
-};
+}
 
 export const mockLrc = `
 [00:00.00]晴天 - 周杰伦
 [00:12.50]故事的小黄花
 [00:18.30]从出生那年就飘着
 [00:24.10]童年的荡秋千
-[00:29.80]随记忆一直晃到现在
-`;
+[00:29.80]随记忆一直晃到现在`
 
 export const mockApiResponse = {
   code: 200,
   message: 'success',
   data: mockSong,
-};
+}
 
 export const mockApiResponseList = {
   code: 200,
   message: 'success',
   data: [mockSong, mockSong, mockSong],
-};
+}

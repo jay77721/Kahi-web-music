@@ -197,7 +197,7 @@ describe('ShareMenu', () => {
     await waitFor(() => {
       expect(shareMock).toHaveBeenCalledWith({
         title: 'My Playlist',
-        text: 'My Playlist - KaHi Music',
+        text: 'My Playlist - Kahi Music',
         url: 'https://k.test/playlist/42',
       })
     })

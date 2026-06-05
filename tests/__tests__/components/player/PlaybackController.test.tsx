@@ -377,6 +377,30 @@ describe('PlaybackController', () => {
     loadSpy.mockRestore()
   })
 
+  test('does not reload the stream when playback is paused', async () => {
+    const loadSpy = vi.spyOn(audioEngine, 'load').mockImplementation(() => {})
+
+    usePlayerStore.setState({
+      currentTrack: mockSong,
+      hasUserInteracted: true,
+      isPlaying: true,
+    })
+    await act(async () => {
+      render(<PlaybackController />)
+      await Promise.resolve()
+    })
+
+    expect(loadSpy).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      usePlayerStore.setState({ isPlaying: false })
+      await Promise.resolve()
+    })
+
+    expect(loadSpy).toHaveBeenCalledTimes(1)
+    loadSpy.mockRestore()
+  })
+
   test('syncs store volume to the audio engine after loading a track', async () => {
     const setVolumeSpy = vi.spyOn(audioEngine, 'setVolume')
     storage.set(STORAGE_KEYS.VOLUME, 0.31)
@@ -407,6 +431,39 @@ describe('PlaybackController', () => {
     })
     expect(setVolumeSpy).toHaveBeenCalledWith(0)
     setVolumeSpy.mockRestore()
+  })
+
+  test('does not autoplay replacement track when paused current queue item is removed', async () => {
+    const playSpy = vi.spyOn(audioEngine, 'play').mockImplementation(() => {})
+    const songs = [
+      { ...mockSong, id: 1, name: 'Paused Song' },
+      { ...mockSong, id: 2, name: 'Replacement Song' },
+    ]
+
+    await act(async () => {
+      render(<PlaybackController />)
+      await Promise.resolve()
+    })
+
+    act(() => {
+      usePlayerStore.setState({
+        currentTrack: songs[0],
+        queue: songs,
+        queueIndex: 0,
+        hasUserInteracted: true,
+        isPlaying: false,
+      })
+    })
+
+    await act(async () => {
+      usePlayerStore.getState().removeFromQueue(0)
+      await Promise.resolve()
+    })
+
+    expect(usePlayerStore.getState().currentTrack).toBe(songs[1])
+    expect(usePlayerStore.getState().isPlaying).toBe(false)
+    expect(playSpy).not.toHaveBeenCalled()
+    playSpy.mockRestore()
   })
 
   test('falls back to the 128k stream on the first engine error', async () => {

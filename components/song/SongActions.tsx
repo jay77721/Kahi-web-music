@@ -65,7 +65,7 @@ function ActionButton({ label, icon, onClick, variant = 'default', testId, disab
         'transition-all duration-200 outline-none',
         'focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-surface)]',
         'disabled:opacity-50 disabled:pointer-events-none',
-        variant === 'accent' && 'bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)] shadow-[var(--shadow-md)]',
+        variant === 'accent' && 'bg-[var(--accent)] text-[var(--accent-foreground)] hover:bg-[var(--accent-hover)] shadow-[var(--shadow-md)]',
         variant === 'default' && 'bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] border border-[var(--border)]',
         variant === 'ghost' && 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
       )}

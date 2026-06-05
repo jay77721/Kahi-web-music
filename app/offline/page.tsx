@@ -5,7 +5,7 @@ export default function OfflinePage() {
         <p className="text-sm font-medium uppercase tracking-[0.3em] text-primary">
           Offline
         </p>
-        <h1 className="text-3xl font-bold">KaQi Music is offline</h1>
+        <h1 className="text-3xl font-bold">Kahi Music is offline</h1>
         <p className="text-sm leading-6 text-muted-foreground">
           Your network connection is unavailable. Previously cached pages and
           assets may still work, but account and private music data are never

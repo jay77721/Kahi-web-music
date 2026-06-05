@@ -5,9 +5,23 @@ import { GET } from '@/app/api/song/stream/route'
 const originalApiUrl = process.env.API_URL
 const originalAllowedHosts = process.env.AUDIO_URL_ALLOWED_HOSTS
 const originalFetch = global.fetch
+let requestCounter = 0
 
 function createRequest(url: string, init?: RequestInit): NextRequest {
-  return new NextRequest(new Request(url, init))
+  const headers = new Headers(init?.headers)
+  if (!headers.has('x-vercel-forwarded-for')) {
+    requestCounter += 1
+    headers.set('x-vercel-forwarded-for', `203.0.113.${requestCounter}`)
+  }
+
+  return new NextRequest(new Request(url, { ...init, headers }))
+}
+
+function createRequestWithoutTrustedIp(url: string, init?: RequestInit): NextRequest {
+  const headers = new Headers(init?.headers)
+  headers.delete('x-vercel-forwarded-for')
+
+  return new NextRequest(new Request(url, { ...init, headers }))
 }
 
 function mockUrlResponse(audioUrl: string): Response {
@@ -90,6 +104,85 @@ describe('song stream route hardening', () => {
     expect(response.headers.get('Content-Type')).toBe('audio/mpeg')
   })
 
+  test('returns 504 when metadata fetch is aborted', async () => {
+    const abortError = Object.assign(new Error('metadata fetch aborted'), { name: 'AbortError' })
+    global.fetch = vi.fn().mockRejectedValueOnce(abortError)
+
+    const response = await GET(createRequest('https://app.example.test/api/song/stream?id=123'))
+
+    expect(response.status).toBe(504)
+    await expect(response.json()).resolves.toMatchObject({
+      message: 'Stream request timeout',
+    })
+  })
+
+  test('returns 504 when audio fetch is aborted', async () => {
+    const abortError = Object.assign(new Error('audio fetch aborted'), { name: 'AbortError' })
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(mockUrlResponse('https://cdn.example.test/a.mp3'))
+      .mockRejectedValueOnce(abortError)
+
+    const response = await GET(createRequest('https://app.example.test/api/song/stream?id=123'))
+
+    expect(response.status).toBe(504)
+    await expect(response.json()).resolves.toMatchObject({
+      message: 'Stream request timeout',
+    })
+  })
+
+  test('uses allowlisted outbound headers for metadata and audio fetches', async () => {
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(mockUrlResponse('https://cdn.example.test/a.mp3'))
+      .mockResolvedValueOnce(
+        new Response('audio-bytes', {
+          status: 206,
+          headers: {
+            'Content-Type': 'audio/mpeg',
+            'Content-Length': '10',
+            'Content-Range': 'bytes 0-9/100',
+          },
+        }),
+      )
+
+    const response = await GET(
+      createRequest('https://app.example.test/api/song/stream?id=123', {
+        headers: {
+          Cookie: 'MUSIC_U=session-token',
+          Range: 'bytes=0-9',
+          'User-Agent': 'KahiTest/1.0',
+          'X-Forwarded-For': '198.51.100.10',
+          'X-Real-IP': '198.51.100.11',
+        },
+      }),
+    )
+
+    expect(response.status).toBe(206)
+    expect(global.fetch).toHaveBeenCalledTimes(2)
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      1,
+      expect.stringMatching(/\/song\/url\?id=123&br=320000$/),
+      expect.objectContaining({
+        headers: {
+          Cookie: 'MUSIC_U=session-token',
+          'User-Agent': 'KahiTest/1.0',
+        },
+      }),
+    )
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      2,
+      'https://cdn.example.test/a.mp3',
+      expect.objectContaining({
+        headers: {
+          Range: 'bytes=0-9',
+          Referer: 'https://music.163.com/',
+          'User-Agent': 'KahiTest/1.0',
+        },
+      }),
+    )
+  })
+
   test('returns 502 when CDN returns non-audio content', async () => {
     global.fetch = vi
       .fn()
@@ -107,5 +200,32 @@ describe('song stream route hardening', () => {
     await expect(response.json()).resolves.toMatchObject({
       message: 'Upstream response is not audio',
     })
+  })
+
+  test('collapses missing Vercel forwarded IP to unknown and ignores spoofable IP headers', async () => {
+    for (let i = 0; i < 60; i += 1) {
+      const response = await GET(
+        createRequestWithoutTrustedIp('https://app.example.test/api/song/stream', {
+          headers: {
+            'X-Forwarded-For': `198.51.100.${i}`,
+            'X-Real-IP': `203.0.113.${i}`,
+          },
+        }),
+      )
+
+      expect(response.status).toBe(400)
+    }
+
+    const response = await GET(
+      createRequestWithoutTrustedIp('https://app.example.test/api/song/stream', {
+        headers: {
+          'X-Forwarded-For': '198.51.100.200',
+          'X-Real-IP': '203.0.113.200',
+        },
+      }),
+    )
+
+    expect(response.status).toBe(429)
+    await expect(response.json()).resolves.toMatchObject({ message: 'Too many requests' })
   })
 })

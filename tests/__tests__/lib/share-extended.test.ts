@@ -62,23 +62,23 @@ describe('share - extended coverage', () => {
       const srcMatch = code.match(/src="([^"]*)"/)
       expect(srcMatch).not.toBeNull()
       // The opening quote of src must be followed by content and the closing
-      // quote — verify by re-parsing.
+      // quote - verify by re-parsing.
       expect(code).toMatch(/^<iframe src="[^"]*" /)
     })
 
     test('localized label matches the type', () => {
-      expect(getEmbedCode('album', 1)).toContain('KaHi Music - 专辑')
-      expect(getEmbedCode('leaderboard', 1)).toContain('KaHi Music - 排行榜')
-      expect(getEmbedCode('song', 1)).toContain('KaHi Music - 歌曲')
-      expect(getEmbedCode('artist', 1)).toContain('KaHi Music - 歌手')
+      expect(getEmbedCode('album', 1)).toContain('Kahi Music - 专辑')
+      expect(getEmbedCode('leaderboard', 1)).toContain('Kahi Music - 排行榜')
+      expect(getEmbedCode('song', 1)).toContain('Kahi Music - 歌曲')
+      expect(getEmbedCode('artist', 1)).toContain('Kahi Music - 歌手')
     })
   })
 
   describe('buildWebShareData', () => {
-    test('text format is "<title> - KaHi Music"', () => {
+    test('text format is "<title> - Kahi Music"', () => {
       const data = buildWebShareData('playlist', 9, 'My Mix', 'https://k')
       expect(data.title).toBe('My Mix')
-      expect(data.text).toBe('My Mix - KaHi Music')
+      expect(data.text).toBe('My Mix - Kahi Music')
       expect(data.url).toBe('https://k/playlist/9')
     })
 

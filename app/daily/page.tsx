@@ -11,8 +11,6 @@ import { Button } from '@/components/ui/button'
 import { DailyHero } from '@/components/discover/DailyHero'
 import { ncmApi } from '@/lib/api'
 import { normalizeSongList } from '@/lib/api-adapters'
-import { PlayerBar } from '@/components/player/PlayerBar'
-import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { usePlayerStore } from '@/stores/playerStore'
 import { useUserStore } from '@/stores/userStore'
 import type { Song } from '@/types/song'
@@ -112,8 +110,6 @@ export default function DailyPage() {
           </p>
         )}
       </div>
-      <PlayerBar />
-      <PlayerOverlays />
     </AppShell>
   )
 }

@@ -58,15 +58,35 @@ describe('PlayQueue', () => {
   test('shows the empty state when the queue is empty', () => {
     usePlayerStore.setState({ queue: [] })
     render(<PlayQueue />)
-    expect(screen.getByText('播放列表为空')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('播放列表为空')
+    expect(screen.getByRole('button', { name: '播放列表为空，无需清空' })).toBeDisabled()
   })
 
   test('renders one row per queue song', () => {
     usePlayerStore.setState({ queue: [songA, songB, songC], queueIndex: 0 })
     render(<PlayQueue />)
+    expect(screen.getByRole('list', { name: '播放队列歌曲' })).toBeInTheDocument()
+    expect(screen.getAllByRole('listitem')).toHaveLength(3)
     expect(screen.getByText('Song A')).toBeInTheDocument()
     expect(screen.getByText('Song B')).toBeInTheDocument()
     expect(screen.getByText('Song C')).toBeInTheDocument()
+  })
+
+  test('does not build queue rows while the drawer is closed', () => {
+    const guardedSong = new Proxy({ ...songA }, {
+      get(target, property, receiver) {
+        if (property === 'id' || property === 'name' || property === 'ar' || property === 'dt') {
+          throw new Error(`Unexpected row field access while closed: ${String(property)}`)
+        }
+
+        return Reflect.get(target, property, receiver)
+      },
+    }) as Song
+
+    useUIStore.setState({ playQueueOpen: false })
+    usePlayerStore.setState({ queue: [guardedSong], queueIndex: 0 })
+
+    expect(() => render(<PlayQueue />)).not.toThrow()
   })
 
   test('formats the duration for each row as mm:ss', () => {
@@ -92,8 +112,7 @@ describe('PlayQueue', () => {
     }
     usePlayerStore.setState({ queue: [songA, songB, songC], queueIndex: 0 })
     render(<PlayQueue />)
-    const rowB = screen.getByText('Song B').closest('[class*="cursor-pointer"]') as HTMLElement
-    expect(rowB).toBeTruthy()
+    const rowB = screen.getByRole('button', { name: '播放 Song B' })
     fireEvent.click(rowB)
     expect(playTrack).toHaveBeenCalledWith(songB)
   })
@@ -112,8 +131,7 @@ describe('PlayQueue', () => {
       .spyOn(usePlayerStore.getState(), 'removeFromQueue')
       .mockImplementation(removeFromQueue)
     render(<PlayQueue />)
-    // Each row has a remove button. Find any "×" button by its text content.
-    const removeButtons = screen.getAllByText('×')
+    const removeButtons = screen.getAllByRole('button', { name: /从播放列表移除/ })
     expect(removeButtons.length).toBe(3)
     fireEvent.click(removeButtons[1])
     expect(removeFromQueue).toHaveBeenCalledWith(1)
@@ -128,7 +146,7 @@ describe('PlayQueue', () => {
       .mockImplementation(clearQueue)
     usePlayerStore.setState({ queue: [songA, songB], queueIndex: 0 })
     render(<PlayQueue />)
-    fireEvent.click(screen.getByText('清空'))
+    fireEvent.click(screen.getByRole('button', { name: '清空播放列表，共2首' }))
     expect(clearQueue).toHaveBeenCalled()
     spy.mockRestore()
   })
@@ -137,8 +155,22 @@ describe('PlayQueue', () => {
     usePlayerStore.setState({ queue: [songA, songB, songC], queueIndex: 1 })
     render(<PlayQueue />)
     // The row containing songB should have the accent class
-    const rowB = screen.getByText('Song B').closest('[class*="cursor-pointer"]') as HTMLElement
+    const rowB = screen.getByText('Song B').closest('.group') as HTMLElement
     expect(rowB.className).toContain('border-l-[var(--accent)]')
+  })
+
+  test('uses the shared playing indicator for the current queue row', () => {
+    usePlayerStore.setState({
+      queue: [songA, songB, songC],
+      queueIndex: 1,
+      isPlaying: true,
+    })
+    render(<PlayQueue />)
+
+    const rowB = screen.getByText('Song B').closest('.group') as HTMLElement
+    const indicator = rowB.querySelector('.playing-indicator')
+    expect(indicator).toHaveClass('playing-indicator--playing')
+    expect(rowB.querySelectorAll('.playing-indicator__bar')).toHaveLength(3)
   })
 
   test('the close handler is wired to setPlayQueueOpen', () => {

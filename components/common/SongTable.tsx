@@ -8,10 +8,12 @@ import { usePlayerStore } from '@/stores/playerStore'
 import type { Song } from '@/types/song'
 import { cn } from '@/lib/utils'
 import { SelectionCheckbox } from './SelectionCheckbox'
+import { SongContextMenu } from './SongContextMenu'
 import { SongTableRow } from './song-table/SongTableRow'
 import { SongTableSkeleton } from './song-table/SongTableSkeleton'
 import {
   EMPTY_SELECTION,
+  countSelectedVisibleIds,
   deriveHeaderState,
   getSongTableGridClass,
 } from './song-table/SongTableSelection'
@@ -45,8 +47,6 @@ interface SongTableProps {
   className?: string
 }
 
-// ── framer-motion variants ───────────────────────────────────────────────────
-
 const containerVariants: Variants = {
   hidden: {},
   show: {
@@ -55,8 +55,6 @@ const containerVariants: Variants = {
     },
   },
 }
-
-// ── Main component ───────────────────────────────────────────────────────────
 
 export function SongTable({
   songs,
@@ -83,24 +81,24 @@ export function SongTable({
     addToQueue(song)
   }, [addToQueue])
 
-  // Stable string[] of all song ids in the current order. Used to compute
-  // the tri-state header checkbox and to forward to the parent selector.
   const allIds = useMemo<string[]>(
-    () => songs.map((s) => String(s.id)),
+    () => songs.map((song) => String(song.id)),
     [songs]
   )
 
-  // Stable `selectionSet` to avoid re-running `.has` across every render.
-  // (We can't switch the `selectedIds` prop type, but memoising a derived
-  // value keeps the row's data-* attribute referentially stable.)
   const selectionSet: ReadonlySet<string> = useMemo(
     () => selectedIds ?? EMPTY_SELECTION,
     [selectedIds]
   )
 
+  const selectedVisibleCount = useMemo(
+    () => countSelectedVisibleIds(allIds, selectionSet),
+    [allIds, selectionSet]
+  )
+
   const headerState = useMemo(
-    () => deriveHeaderState(allIds.length, selectionSet.size),
-    [allIds.length, selectionSet.size]
+    () => deriveHeaderState(allIds.length, selectedVisibleCount),
+    [allIds.length, selectedVisibleCount]
   )
 
   const currentTrackId = currentTrack?.id
@@ -133,16 +131,11 @@ export function SongTable({
     )
   }
 
-  // When animation is enabled, the parent + children must be motion components
-  // so variants (and staggerChildren) propagate. When disabled, fall back to
-  // plain <div> elements to avoid motion overhead and keep tests deterministic.
   const RowContainer = animated ? motion.div : 'div'
-
   const gridClass = getSongTableGridClass(selectable)
 
   return (
     <div className={cn('', className)}>
-      {/* Header with play all */}
       {songs.length > 0 && (
         <div className="flex items-center gap-3 mb-3 px-2">
           <Button
@@ -159,7 +152,6 @@ export function SongTable({
         </div>
       )}
 
-      {/* Table header */}
       <div
         className={cn(
           gridClass,
@@ -181,36 +173,43 @@ export function SongTable({
         <span className="w-12 text-right">时长</span>
       </div>
 
-      {/* Song rows */}
-      <RowContainer
-        {...(animated
-          ? {
-              initial: 'hidden' as const,
-              animate: 'show' as const,
-              variants: containerVariants,
-            }
-          : {})}
-      >
-        {songs.map((song, index) => (
-          <SongTableRow
-            key={song.id}
-            song={song}
-            index={index}
-            isCurrent={currentTrackId === song.id}
-            isPlaying={isPlaying}
-            selectable={selectable}
-            rowSelected={selectable && selectionSet.has(String(song.id))}
-            showIndex={showIndex}
-            showActions={showActions}
-            showAlbum={showAlbum}
-            gridClass={gridClass}
-            animated={animated}
-            onPlaySong={handlePlaySong}
-            onAddToQueue={handleAddToQueue}
-            onToggleSelect={onToggleSelect}
-          />
-        ))}
-      </RowContainer>
+      <SongContextMenu>
+        <RowContainer
+          role="list"
+          aria-label="歌曲列表"
+          {...(animated
+            ? {
+                initial: 'hidden' as const,
+                animate: 'show' as const,
+                variants: containerVariants,
+              }
+            : {})}
+        >
+          {songs.map((song, index) => {
+            const isCurrent = currentTrackId === song.id
+
+            return (
+              <SongTableRow
+                key={song.id}
+                song={song}
+                index={index}
+                isCurrent={isCurrent}
+                isPlaying={isCurrent && isPlaying}
+                selectable={selectable}
+                rowSelected={selectable && selectionSet.has(String(song.id))}
+                showIndex={showIndex}
+                showActions={showActions}
+                showAlbum={showAlbum}
+                gridClass={gridClass}
+                animated={animated}
+                onPlaySong={handlePlaySong}
+                onAddToQueue={handleAddToQueue}
+                onToggleSelect={onToggleSelect}
+              />
+            )
+          })}
+        </RowContainer>
+      </SongContextMenu>
     </div>
   )
 }

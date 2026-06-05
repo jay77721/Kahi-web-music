@@ -17,6 +17,11 @@ import {
   Shuffle,
   ListOrdered,
   FolderOpen,
+  Palette,
+  Headphones,
+  Gauge,
+  HardDrive,
+  ShieldCheck,
 } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { SettingsRow } from '@/components/settings/SettingsRow'
@@ -52,10 +57,10 @@ const PLAY_MODE_LABELS: Readonly<Record<PlayMode, string>> = {
 
 const KEYBOARD_SHORTCUTS: ReadonlyArray<{ keys: string; action: string }> = [
   { keys: 'Space', action: '播放 / 暂停' },
-  { keys: '→', action: '下一首' },
-  { keys: '←', action: '上一首' },
-  { keys: '↑', action: '音量 +' },
-  { keys: '↓', action: '音量 -' },
+  { keys: 'Right', action: '下一首' },
+  { keys: 'Left', action: '上一首' },
+  { keys: 'Up', action: '音量 +' },
+  { keys: 'Down', action: '音量 -' },
   { keys: 'M', action: '静音 / 取消静音' },
   { keys: 'F', action: '全屏播放器' },
 ]
@@ -64,7 +69,7 @@ const APP_VERSION = '0.1.0'
 const APP_LICENSE = 'MIT'
 
 /**
- * SegmentedControl — small primitive for choosing one of N options.
+ * SegmentedControl - small primitive for choosing one of N options.
  * Pure presentational, controlled.
  */
 interface SegmentedControlProps<T extends string> {
@@ -72,6 +77,7 @@ interface SegmentedControlProps<T extends string> {
   options: ReadonlyArray<{ value: T; label: string; icon?: ReactNode }>
   onChange: (next: T) => void
   ariaLabel: string
+  compact?: boolean
 }
 
 function SegmentedControl<T extends string>({
@@ -79,12 +85,16 @@ function SegmentedControl<T extends string>({
   options,
   onChange,
   ariaLabel,
+  compact = false,
 }: SegmentedControlProps<T>) {
   return (
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="inline-flex items-center gap-1 p-1 rounded-full bg-white/[0.04] border border-white/[0.06]"
+      className={cn(
+        'flex w-full flex-wrap items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] p-1',
+        compact ? 'sm:w-fit sm:flex-nowrap' : 'sm:w-full',
+      )}
     >
       {options.map((opt) => {
         const selected = opt.value === value
@@ -97,10 +107,11 @@ function SegmentedControl<T extends string>({
             data-testid={`segment-${opt.value}`}
             onClick={() => onChange(opt.value)}
             className={cn(
-              'flex items-center gap-1.5 px-3 h-7 rounded-full text-xs font-medium transition-colors',
+              'flex h-8 min-w-[4.75rem] flex-1 items-center justify-center gap-1.5 rounded-md px-2.5 text-xs font-medium whitespace-nowrap transition-colors',
+              compact && 'sm:min-w-0 sm:flex-none',
               selected
-                ? 'bg-[var(--accent)] text-black shadow-[0_0_12px_var(--accent-glow)]'
-                : 'text-white/60 hover:text-white',
+                ? 'bg-[var(--accent)] text-[var(--text-inverse)] shadow-[0_0_12px_var(--accent-glow)]'
+                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
             )}
           >
             {opt.icon}
@@ -130,17 +141,37 @@ function ToggleSwitch({ checked, onChange, ariaLabel, id }: ToggleSwitchProps) {
       data-testid={`toggle-${ariaLabel}`}
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0',
-        checked ? 'bg-[var(--accent)]' : 'bg-white/[0.12]',
+        'relative inline-flex h-7 w-12 items-center rounded-full border border-[var(--border)] transition-colors flex-shrink-0',
+        checked ? 'bg-[var(--accent)]' : 'bg-[var(--bg-overlay)]',
       )}
     >
       <span
         className={cn(
-          'inline-block h-4 w-4 rounded-full bg-white shadow-md transition-transform',
+          'inline-block h-5 w-5 rounded-full bg-white shadow-md transition-transform',
           checked ? 'translate-x-6' : 'translate-x-1',
         )}
       />
     </button>
+  )
+}
+
+interface SummaryItemProps {
+  icon: ReactNode
+  label: string
+  value: string
+}
+
+function SummaryItem({ icon, label, value }: SummaryItemProps) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-elevated)] px-3 py-2.5">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[var(--bg-surface)] text-[var(--text-secondary)]">
+          {icon}
+        </span>
+        <span className="truncate text-xs text-[var(--text-tertiary)]">{label}</span>
+      </div>
+      <span className="shrink-0 text-xs font-medium text-[var(--text-primary)]">{value}</span>
+    </div>
   )
 }
 
@@ -189,180 +220,274 @@ export default function SettingsPage() {
     if (t === 'light') return <Sun className="w-3.5 h-3.5" />
     return <Moon className="w-3.5 h-3.5" />
   }
+  const currentQuality = QUALITY_OPTIONS.find((q) => q.value === quality) ?? QUALITY_OPTIONS[2]
 
   return (
     <AppShell>
       <section
         data-testid="settings-page"
-        className="min-h-full p-4 md:p-6 max-w-3xl mx-auto"
+        className="min-h-full bg-[var(--bg-secondary)] px-4 py-4 md:px-6 md:py-6"
       >
-        <header className="mb-8 animate-fade-in">
-          <div className="flex items-center gap-3 mb-2">
-            <div
-              className="w-11 h-11 rounded-2xl flex items-center justify-center bg-[var(--accent)]/15"
-              style={{ boxShadow: '0 0 18px var(--accent-glow)' }}
-            >
-              <SettingsIcon className="w-6 h-6 text-[var(--accent)]" aria-hidden="true" />
+        <div className="mx-auto max-w-5xl">
+          <header className="mb-4 animate-fade-in">
+            <div className="flex items-center gap-3">
+              <div
+                className="flex size-11 items-center justify-center rounded-lg border border-[var(--accent)]/20 bg-[var(--accent)]/10"
+                style={{ boxShadow: '0 0 18px var(--accent-glow)' }}
+              >
+                <SettingsIcon className="w-6 h-6 text-[var(--accent)]" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)] tracking-normal">
+                  设置
+                </h1>
+                <p className="mt-1 text-sm text-[var(--text-tertiary)]">
+                  个性化你的 Kahi Music 体验
+                </p>
+              </div>
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
-              设置
-            </h1>
-          </div>
-          <p className="text-sm text-[var(--text-tertiary)] ml-14">
-            个性化你的 KaQi Music 体验
-          </p>
-        </header>
+          </header>
 
-        <div className="space-y-8">
-          {/* ── Theme ── */}
-          <SettingsSection title="外观" description="选择你喜欢的主题外观">
-            <SettingsRow
-              label="主题模式"
-              description="跟随系统或手动指定"
-              icon={<Sparkles className="w-4 h-4" />}
-              control={
-                <SegmentedControl
-                  ariaLabel="主题模式"
-                  value={theme}
-                  onChange={handleThemeChange}
-                  options={[
-                    { value: 'system', label: '跟随系统', icon: themeIcon('system') },
-                    { value: 'light', label: '浅色', icon: themeIcon('light') },
-                    { value: 'dark', label: '深色', icon: themeIcon('dark') },
-                  ]}
-                />
-              }
-            />
-          </SettingsSection>
-
-          {/* ── Playback ── */}
-          <SettingsSection title="播放" description="控制默认播放行为">
-            <SettingsRow
-              label="默认播放模式"
-              description="新建播放列表时使用"
-              icon={<Music2 className="w-4 h-4" />}
-              control={
-                <SegmentedControl
-                  ariaLabel="默认播放模式"
-                  value={playMode}
-                  onChange={handlePlayModeChange}
-                  options={[
-                    { value: 'sequential', label: PLAY_MODE_LABELS.sequential, icon: <ListOrdered className="w-3.5 h-3.5" /> },
-                    { value: 'repeat-all', label: PLAY_MODE_LABELS['repeat-all'], icon: <Repeat className="w-3.5 h-3.5" /> },
-                    { value: 'repeat-one', label: PLAY_MODE_LABELS['repeat-one'], icon: <Repeat1 className="w-3.5 h-3.5" /> },
-                    { value: 'shuffle', label: PLAY_MODE_LABELS.shuffle, icon: <Shuffle className="w-3.5 h-3.5" /> },
-                  ]}
-                />
-              }
-            />
-            <SettingsRow
-              label="优先音质"
-              description="网络与流量受限时将自动降级"
-              icon={<Sparkles className="w-4 h-4" />}
-              control={
-                <select
-                  aria-label="优先音质"
-                  data-testid="settings-quality"
-                  value={quality}
-                  onChange={(e) => setQuality(e.target.value)}
-                  className="h-8 px-3 rounded-full bg-white/[0.04] border border-white/[0.06] text-sm text-white/90 focus:outline-none focus:border-[var(--accent)]"
-                >
-                  {QUALITY_OPTIONS.map((q) => (
-                    <option key={q.value} value={q.value} className="bg-[#0a0a0a]">
-                      {q.label} · {q.bitrate}
-                    </option>
-                  ))}
-                </select>
-              }
-            />
-          </SettingsSection>
-
-          {/* ── Download ── */}
-          <SettingsSection title="下载" description="管理离线缓存与下载位置">
-            <SettingsRow
-              label="下载目录"
-              description="将音乐文件保存到本机"
-              icon={<FolderOpen className="w-4 h-4" />}
-              control={
-                <input
-                  type="text"
-                  aria-label="下载目录"
-                  data-testid="settings-download-dir"
-                  value={downloadDir}
-                  onChange={(e) => setDownloadDir(e.target.value)}
-                  className="w-56 h-8 px-3 rounded-full bg-white/[0.04] border border-white/[0.06] text-sm text-white/90 focus:outline-none focus:border-[var(--accent)]"
-                />
-              }
-            />
-          </SettingsSection>
-
-          {/* ── Notifications ── */}
-          <SettingsSection title="通知" description="系统通知与提醒">
-            <SettingsRow
-              label="桌面通知"
-              description="切歌、播放状态变化时通知"
-              icon={<Bell className="w-4 h-4" />}
-              control={
-                <ToggleSwitch
-                  id="settings-notifications"
-                  ariaLabel="启用桌面通知"
-                  checked={notificationsEnabled}
-                  onChange={setNotificationsEnabled}
-                />
-              }
-            />
-          </SettingsSection>
-
-          {/* ── Shortcuts ── */}
-          <SettingsSection title="快捷键" description="全局键盘快捷键列表">
-            <div data-testid="settings-shortcuts" className="divide-y divide-white/[0.04]">
-              {KEYBOARD_SHORTCUTS.map((sc) => (
-                <div
-                  key={sc.keys}
-                  className="flex items-center justify-between gap-4 px-4 py-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <Keyboard className="w-4 h-4 text-white/40" aria-hidden="true" />
-                    <span className="text-sm text-white/90">{sc.action}</span>
+          <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+            <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
+              <section className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-4 shadow-[var(--shadow-sm)]">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-sm font-semibold text-[var(--text-primary)]">当前偏好</h2>
+                    <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">本机保存，即时生效</p>
                   </div>
-                  <kbd className="px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/[0.08] text-xs font-mono text-white/80">
-                    {sc.keys}
-                  </kbd>
+                  <span className="rounded-md border border-[var(--accent)]/20 bg-[var(--accent)]/10 px-2 py-1 text-xs font-medium text-[var(--accent)]">
+                    Live
+                  </span>
                 </div>
-              ))}
+                <div className="space-y-2">
+                  <SummaryItem
+                    icon={themeIcon(theme)}
+                    label="主题"
+                    value={theme === 'system' ? '跟随系统' : theme === 'light' ? '浅色' : '深色'}
+                  />
+                  <SummaryItem
+                    icon={<Gauge className="size-3.5" />}
+                    label="优先音质"
+                    value={currentQuality.bitrate}
+                  />
+                  <SummaryItem
+                    icon={<Headphones className="size-3.5" />}
+                    label="播放模式"
+                    value={PLAY_MODE_LABELS[playMode]}
+                  />
+                  <SummaryItem
+                    icon={<Bell className="size-3.5" />}
+                    label="桌面通知"
+                    value={notificationsEnabled ? '开启' : '关闭'}
+                  />
+                </div>
+              </section>
+
+              <section className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-4 shadow-[var(--shadow-sm)]">
+                <div className="flex items-center gap-2 text-sm font-medium text-[var(--text-primary)]">
+                  <ShieldCheck className="size-4 text-[var(--accent)]" aria-hidden="true" />
+                  本地优先
+                </div>
+                <p className="mt-2 text-xs leading-5 text-[var(--text-tertiary)]">
+                  设置会保存在当前设备，不会改变你的账号资料或云端歌单。
+                </p>
+              </section>
+            </aside>
+
+            <div className="grid gap-4 xl:grid-cols-2 xl:items-start">
+              <div className="space-y-4">
+                <SettingsSection
+                  title="外观"
+                  description="选择界面色彩和跟随方式"
+                  icon={<Palette className="size-4" />}
+                  meta="显示"
+                >
+                  <SettingsRow
+                    label="主题模式"
+                    description="跟随系统或手动指定"
+                    icon={<Sparkles className="w-4 h-4" />}
+                    controlLayout="stacked"
+                    control={
+                      <SegmentedControl
+                        ariaLabel="主题模式"
+                        value={theme}
+                        onChange={handleThemeChange}
+                        options={[
+                          { value: 'system', label: '跟随系统', icon: themeIcon('system') },
+                          { value: 'light', label: '浅色', icon: themeIcon('light') },
+                          { value: 'dark', label: '深色', icon: themeIcon('dark') },
+                        ]}
+                      />
+                    }
+                  />
+                </SettingsSection>
+
+                <SettingsSection
+                  title="下载"
+                  description="离线缓存和本机保存位置"
+                  icon={<HardDrive className="size-4" />}
+                  meta="存储"
+                >
+                  <SettingsRow
+                    label="下载目录"
+                    description="将音乐文件保存到本机"
+                    icon={<FolderOpen className="w-4 h-4" />}
+                    controlLayout="stacked"
+                    control={
+                      <input
+                        type="text"
+                        aria-label="下载目录"
+                        data-testid="settings-download-dir"
+                        value={downloadDir}
+                        onChange={(e) => setDownloadDir(e.target.value)}
+                        className="h-9 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                      />
+                    }
+                  />
+                </SettingsSection>
+
+                <SettingsSection
+                  title="快捷键"
+                  description="常用键盘控制"
+                  icon={<Keyboard className="size-4" />}
+                  meta={`${KEYBOARD_SHORTCUTS.length} 项`}
+                >
+                  <div data-testid="settings-shortcuts" className="grid sm:grid-cols-2">
+                    {KEYBOARD_SHORTCUTS.map((sc, index) => (
+                      <div
+                        key={sc.keys}
+                        className={cn(
+                          'flex items-center justify-between gap-4 px-4 py-3',
+                          index < KEYBOARD_SHORTCUTS.length - 1 && 'border-b border-[var(--border-subtle)]',
+                          index % 2 === 0 && 'sm:border-r sm:border-[var(--border-subtle)]',
+                          index >= KEYBOARD_SHORTCUTS.length - 2 && 'sm:border-b-0',
+                          index === KEYBOARD_SHORTCUTS.length - 1 && 'sm:col-span-2 sm:border-r-0',
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Keyboard className="w-4 h-4 text-[var(--text-tertiary)]" aria-hidden="true" />
+                          <span className="text-sm text-[var(--text-primary)]">{sc.action}</span>
+                        </div>
+                        <kbd className="px-2 py-0.5 rounded-md bg-[var(--bg-hover)] border border-[var(--border)] text-xs font-mono text-[var(--text-secondary)]">
+                          {sc.keys}
+                        </kbd>
+                      </div>
+                    ))}
+                  </div>
+                </SettingsSection>
+              </div>
+
+              <div className="space-y-4">
+                <SettingsSection
+                  title="播放"
+                  description="默认播放策略和流媒体质量"
+                  icon={<Headphones className="size-4" />}
+                  meta="音频"
+                >
+                  <SettingsRow
+                    label="默认播放模式"
+                    description="新建播放列表时使用"
+                    icon={<Music2 className="w-4 h-4" />}
+                    controlLayout="stacked"
+                    control={
+                      <SegmentedControl
+                        ariaLabel="默认播放模式"
+                        value={playMode}
+                        onChange={handlePlayModeChange}
+                        options={[
+                          { value: 'sequential', label: PLAY_MODE_LABELS.sequential, icon: <ListOrdered className="size-3.5" /> },
+                          { value: 'repeat-all', label: PLAY_MODE_LABELS['repeat-all'], icon: <Repeat className="size-3.5" /> },
+                          { value: 'repeat-one', label: PLAY_MODE_LABELS['repeat-one'], icon: <Repeat1 className="size-3.5" /> },
+                          { value: 'shuffle', label: PLAY_MODE_LABELS.shuffle, icon: <Shuffle className="size-3.5" /> },
+                        ]}
+                      />
+                    }
+                  />
+                  <SettingsRow
+                    label="优先音质"
+                    description="网络与流量受限时将自动降级"
+                    icon={<Sparkles className="w-4 h-4" />}
+                    control={
+                      <select
+                        aria-label="优先音质"
+                        data-testid="settings-quality"
+                        value={quality}
+                        onChange={(e) => setQuality(e.target.value)}
+                        className="h-9 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-primary)] px-3 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] sm:w-40"
+                      >
+                        {QUALITY_OPTIONS.map((q) => (
+                          <option
+                            key={q.value}
+                            value={q.value}
+                            className="bg-[var(--bg-elevated)] text-[var(--text-primary)]"
+                          >
+                            {q.label} · {q.bitrate}
+                          </option>
+                        ))}
+                      </select>
+                    }
+                  />
+                </SettingsSection>
+
+                <SettingsSection
+                  title="通知"
+                  description="播放状态和系统提醒"
+                  icon={<Bell className="size-4" />}
+                  meta={notificationsEnabled ? '已开启' : '已关闭'}
+                >
+                  <SettingsRow
+                    label="桌面通知"
+                    description="切歌、播放状态变化时通知"
+                    icon={<Bell className="w-4 h-4" />}
+                    control={
+                      <ToggleSwitch
+                        id="settings-notifications"
+                        ariaLabel="启用桌面通知"
+                        checked={notificationsEnabled}
+                        onChange={setNotificationsEnabled}
+                      />
+                    }
+                  />
+                </SettingsSection>
+
+                <SettingsSection
+                  title="关于"
+                  description="版本、协议和服务兼容信息"
+                  icon={<Info className="size-4" />}
+                  meta="应用"
+                >
+                  <SettingsRow
+                    label="版本号"
+                    icon={<Info className="w-4 h-4" />}
+                    control={
+                      <span className="text-sm text-[var(--text-secondary)] font-mono">v{APP_VERSION}</span>
+                    }
+                  />
+                  <SettingsRow
+                    label="开源协议"
+                    icon={<Info className="w-4 h-4" />}
+                    control={
+                      <span className="text-sm text-[var(--text-secondary)] font-mono">{APP_LICENSE}</span>
+                    }
+                  />
+                  <SettingsRow
+                    label="后端服务"
+                    description="兼容 NeteaseCloudMusicApi"
+                    icon={<Download className="w-4 h-4" />}
+                    control={
+                      <span className="text-sm text-[var(--text-tertiary)]">NCM API</span>
+                    }
+                  />
+                </SettingsSection>
+              </div>
             </div>
-          </SettingsSection>
+          </div>
 
-          {/* ── About ── */}
-          <SettingsSection title="关于" description="版本与开源信息">
-            <SettingsRow
-              label="版本号"
-              icon={<Info className="w-4 h-4" />}
-              control={
-                <span className="text-sm text-white/60 font-mono">v{APP_VERSION}</span>
-              }
-            />
-            <SettingsRow
-              label="开源协议"
-              icon={<Info className="w-4 h-4" />}
-              control={
-                <span className="text-sm text-white/60 font-mono">{APP_LICENSE}</span>
-              }
-            />
-            <SettingsRow
-              label="后端服务"
-              description="兼容 NeteaseCloudMusicApi"
-              icon={<Download className="w-4 h-4" />}
-              control={
-                <span className="text-sm text-white/40">NCM API</span>
-              }
-            />
-          </SettingsSection>
+          <footer className="mt-5 text-center text-xs text-[var(--text-quaternary)]">
+            Kahi Music · 本地优先的音乐体验
+          </footer>
         </div>
-
-        <footer className="mt-12 text-center text-xs text-white/30">
-          Made with love — KaQi Music
-        </footer>
       </section>
     </AppShell>
   )

@@ -11,8 +11,6 @@ import { SongHero } from '@/components/song/SongHero'
 import { SongActions } from '@/components/song/SongActions'
 import { LyricsPanel } from '@/components/player/LyricsPanel'
 import { CommentList } from '@/components/comment/CommentList'
-import { PlayerBar } from '@/components/player/PlayerBar'
-import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { ncmApi } from '@/lib/api'
 import { normalizeLyricData, normalizeSongList } from '@/lib/api-adapters'
 import { imageUrl } from '@/lib/format'
@@ -133,8 +131,6 @@ export default function SongDetailPage() {
           <SimilarSongs songs={similarPreview} onPlay={handlePlaySimilar} />
         ) : null}
       </div>
-      <PlayerBar />
-      <PlayerOverlays />
     </AppShell>
   )
 }

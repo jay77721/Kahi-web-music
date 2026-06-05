@@ -70,6 +70,9 @@ vi.mock('@/components/common/PlaylistCard', () => ({
 vi.mock('@/components/player/PlayerBar', () => ({
   PlayerBar: () => null,
 }))
+vi.mock('@/components/player/PlayerOverlays', () => ({
+  PlayerOverlays: () => null,
+}))
 vi.mock('@/components/player/MiniPlayer', () => ({
   MiniPlayer: () => null,
 }))
@@ -106,10 +109,17 @@ const FAKE_PROFILE: UserProfile = {
   listenSongs: 12345,
 }
 
-function makeUserStore(overrides: Partial<{ isLoggedIn: boolean; profile: UserProfile | null }> = {}) {
+function makeUserStore(
+  overrides: Partial<{
+    isLoggedIn: boolean
+    profile: UserProfile | null
+    hasRestoredSession: boolean
+  }> = {}
+) {
   return {
     isLoggedIn: true,
     profile: FAKE_PROFILE,
+    hasRestoredSession: true,
     ...overrides,
   }
 }
@@ -153,11 +163,21 @@ describe('MyPage', () => {
     vi.clearAllMocks()
   })
 
-  test('redirects to /login when user is not logged in', async () => {
+  test('redirects to /login without placeholder after session restoration', async () => {
     mockUseUserStore.mockImplementation((selector) =>
       selector
-        ? selector(makeUserStore({ isLoggedIn: false, profile: null }) as unknown as Record<string, unknown>)
-        : makeUserStore({ isLoggedIn: false, profile: null })
+        ? selector(
+            makeUserStore({
+              isLoggedIn: false,
+              profile: null,
+              hasRestoredSession: true,
+            }) as unknown as Record<string, unknown>
+          )
+        : makeUserStore({
+            isLoggedIn: false,
+            profile: null,
+            hasRestoredSession: true,
+          })
     )
 
     const { default: MyPage } = await import('@/app/my/page')
@@ -170,6 +190,40 @@ describe('MyPage', () => {
 
     expect(mockRouterPush).toHaveBeenCalledWith('/login')
     expect(screen.queryByTestId('my-page')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('my-page-placeholder')).not.toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: 'Loading profile' })).not.toBeInTheDocument()
+  })
+
+  test('shows placeholder while session restoration is pending', async () => {
+    mockUseUserStore.mockImplementation((selector) =>
+      selector
+        ? selector(
+            makeUserStore({
+              isLoggedIn: false,
+              profile: null,
+              hasRestoredSession: false,
+            }) as unknown as Record<string, unknown>
+          )
+        : makeUserStore({
+            isLoggedIn: false,
+            profile: null,
+            hasRestoredSession: false,
+          })
+    )
+
+    const { default: MyPage } = await import('@/app/my/page')
+    render(<MyPage />)
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(mockRouterPush).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('my-page')).not.toBeInTheDocument()
+    const placeholder = screen.getByTestId('my-page-placeholder')
+    expect(placeholder).toBeInTheDocument()
+    expect(placeholder).toHaveClass('min-h-full')
+    expect(screen.getByRole('status', { name: 'Loading profile' })).toBeInTheDocument()
   })
 
   test('renders profile header and tabs skeleton when logged in', async () => {
@@ -178,7 +232,7 @@ describe('MyPage', () => {
 
     // The page shell + profile header are rendered for a logged-in user.
     expect(screen.getByTestId('app-shell')).toBeInTheDocument()
-    expect(screen.getByTestId('my-page')).toBeInTheDocument()
+    expect(screen.getByTestId('my-page')).toHaveClass('min-h-full')
     expect(screen.getByTestId('profile-header')).toBeInTheDocument()
     expect(screen.getByText('Kahi Tester')).toBeInTheDocument()
 

@@ -11,8 +11,6 @@ import { LyricSearchResults } from '@/components/search/LyricSearchResults'
 import { SearchHistory } from '@/components/search/SearchHistory'
 import { HotSearchTags } from '@/components/search/HotSearchTags'
 import { SearchSuggestions } from '@/components/search/SearchSuggestions'
-import { PlayerBar } from '@/components/player/PlayerBar'
-import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { storage, STORAGE_KEYS } from '@/lib/storage'
 import { cn } from '@/lib/utils'
 
@@ -117,7 +115,7 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
             transition={{ duration: 0.4, delay: 0.1 }}
           >
             <div className="relative">
-              <SearchSuggestions query={inputValue} onSelect={handleSearch} />
+              <SearchSuggestions query={inputValue} onSelect={handleSearch} inputRef={inputRef} />
               <motion.div
                 className={cn(
                   'relative flex items-center rounded-full bg-[var(--bg-surface)] border border-white/10',
@@ -129,7 +127,7 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
                 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               >
-              <Search className="w-5 h-5 text-[var(--text-tertiary)] flex-shrink-0" />
+              <Search className="w-5 h-5 text-[var(--text-tertiary)] flex-shrink-0" aria-hidden="true" />
               <input
                 ref={inputRef}
                 type="text"
@@ -137,6 +135,7 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
                 onChange={(e) => setInputValue(e.target.value)}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
+                aria-label={type === 'lyric' ? '搜索歌词' : '搜索音乐'}
                 placeholder={type === 'lyric' ? '输入歌词片段搜索…' : '搜索歌曲、歌手、专辑...'}
                 className="flex-1 bg-transparent px-3 py-2.5 text-base md:text-lg outline-none placeholder:text-[var(--text-tertiary)] text-[var(--text-primary)]"
               />
@@ -146,12 +145,13 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
                     type="button"
                     onClick={handleClear}
                     className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-white/10 transition-colors"
+                    aria-label="清空搜索关键词"
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
                     transition={{ duration: 0.15 }}
                   >
-                    <X className="w-4 h-4 text-[var(--text-tertiary)]" />
+                    <X className="w-4 h-4 text-[var(--text-tertiary)]" aria-hidden="true" />
                   </motion.button>
                 )}
               </AnimatePresence>
@@ -203,7 +203,7 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             >
               {/* Search type tabs */}
-              <div className="flex items-center gap-2 mb-6">
+              <div className="flex items-center gap-2 mb-6" role="group" aria-label="搜索类型">
                 <SearchTypePill
                   label="歌曲"
                   active={type === 'songs'}
@@ -241,9 +241,6 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
             </p>
           </motion.div>
         )}
-
-        <PlayerBar />
-        <PlayerOverlays />
       </div>
     </AppShell>
   )
@@ -251,7 +248,7 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<div className="p-6">加载中...</div>}>
+    <Suspense fallback={<AppShell><div className="p-6">加载中...</div></AppShell>}>
       <SearchPageWrapper />
     </Suspense>
   )
@@ -277,6 +274,7 @@ function SearchTypePill({ label, active, onClick }: SearchTypePillProps) {
     <motion.button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       whileTap={{ scale: 0.96 }}
       className={cn(
         'px-4 py-1.5 rounded-full text-sm font-medium transition-colors',

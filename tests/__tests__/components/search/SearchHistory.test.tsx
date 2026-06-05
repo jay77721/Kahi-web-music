@@ -48,7 +48,7 @@ describe('SearchHistory', () => {
     )
     const onSelect = vi.fn()
     render(<SearchHistory onSelect={onSelect} />)
-    fireEvent.click(screen.getByText('晴天'))
+    fireEvent.click(screen.getByRole('button', { name: '搜索 晴天' }))
     expect(onSelect).toHaveBeenCalledWith('晴天')
   })
 
@@ -59,9 +59,10 @@ describe('SearchHistory', () => {
     )
     const onClear = vi.fn()
     render(<SearchHistory onSelect={vi.fn()} onClear={onClear} />)
-    fireEvent.click(screen.getByText('清除全部'))
+    fireEvent.click(screen.getByRole('button', { name: '清除全部搜索历史' }))
     expect(onClear).toHaveBeenCalled()
     expect(localStorage.getItem(`kahi-web-music:${STORAGE_KEYS.SEARCH_HISTORY}`)).toBeNull()
+    expect(screen.queryByText('搜索历史')).not.toBeInTheDocument()
   })
 
   test('removing a single item updates the history list and calls onClear', () => {
@@ -71,14 +72,16 @@ describe('SearchHistory', () => {
     )
     const onClear = vi.fn()
     render(<SearchHistory onSelect={vi.fn()} onClear={onClear} />)
-    const removeBtn = screen.getByLabelText('Remove b')
+    const removeBtn = screen.getByRole('button', { name: '删除搜索历史：b' })
     fireEvent.click(removeBtn)
     expect(onClear).toHaveBeenCalled()
-    // Storage should still contain a and c (not b)
     const stored = JSON.parse(
       localStorage.getItem(`kahi-web-music:${STORAGE_KEYS.SEARCH_HISTORY}`) || '[]',
     ) as string[]
     expect(stored).toEqual(['a', 'c'])
+    expect(screen.queryByText('b')).not.toBeInTheDocument()
+    expect(screen.getByText('a')).toBeInTheDocument()
+    expect(screen.getByText('c')).toBeInTheDocument()
   })
 
   test('removing the last item clears storage entirely', () => {
@@ -88,11 +91,11 @@ describe('SearchHistory', () => {
     )
     const onClear = vi.fn()
     render(<SearchHistory onSelect={vi.fn()} onClear={onClear} />)
-    fireEvent.click(screen.getByLabelText('Remove only'))
+    fireEvent.click(screen.getByRole('button', { name: '删除搜索历史：only' }))
     expect(onClear).toHaveBeenCalled()
-    // storage.set(key, null) JSON-stringifies null to the literal string "null"
     const stored = localStorage.getItem(`kahi-web-music:${STORAGE_KEYS.SEARCH_HISTORY}`)
-    expect(stored).toBe('null')
+    expect(stored).toBeNull()
+    expect(screen.queryByText('搜索历史')).not.toBeInTheDocument()
   })
 
   test('clear-all button click does not bubble up to chip click', () => {
@@ -102,7 +105,16 @@ describe('SearchHistory', () => {
     )
     const onSelect = vi.fn()
     render(<SearchHistory onSelect={onSelect} />)
-    fireEvent.click(screen.getByText('清除全部'))
+    fireEvent.click(screen.getByRole('button', { name: '清除全部搜索历史' }))
     expect(onSelect).not.toHaveBeenCalled()
+  })
+
+  test('ignores malformed history values from storage', () => {
+    localStorage.setItem(
+      `kahi-web-music:${STORAGE_KEYS.SEARCH_HISTORY}`,
+      JSON.stringify(null),
+    )
+    const { container } = render(<SearchHistory onSelect={vi.fn()} />)
+    expect(container.firstChild).toBeNull()
   })
 })

@@ -30,7 +30,14 @@ interface SearchResultsProps {
 
 type TabValue = 'songs' | 'artists' | 'albums' | 'playlists' | 'mvs'
 
-const SEARCH_TABS: { value: TabValue; label: string; type: number; icon: React.ComponentType<{ className?: string }> }[] = [
+interface SearchTabConfig {
+  value: TabValue
+  label: string
+  type: number
+  icon: React.ComponentType<{ className?: string }>
+}
+
+const SEARCH_TABS: SearchTabConfig[] = [
   { value: 'songs', label: '歌曲', type: 1, icon: Music },
   { value: 'artists', label: '歌手', type: 100, icon: User },
   { value: 'albums', label: '专辑', type: 10, icon: Disc },
@@ -38,13 +45,23 @@ const SEARCH_TABS: { value: TabValue; label: string; type: number; icon: React.C
   { value: 'mvs', label: 'MV', type: 1004, icon: Video },
 ]
 
+function isTabValue(value: string): value is TabValue {
+  return SEARCH_TABS.some((tab) => tab.value === value)
+}
+
 export function SearchResults({ keywords }: SearchResultsProps) {
-  const [activeTab, setActiveTab] = useState('songs')
+  const [activeTab, setActiveTab] = useState<TabValue>('songs')
+  const activeTabConfig = SEARCH_TABS.find((tab) => tab.value === activeTab) ?? SEARCH_TABS[0]
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab}>
-      <TabsList variant="line" className="mb-6">
-        {SEARCH_TABS.map((tab: { value: TabValue; label: string; type: number; icon: React.ComponentType<{ className?: string }> }) => (
+    <Tabs
+      value={activeTab}
+      onValueChange={(value) => {
+        if (isTabValue(value)) setActiveTab(value)
+      }}
+    >
+      <TabsList variant="line" className="mb-6 max-w-full overflow-x-auto">
+        {SEARCH_TABS.map((tab) => (
           <TabsTrigger
             key={tab.value}
             value={tab.value}
@@ -56,16 +73,18 @@ export function SearchResults({ keywords }: SearchResultsProps) {
         ))}
       </TabsList>
 
-      {SEARCH_TABS.map((tab: { value: TabValue; type: number }) => (
-        <TabsContent key={tab.value} value={tab.value} className="mt-0">
-          <SearchTabContent keywords={keywords} type={tab.type} tabValue={tab.value} />
-        </TabsContent>
-      ))}
+      <TabsContent key={activeTabConfig.value} value={activeTabConfig.value} className="mt-0">
+        <SearchTabContent
+          keywords={keywords}
+          type={activeTabConfig.type}
+          tabValue={activeTabConfig.value}
+        />
+      </TabsContent>
     </Tabs>
   )
 }
 
-function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type: number; tabValue: 'songs' | 'artists' | 'albums' | 'playlists' | 'mvs' }) {
+function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type: number; tabValue: TabValue }) {
   const { data, isLoading } = useSWR<NormalizedSearchResult>(
     keywords ? `search:${keywords}:${type}` : null,
     async () => normalizeSearchResult(await ncmApi.search(keywords, type, 30))
@@ -80,7 +99,7 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
     return <SearchEmptyState query={keywords} type={tabValue} />
   }
 
-  const countKeyMap: Record<string, keyof NormalizedSearchResult> = {
+  const countKeyMap: Record<TabValue, keyof NormalizedSearchResult> = {
     songs: 'songCount',
     artists: 'artistCount',
     albums: 'albumCount',
@@ -90,7 +109,7 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
   const count = result[countKeyMap[tabValue]] || 0
 
   if (count === 0) {
-    return <SearchEmptyState query={keywords} type={tabValue as 'songs' | 'artists' | 'albums' | 'playlists' | 'mvs'} />
+    return <SearchEmptyState query={keywords} type={tabValue} />
   }
 
   // Songs

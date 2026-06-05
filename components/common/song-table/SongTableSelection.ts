@@ -11,6 +11,16 @@ export function deriveHeaderState(
   return 'partial'
 }
 
+export function countSelectedVisibleIds(
+  visibleIds: ReadonlyArray<string>,
+  selectedIds: ReadonlySet<string>
+): number {
+  return visibleIds.reduce(
+    (count, id) => count + (selectedIds.has(id) ? 1 : 0),
+    0
+  )
+}
+
 export function getSongTableGridClass(selectable: boolean): string {
   return selectable
     ? 'grid grid-cols-[auto_auto_1fr_auto] md:grid-cols-[auto_auto_1fr_minmax(80px,1fr)_minmax(60px,1fr)_auto] gap-3'

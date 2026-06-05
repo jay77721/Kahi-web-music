@@ -1,7 +1,7 @@
 'use client'
 
-import { describe, test, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { afterEach, describe, test, expect, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { SearchResults } from '@/components/search/SearchResults'
 
 // ---------------------------------------------------------------------------
@@ -16,7 +16,9 @@ vi.mock('@/components/common/PlaylistCard', () => ({
 }))
 
 vi.mock('@/components/search/SearchEmptyState', () => ({
-  SearchEmptyState: () => <div data-testid="search-empty">Empty</div>,
+  SearchEmptyState: ({ type }: { type: string }) => (
+    <div data-testid="search-empty">Empty: {type}</div>
+  ),
 }))
 
 vi.mock('next/link', () => ({
@@ -32,6 +34,10 @@ vi.mock('next/image', () => ({
     return <img {...rest} alt={(rest.alt as string) ?? ''} />
   },
 }))
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('SearchResults', () => {
   // ---- Tabs rendering ----
@@ -49,6 +55,18 @@ describe('SearchResults', () => {
       render(<SearchResults keywords="test" />)
       // The songs tab label should be rendered
       expect(screen.getAllByText('歌曲').length).toBeGreaterThanOrEqual(1)
+    })
+
+    test('mounts only the active result panel', () => {
+      render(<SearchResults keywords="test" />)
+
+      expect(screen.getAllByTestId('search-empty')).toHaveLength(1)
+      expect(screen.getByTestId('search-empty')).toHaveTextContent('songs')
+
+      fireEvent.click(screen.getByRole('tab', { name: '歌手' }))
+
+      expect(screen.getAllByTestId('search-empty')).toHaveLength(1)
+      expect(screen.getByTestId('search-empty')).toHaveTextContent('artists')
     })
   })
 

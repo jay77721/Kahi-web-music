@@ -22,7 +22,7 @@ import type { Song } from '@/types/api'
  */
 export function PlaybackController() {
   const {
-    currentTrack, hasUserInteracted,
+    currentTrack, isPlaying,
     setIsPlaying, setLyrics,
     setPlaybackError, clearPlaybackError,
     setHasUserInteracted, next, prev, seek,
@@ -66,7 +66,8 @@ export function PlaybackController() {
         const { volume, isMuted } = usePlayerStore.getState()
         audioEngine.setVolume(isMuted ? 0 : volume)
 
-        if (hasUserInteracted) {
+        const { hasUserInteracted, isPlaying } = usePlayerStore.getState()
+        if (hasUserInteracted && isPlaying) {
           audioEngine.play()
         }
       } catch (e) {
@@ -81,7 +82,7 @@ export function PlaybackController() {
     return () => { cancelled = true }
     // currentTrack is captured via currentTrack.id; whole object intentionally omitted
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTrack?.id, hasUserInteracted, setIsPlaying, setPlaybackError, clearPlaybackError])
+  }, [currentTrack?.id, setIsPlaying, setPlaybackError, clearPlaybackError])
 
   // Load lyrics
   useEffect(() => {
@@ -110,7 +111,7 @@ export function PlaybackController() {
     const onPause = () => setIsPlaying(false)
     const onEnd = () => { setIsPlaying(false); next() }
     const retryLowerBitrate = (): boolean => {
-      const { currentTrack, hasUserInteracted, volume, isMuted } = usePlayerStore.getState()
+      const { currentTrack, hasUserInteracted, isPlaying, volume, isMuted } = usePlayerStore.getState()
       const retry = streamRetryRef.current
       if (!currentTrack || retry.trackId !== currentTrack.id || retry.retried) return false
 
@@ -118,7 +119,7 @@ export function PlaybackController() {
       try {
         audioEngine.load(`/api/song/stream?id=${currentTrack.id}&br=128000`)
         audioEngine.setVolume(isMuted ? 0 : volume)
-        if (hasUserInteracted) audioEngine.play()
+        if (hasUserInteracted && isPlaying) audioEngine.play()
         return true
       } catch {
         return false
@@ -193,7 +194,6 @@ export function PlaybackController() {
   }, [currentTrack?.id])
 
   // Update playback state whenever play/pause toggles
-  const isPlaying = usePlayerStore((s) => s.isPlaying)
   useEffect(() => {
     if (!currentTrack) {
       setMediaPlaybackState('none')

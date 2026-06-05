@@ -14,21 +14,25 @@ function resetStore() {
   storage.clear()
   useUserStore.setState({
     isLoggedIn: false,
+    hasRestoredSession: false,
     profile: null,
     cookie: null,
+    logoutError: null,
+    restoreError: null,
   })
 }
 
 describe('userStore', () => {
   beforeEach(() => {
+    vi.restoreAllMocks()
     resetStore()
-    vi.clearAllMocks()
   })
 
   describe('initial state', () => {
     test('defaults to logged out with null profile and cookie', () => {
       const state = useUserStore.getState()
       expect(state.isLoggedIn).toBe(false)
+      expect(state.hasRestoredSession).toBe(false)
       expect(state.profile).toBeNull()
       expect(state.cookie).toBeNull()
     })
@@ -39,6 +43,7 @@ describe('userStore', () => {
       useUserStore.getState().setProfile(mockProfile)
       expect(useUserStore.getState().profile).toEqual(mockProfile)
       expect(useUserStore.getState().isLoggedIn).toBe(true)
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
     })
 
     test('persists profile to localStorage', () => {
@@ -49,14 +54,16 @@ describe('userStore', () => {
   })
 
   describe('setCookie', () => {
-    test('updates cookie state', () => {
+    test('does not keep session cookies in state', () => {
       useUserStore.getState().setCookie('cookie_value_123')
-      expect(useUserStore.getState().cookie).toBe('cookie_value_123')
+      expect(useUserStore.getState().cookie).toBeNull()
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
     })
 
-    test('persists cookie to localStorage', () => {
+    test('removes any legacy localStorage cookie', () => {
+      storage.set(STORAGE_KEYS.USER_COOKIE, 'old_cookie')
       useUserStore.getState().setCookie('cookie_value_123')
-      expect(storage.get(STORAGE_KEYS.USER_COOKIE, '')).toBe('cookie_value_123')
+      expect(storage.get(STORAGE_KEYS.USER_COOKIE, '')).toBe('')
     })
   })
 
@@ -105,7 +112,9 @@ describe('userStore', () => {
 
       expect(result).toEqual(mockProfile)
       expect(useUserStore.getState().isLoggedIn).toBe(true)
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
       expect(useUserStore.getState().cookie).toBeNull()
+      expect(useUserStore.getState().restoreError).toBeNull()
       expect(storage.get(STORAGE_KEYS.USER_PROFILE, null)).toEqual(mockProfile)
       expect(storage.get(STORAGE_KEYS.USER_COOKIE, '')).toBe('')
     })
@@ -120,84 +129,236 @@ describe('userStore', () => {
 
       expect(result).toEqual(mockProfile)
       expect(useUserStore.getState().isLoggedIn).toBe(true)
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
       expect(useUserStore.getState().cookie).toBeNull()
       expect(storage.get(STORAGE_KEYS.USER_COOKIE, '')).toBe('')
     })
   })
 
   describe('logout', () => {
-    test('clears all auth state and localStorage', () => {
+    test('clears all auth state and localStorage', async () => {
       // Pre-populate
       useUserStore.setState({
         isLoggedIn: true,
+        hasRestoredSession: false,
         profile: mockProfile,
         cookie: 'session_cookie',
       })
       storage.set(STORAGE_KEYS.USER_PROFILE, mockProfile)
       storage.set(STORAGE_KEYS.USER_COOKIE, 'session_cookie')
+      vi.spyOn(ncmApi, 'logout').mockResolvedValue({ code: 200 })
 
-      useUserStore.getState().logout()
+      await useUserStore.getState().logout()
 
       expect(useUserStore.getState().isLoggedIn).toBe(false)
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
       expect(useUserStore.getState().profile).toBeNull()
       expect(useUserStore.getState().cookie).toBeNull()
+      expect(useUserStore.getState().logoutError).toBeNull()
+      expect(storage.get(STORAGE_KEYS.USER_COOKIE, '')).toBe('')
+      expect(storage.get(STORAGE_KEYS.USER_PROFILE, null)).toBeNull()
+    })
+
+    test('keeps local cleanup observable when backend logout fails', async () => {
+      useUserStore.setState({
+        isLoggedIn: true,
+        hasRestoredSession: false,
+        profile: mockProfile,
+        cookie: 'session_cookie',
+      })
+      storage.set(STORAGE_KEYS.USER_PROFILE, mockProfile)
+      storage.set(STORAGE_KEYS.USER_COOKIE, 'session_cookie')
+      vi.spyOn(ncmApi, 'logout').mockRejectedValue(new Error('backend unavailable'))
+
+      await expect(useUserStore.getState().logout()).rejects.toThrow('backend unavailable')
+
+      expect(useUserStore.getState().isLoggedIn).toBe(false)
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
+      expect(useUserStore.getState().profile).toBeNull()
+      expect(useUserStore.getState().cookie).toBeNull()
+      expect(useUserStore.getState().logoutError).toBe('backend unavailable')
       expect(storage.get(STORAGE_KEYS.USER_COOKIE, '')).toBe('')
       expect(storage.get(STORAGE_KEYS.USER_PROFILE, null)).toBeNull()
     })
   })
 
   describe('restore', () => {
-    test('restores state from localStorage when both cookie and profile exist', () => {
+    test('restores verified server session and removes legacy cookie when both exist', async () => {
       localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_COOKIE}`, JSON.stringify('restored_cookie'))
       localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_PROFILE}`, JSON.stringify(mockProfile))
+      vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+        code: 200,
+        account: { id: mockProfile.userId },
+        profile: mockProfile,
+      })
 
-      useUserStore.getState().restore()
+      await useUserStore.getState().restore()
 
-      expect(useUserStore.getState().cookie).toBe('restored_cookie')
+      expect(useUserStore.getState().cookie).toBeNull()
       expect(useUserStore.getState().profile).toEqual(mockProfile)
       expect(useUserStore.getState().isLoggedIn).toBe(true)
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
+      expect(useUserStore.getState().restoreError).toBeNull()
+      expect(storage.get(STORAGE_KEYS.USER_COOKIE, '')).toBe('')
     })
 
-    test('does not set isLoggedIn when only cookie exists (no profile)', () => {
+    test('removes legacy cookie and stays logged out when only cookie exists', async () => {
       localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_COOKIE}`, JSON.stringify('cookie_only'))
+      vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+        code: 301,
+        account: null,
+        profile: null,
+      })
 
-      useUserStore.getState().restore()
+      await useUserStore.getState().restore()
 
-      expect(useUserStore.getState().cookie).toBe('cookie_only')
+      expect(useUserStore.getState().cookie).toBeNull()
       expect(useUserStore.getState().profile).toBeNull()
       expect(useUserStore.getState().isLoggedIn).toBe(false)
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
+      expect(storage.get(STORAGE_KEYS.USER_COOKIE, '')).toBe('')
     })
 
-    test('does not set isLoggedIn when only profile exists (no cookie)', () => {
+    test('restores cached profile for display but stays logged out when login status is unauthenticated', async () => {
       localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_PROFILE}`, JSON.stringify(mockProfile))
+      vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+        code: 301,
+        account: null,
+        profile: null,
+      })
 
-      useUserStore.getState().restore()
+      await useUserStore.getState().restore()
 
       expect(useUserStore.getState().profile).toEqual(mockProfile)
       expect(useUserStore.getState().cookie).toBeNull()
-      expect(useUserStore.getState().isLoggedIn).toBe(true)
+      expect(useUserStore.getState().isLoggedIn).toBe(false)
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
     })
 
-    test('does nothing when localStorage is empty', () => {
-      useUserStore.setState({ isLoggedIn: true, profile: mockProfile, cookie: 'old' })
-      localStorage.clear()
+    test('does not authenticate account-only status with a cached profile', async () => {
+      localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_PROFILE}`, JSON.stringify(mockProfile))
+      vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+        code: 200,
+        account: { id: mockProfile.userId },
+        profile: null,
+      })
 
-      useUserStore.getState().restore()
+      await useUserStore.getState().restore()
 
-      expect(useUserStore.getState().isLoggedIn).toBe(true)
       expect(useUserStore.getState().profile).toEqual(mockProfile)
-      expect(useUserStore.getState().cookie).toBe('old')
+      expect(useUserStore.getState().cookie).toBeNull()
+      expect(useUserStore.getState().isLoggedIn).toBe(false)
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
     })
 
-    test('handles corrupted JSON in localStorage gracefully', () => {
+    test('does not let a crafted cached profile unlock login after cookie deletion', async () => {
+      localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_PROFILE}`, JSON.stringify({
+        ...mockProfile,
+        nickname: 'crafted_profile',
+      }))
+      vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+        code: 301,
+        account: null,
+        profile: null,
+      })
+
+      await useUserStore.getState().restore()
+
+      expect(useUserStore.getState().profile?.nickname).toBe('crafted_profile')
+      expect(useUserStore.getState().cookie).toBeNull()
+      expect(useUserStore.getState().isLoggedIn).toBe(false)
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
+    })
+
+    test('marks restoration complete and clears stale state when localStorage is empty', async () => {
+      useUserStore.setState({
+        isLoggedIn: true,
+        hasRestoredSession: false,
+        profile: mockProfile,
+        cookie: 'old',
+      })
+      localStorage.clear()
+      vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+        code: 301,
+        account: null,
+        profile: null,
+      })
+
+      await useUserStore.getState().restore()
+
+      expect(useUserStore.getState().isLoggedIn).toBe(false)
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
+      expect(useUserStore.getState().profile).toBeNull()
+      expect(useUserStore.getState().cookie).toBeNull()
+    })
+
+    test('handles corrupted JSON in localStorage gracefully', async () => {
       localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_PROFILE}`, 'not-valid-json{')
       localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_COOKIE}`, JSON.stringify('valid_cookie'))
+      vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+        code: 301,
+        account: null,
+        profile: null,
+      })
 
-      useUserStore.getState().restore()
+      await useUserStore.getState().restore()
 
       expect(useUserStore.getState().profile).toBeNull()
-      expect(useUserStore.getState().cookie).toBe('valid_cookie')
+      expect(useUserStore.getState().cookie).toBeNull()
       expect(useUserStore.getState().isLoggedIn).toBe(false)
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
+      expect(storage.get(STORAGE_KEYS.USER_COOKIE, '')).toBe('')
+    })
+
+    test('fails closed and completes restoration when legacy cookie removal throws', async () => {
+      useUserStore.setState({
+        isLoggedIn: true,
+        hasRestoredSession: false,
+        profile: mockProfile,
+        cookie: 'old_cookie',
+      })
+      const loginStatusSpy = vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+        code: 200,
+        account: { id: mockProfile.userId },
+        profile: mockProfile,
+      })
+      vi.spyOn(storage, 'remove').mockImplementation(() => {
+        throw new Error('storage remove failed')
+      })
+
+      await expect(useUserStore.getState().restore()).resolves.toBeUndefined()
+
+      expect(loginStatusSpy).not.toHaveBeenCalled()
+      expect(useUserStore.getState().profile).toBeNull()
+      expect(useUserStore.getState().cookie).toBeNull()
+      expect(useUserStore.getState().isLoggedIn).toBe(false)
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
+    })
+
+    test('fails closed and completes restoration when cached profile read throws', async () => {
+      useUserStore.setState({
+        isLoggedIn: true,
+        hasRestoredSession: false,
+        profile: mockProfile,
+        cookie: 'old_cookie',
+      })
+      const loginStatusSpy = vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+        code: 200,
+        account: { id: mockProfile.userId },
+        profile: mockProfile,
+      })
+      vi.spyOn(storage, 'get').mockImplementation(() => {
+        throw new Error('storage get failed')
+      })
+
+      await expect(useUserStore.getState().restore()).resolves.toBeUndefined()
+
+      expect(loginStatusSpy).not.toHaveBeenCalled()
+      expect(useUserStore.getState().profile).toBeNull()
+      expect(useUserStore.getState().cookie).toBeNull()
+      expect(useUserStore.getState().isLoggedIn).toBe(false)
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
+      expect(useUserStore.getState().restoreError).toBe('storage get failed')
     })
   })
 })

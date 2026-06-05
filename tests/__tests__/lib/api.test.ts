@@ -270,6 +270,68 @@ describe('NcmApiClient', () => {
       expect(calledUrl).toContain('br=320000')
       expect(result).toEqual(mockSongUrls)
     })
+
+    test('mutation methods use POST with JSON body', async () => {
+      global.fetch = vi.fn().mockResolvedValue(createMockFetchResponse({ code: 200, data: { ok: true } }))
+
+      const result = await ncmApi.like(1001, true)
+
+      const [calledUrl, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]
+      expect(calledUrl).toBe('/api/like')
+      expect(init).toMatchObject({
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: 1001, like: true }),
+      })
+      expect(result).toEqual({ ok: true })
+    })
+
+    test('scrobble uses POST with JSON body', async () => {
+      global.fetch = vi.fn().mockResolvedValue(createMockFetchResponse({ code: 200, data: { ok: true } }))
+
+      const result = await ncmApi.scrobble(1001, 2002)
+
+      const [calledUrl, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]
+      expect(calledUrl).toBe('/api/scrobble')
+      expect(init).toMatchObject({
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: 1001, sourceid: 2002 }),
+      })
+      expect(result).toEqual({ ok: true })
+    })
+
+    test('commentLike uses POST with JSON body', async () => {
+      global.fetch = vi.fn().mockResolvedValue(createMockFetchResponse({ code: 200, data: { ok: true } }))
+
+      const result = await ncmApi.commentLike(1001, 3003, 1)
+
+      const [calledUrl, init] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0]
+      expect(calledUrl).toBe('/api/comment/like')
+      expect(init).toMatchObject({
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: 1001, cid: 3003, t: 1 }),
+      })
+      expect(result).toEqual({ ok: true })
+    })
+
+    test('loginStatus always bypasses cached responses', async () => {
+      global.fetch = vi
+        .fn()
+        .mockResolvedValueOnce(createMockFetchResponse({ code: 200, profile: { userId: 1 } }))
+        .mockResolvedValueOnce(createMockFetchResponse({ code: 200, profile: { userId: 2 } }))
+
+      const first = await ncmApi.loginStatus()
+      const second = await ncmApi.loginStatus()
+
+      expect(global.fetch).toHaveBeenCalledTimes(2)
+      expect(first).toMatchObject({ code: 200, profile: { userId: 1 } })
+      expect(second).toMatchObject({ code: 200, profile: { userId: 2 } })
+    })
   })
 
   describe('unwrapField()', () => {

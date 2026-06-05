@@ -50,7 +50,7 @@ describe('share utils', () => {
       const code = getEmbedCode('playlist', 11, 'https://k.example')
       expect(code).toContain('<iframe')
       expect(code).toContain('src="https://k.example/playlist/11"')
-      expect(code).toContain('title="KaHi Music - 歌单"')
+      expect(code).toContain('title="Kahi Music - 歌单"')
     })
 
     test('escapes quote characters in the iframe src', () => {
@@ -65,7 +65,7 @@ describe('share utils', () => {
       const data = buildWebShareData('album', 3, 'Hello', 'https://x')
       expect(data).toEqual({
         title: 'Hello',
-        text: 'Hello - KaHi Music',
+        text: 'Hello - Kahi Music',
         url: 'https://x/album/3',
       })
     })

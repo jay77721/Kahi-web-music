@@ -4,10 +4,20 @@ import { GET, OPTIONS } from '@/app/api/[...path]/route'
 
 const originalAllowedOrigins = process.env.ALLOWED_ORIGINS
 const originalApiUrl = process.env.API_URL
+const originalNodeEnv = process.env.NODE_ENV
 const originalFetch = global.fetch
 
 function createRequest(url: string, init?: RequestInit): NextRequest {
   return new NextRequest(new Request(url, init))
+}
+
+function setNodeEnv(value: string): void {
+  Object.defineProperty(process.env, 'NODE_ENV', {
+    value,
+    configurable: true,
+    enumerable: true,
+    writable: true,
+  })
 }
 
 describe('API proxy route CORS', () => {
@@ -25,6 +35,7 @@ describe('API proxy route CORS', () => {
   afterEach(() => {
     process.env.ALLOWED_ORIGINS = originalAllowedOrigins
     process.env.API_URL = originalApiUrl
+    setNodeEnv(originalNodeEnv)
     global.fetch = originalFetch
     vi.restoreAllMocks()
   })
@@ -56,5 +67,112 @@ describe('API proxy route CORS', () => {
     )
     expect(allowedResponse.headers.get('Access-Control-Allow-Credentials')).toBe('true')
     expect(deniedResponse.headers.get('Access-Control-Allow-Origin')).toBeNull()
+  })
+
+  test('rejects GET requests to mutating endpoints', async () => {
+    for (const path of [
+      ['comment', 'like'],
+      ['scrobble'],
+    ]) {
+      const response = await GET(
+        createRequest(`https://app.example.test/api/${path.join('/')}?id=1`),
+        { params: Promise.resolve({ path }) },
+      )
+
+      expect(response.status).toBe(405)
+      await expect(response.json()).resolves.toMatchObject({
+        message: 'Use POST for this endpoint',
+      })
+    }
+
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  test('rejects unsafe proxy path segments before URL normalization', async () => {
+    const response = await GET(createRequest('https://app.example.test/api/../logout'), {
+      params: Promise.resolve({ path: ['..', 'logout'] }),
+    })
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({
+      message: 'Invalid API path',
+    })
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  test('rejects decoded raw path separators before proxying', async () => {
+    for (const path of [['\\attacker.example'], ['safe/unsafe']]) {
+      const response = await GET(
+        createRequest('https://app.example.test/api/login/status'),
+        { params: Promise.resolve({ path }) },
+      )
+
+      expect(response.status).toBe(400)
+      await expect(response.json()).resolves.toMatchObject({
+        message: 'Invalid API path',
+      })
+    }
+
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  test('preserves non-JSON upstream responses and forwards Set-Cookie', async () => {
+    const upstreamResponse = new Response('upstream unavailable', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain' },
+    })
+    Object.defineProperty(upstreamResponse.headers, 'getSetCookie', {
+      value: () => ['MUSIC_U=abc; Domain=.example.test; Path=/'],
+    })
+    global.fetch = vi.fn().mockResolvedValue(upstreamResponse)
+
+    const response = await GET(createRequest('https://app.example.test/api/login/status'), {
+      params: Promise.resolve({ path: ['login', 'status'] }),
+    })
+
+    expect(response.status).toBe(503)
+    await expect(response.text()).resolves.toBe('upstream unavailable')
+    expect(response.headers.get('Set-Cookie')).toContain('MUSIC_U=abc')
+    expect(response.headers.get('Set-Cookie')).toContain('HttpOnly')
+  })
+
+  test('preserves empty upstream responses without reporting API reachability failure', async () => {
+    global.fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+
+    const response = await GET(createRequest('https://app.example.test/api/login/status'), {
+      params: Promise.resolve({ path: ['login', 'status'] }),
+    })
+
+    expect(response.status).toBe(204)
+    await expect(response.text()).resolves.toBe('')
+  })
+
+  test('returns structured response for invalid API_URL configuration', async () => {
+    process.env.API_URL = 'not a valid url'
+
+    const response = await GET(createRequest('https://app.example.test/api/login/status'), {
+      params: Promise.resolve({ path: ['login', 'status'] }),
+    })
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toMatchObject({
+      message: 'Invalid API server configuration',
+    })
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  test('returns configuration error when API_URL is missing in production', async () => {
+    delete process.env.API_URL
+    setNodeEnv('production')
+
+    const response = await GET(createRequest('https://app.example.test/api/login/status'), {
+      params: Promise.resolve({ path: ['login', 'status'] }),
+    })
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toMatchObject({
+      message: 'Invalid API server configuration',
+    })
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 })

@@ -10,8 +10,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { ncmApi } from '@/lib/api'
 import { normalizeSongList } from '@/lib/api-adapters'
-import { PlayerBar } from '@/components/player/PlayerBar'
-import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { usePlayerStore } from '@/stores/playerStore'
 import { useUserStore } from '@/stores/userStore'
 import { useDominantColor } from '@/hooks/useDominantColor'
@@ -22,7 +20,7 @@ const CLOUD_BACKGROUND_STYLE: CSSProperties = {
   backgroundImage: `
     radial-gradient(ellipse at 15% 0%, oklch(0.32 0.05 240 / 0.32) 0%, transparent 55%),
     radial-gradient(ellipse at 85% 100%, oklch(0.28 0.04 200 / 0.22) 0%, transparent 55%),
-    linear-gradient(180deg, #0a0a0a 0%, #0b0d12 50%, #0a0a0a 100%)
+    linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 50%, var(--bg-secondary) 100%)
   `,
 }
 
@@ -44,7 +42,7 @@ export default function CloudPage() {
       backgroundImage: `
         radial-gradient(ellipse at 20% 0%, ${color.oklch.replace(')', ' / 0.3)')} 0%, transparent 55%),
         radial-gradient(ellipse at 80% 100%, ${color.oklch.replace(')', ' / 0.2)')} 0%, transparent 55%),
-        linear-gradient(180deg, #0a0a0a 0%, #0b0d12 50%, #0a0a0a 100%)
+        linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 50%, var(--bg-secondary) 100%)
       `,
       transition: 'background-image 600ms ease-out',
     }
@@ -95,7 +93,7 @@ export default function CloudPage() {
         {isLoading ? (
           <div data-testid="cloud-loading" className="space-y-2">
             {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full rounded-lg bg-[#181818]" />
+              <Skeleton key={i} className="h-12 w-full rounded-lg bg-[var(--bg-elevated)]" />
             ))}
           </div>
         ) : error ? (
@@ -126,9 +124,9 @@ export default function CloudPage() {
             className="flex flex-col items-center justify-center py-20 text-center"
           >
             <div
-              className="w-20 h-20 rounded-full bg-white/[0.04] flex items-center justify-center mb-4 border border-white/[0.06]"
+              className="w-20 h-20 rounded-full bg-[var(--bg-hover)] flex items-center justify-center mb-4 border border-[var(--border)]"
             >
-              <Cloud className="w-10 h-10 text-white/30" aria-hidden="true" />
+              <Cloud className="w-10 h-10 text-[var(--text-quaternary)]" aria-hidden="true" />
             </div>
             <p className="text-sm text-[var(--text-tertiary)] mb-1">云盘空空如也</p>
             <p className="text-xs text-[var(--text-tertiary)] opacity-70">
@@ -137,8 +135,6 @@ export default function CloudPage() {
           </div>
         )}
       </section>
-      <PlayerBar />
-      <PlayerOverlays />
     </AppShell>
   )
 }

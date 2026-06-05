@@ -11,7 +11,7 @@ import { UserSessionRestorer } from "@/components/common/UserSessionRestorer"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "KaQi Music",
+  title: "Kahi Music",
   description: "Web music player",
   manifest: "/manifest.json",
   applicationName: "Kahi Music",

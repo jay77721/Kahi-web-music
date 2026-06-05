@@ -1,5 +1,5 @@
 /**
- * Format milliseconds to mm:ss
+ * Format milliseconds to mm:ss.
  */
 export function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000)
@@ -9,7 +9,7 @@ export function formatDuration(ms: number): string {
 }
 
 /**
- * Format seconds to mm:ss (for lyrics display)
+ * Format seconds to mm:ss for lyrics display.
  */
 export function formatTime(seconds: number): string {
   const minutes = Math.floor(seconds / 60)
@@ -18,7 +18,7 @@ export function formatTime(seconds: number): string {
 }
 
 /**
- * Format large play counts: 1234567 -> "123万"
+ * Format large play counts.
  */
 export function formatCount(count: number): string {
   if (count >= 100000000) {
@@ -31,7 +31,7 @@ export function formatCount(count: number): string {
 }
 
 /**
- * Format date timestamp to readable date
+ * Format date timestamp to readable date.
  */
 export function formatDate(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString('zh-CN', {
@@ -42,7 +42,7 @@ export function formatDate(timestamp: number): string {
 }
 
 /**
- * Format relative time: "3天前", "刚刚"
+ * Format relative time.
  */
 export function formatRelativeTime(timestamp: number): string {
   const now = Date.now()
@@ -61,33 +61,32 @@ export function formatRelativeTime(timestamp: number): string {
 }
 
 /**
- * Get artist names as joined string
+ * Get artist names as joined string.
  */
 export function formatArtists(artists: { name: string }[]): string {
-  return artists.map(a => a.name).join(' / ')
+  return artists.map((artist) => artist.name).join(' / ')
 }
 
 /**
- * Get image URL with size parameter
+ * Get image URL with size parameter.
  */
 export function imageUrl(url: string | undefined, size?: number): string {
   if (!url) return '/placeholder.png'
   if (!size) return url
-  // Avoid duplicate ?param= if already present
   if (url.includes('?param=')) return url
   return `${url}?param=${size}y${size}`
 }
 
 /**
- * Truncate text with ellipsis
+ * Truncate text with ellipsis.
  */
 export function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text
-  return text.slice(0, maxLength) + '...'
+  return `${text.slice(0, maxLength)}...`
 }
 
 /**
- * Format file size bytes to human readable
+ * Format file size bytes to human readable.
  */
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`

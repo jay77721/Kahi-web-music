@@ -1,4 +1,4 @@
-# KaQi Music
+# Kahi Music
 
 > Web-based music player built on **Next.js 16**, interfacing with the **NetEase Cloud Music (NCM)** API.
 > A premium, dark-themed listening experience with glassmorphism lyrics, a spinning vinyl, dynamic background color extraction, and a real-time audio spectrum visualizer.

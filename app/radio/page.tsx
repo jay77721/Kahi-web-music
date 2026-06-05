@@ -12,8 +12,6 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ncmApi } from '@/lib/api'
 import { formatCount, imageUrl, formatRelativeTime } from '@/lib/format'
-import { PlayerBar } from '@/components/player/PlayerBar'
-import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { cn } from '@/lib/utils'
 import { fadeIn, staggerContainer, staggerItem, hoverLift } from '@/lib/animations'
 import type { DjRadio, DjRadioHot, DjProgramToplistItem } from '@/types/dj'
@@ -68,7 +66,7 @@ export default function RadioPage() {
                     'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200',
                     activeTab === tab.key
                       ? 'bg-[var(--accent)] text-black shadow-[var(--shadow-glow)]'
-                      : 'bg-white/[0.06] text-[var(--text-secondary)] hover:bg-white/[0.1] hover:text-[var(--text-primary)]'
+                      : 'bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
                   )}
                 >
                   {tab.icon}
@@ -87,9 +85,6 @@ export default function RadioPage() {
             {activeTab === 'toplist' && <ProgramToplistSection key="toplist" />}
           </AnimatePresence>
         </div>
-
-        <PlayerBar />
-        <PlayerOverlays />
       </div>
     </AppShell>
   )
@@ -253,14 +248,14 @@ function ProgramToplistSection() {
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-[#181818]">
-              <Skeleton className="w-6 h-6 rounded bg-[#282828]" />
-              <Skeleton className="w-12 h-12 rounded-lg bg-[#282828]" />
+            <div key={i} className="flex items-center gap-4 p-3 rounded-xl bg-[var(--bg-elevated)]">
+              <Skeleton className="w-6 h-6 rounded bg-[var(--bg-overlay)]" />
+              <Skeleton className="w-12 h-12 rounded-lg bg-[var(--bg-overlay)]" />
               <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-3/4 bg-[#282828]" />
-                <Skeleton className="h-3 w-1/2 bg-[#282828]" />
+                <Skeleton className="h-4 w-3/4 bg-[var(--bg-overlay)]" />
+                <Skeleton className="h-3 w-1/2 bg-[var(--bg-overlay)]" />
               </div>
-              <Skeleton className="h-8 w-8 rounded-full bg-[#282828]" />
+              <Skeleton className="h-8 w-8 rounded-full bg-[var(--bg-overlay)]" />
             </div>
           ))}
         </div>
@@ -270,7 +265,7 @@ function ProgramToplistSection() {
             <motion.div
               key={program.id}
               variants={staggerItem}
-              className="group flex items-center gap-4 p-3 rounded-xl bg-[#181818] hover:bg-[#282828] border border-white/5 hover:border-white/10 transition-all duration-200 cursor-pointer"
+              className="group flex items-center gap-4 p-3 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] border border-[var(--border)] hover:border-[var(--border-light)] transition-all duration-200 cursor-pointer"
             >
               {/* Rank */}
               <div className={cn(
@@ -355,7 +350,7 @@ function RadioCard({ radio }: RadioCardProps) {
         variants={hoverLift}
         initial="rest"
         whileHover="hover"
-        className="relative rounded-2xl overflow-hidden bg-[#181818] border border-white/5 shadow-[var(--shadow-sm)]"
+        className="relative rounded-2xl overflow-hidden bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-sm)]"
       >
         {/* Cover image */}
         <div className="relative aspect-square overflow-hidden">
@@ -416,7 +411,7 @@ function RadioCard({ radio }: RadioCardProps) {
 
           {/* Score bar for hot items */}
           {isHot && radio.score > 0 && (
-            <div className="mt-2 h-1 rounded-full bg-white/10 overflow-hidden">
+            <div className="mt-2 h-1 rounded-full bg-[var(--bg-overlay)] overflow-hidden">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)]"
                 style={{ width: `${Math.min(radio.score / 10, 100)}%` }}
@@ -433,11 +428,11 @@ function RadioCard({ radio }: RadioCardProps) {
 
 function RadioCardSkeleton() {
   return (
-    <div className="rounded-2xl overflow-hidden bg-[#181818] border border-white/5">
-      <Skeleton className="aspect-square rounded-none bg-[#282828]" />
+    <div className="rounded-2xl overflow-hidden bg-[var(--bg-elevated)] border border-[var(--border)]">
+      <Skeleton className="aspect-square rounded-none bg-[var(--bg-overlay)]" />
       <div className="p-3 space-y-2">
-        <Skeleton className="h-4 w-full bg-[#282828]" />
-        <Skeleton className="h-3 w-2/3 bg-[#282828]" />
+        <Skeleton className="h-4 w-full bg-[var(--bg-overlay)]" />
+        <Skeleton className="h-3 w-2/3 bg-[var(--bg-overlay)]" />
       </div>
     </div>
   )

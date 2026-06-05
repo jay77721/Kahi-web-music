@@ -313,18 +313,65 @@ describe('playerStore', () => {
       expect(usePlayerStore.getState().queue).toHaveLength(2)
     })
 
-    it('adjusts queueIndex when removing index at queueIndex', () => {
+    it('advances current track state when removing index at queueIndex', () => {
       const songs = [
         { ...mockSong, id: 1 },
         { ...mockSong, id: 2 },
         { ...mockSong, id: 3 },
       ]
       usePlayerStore.getState().playQueue(songs, 1)
+      usePlayerStore.getState().setLyrics([{ time: 1, text: 'old lyric' }])
+      usePlayerStore.getState().setCurrentTime(12)
+      usePlayerStore.getState().setDuration(180)
+
       usePlayerStore.getState().removeFromQueue(1)
 
       const state = usePlayerStore.getState()
       expect(state.queueIndex).toBe(1)
       expect(state.queue).toHaveLength(2)
+      expect(state.currentTrack).toBe(songs[2])
+      expect(state.isPlaying).toBe(true)
+      expect(state.currentTime).toBe(0)
+      expect(state.duration).toBe(0)
+      expect(state.lyrics).toEqual([])
+      expect(state.currentLyricIndex).toBe(-1)
+    })
+
+    it('preserves paused state when removing the paused current track', () => {
+      const songs = [
+        { ...mockSong, id: 1 },
+        { ...mockSong, id: 2 },
+        { ...mockSong, id: 3 },
+      ]
+      usePlayerStore.getState().playQueue(songs, 1)
+      usePlayerStore.getState().pause()
+
+      usePlayerStore.getState().removeFromQueue(1)
+
+      const state = usePlayerStore.getState()
+      expect(state.currentTrack).toBe(songs[2])
+      expect(state.queueIndex).toBe(1)
+      expect(state.isPlaying).toBe(false)
+    })
+
+    it('stops playback and resets current track state when removing the last queued item', () => {
+      const song = { ...mockSong, id: 1 }
+      usePlayerStore.getState().playQueue([song], 0)
+      usePlayerStore.getState().setLyrics([{ time: 1, text: 'old lyric' }])
+      usePlayerStore.getState().setCurrentTime(12)
+      usePlayerStore.getState().setDuration(180)
+
+      usePlayerStore.getState().removeFromQueue(0)
+
+      const state = usePlayerStore.getState()
+      expect(state.queue).toEqual([])
+      expect(state.queueIndex).toBe(0)
+      expect(state.currentTrack).toBeNull()
+      expect(state.isPlaying).toBe(false)
+      expect(state.currentTime).toBe(0)
+      expect(state.duration).toBe(0)
+      expect(state.lyrics).toEqual([])
+      expect(state.currentLyricIndex).toBe(-1)
     })
 
     it('leaves queueIndex unchanged when removing index after queueIndex', () => {

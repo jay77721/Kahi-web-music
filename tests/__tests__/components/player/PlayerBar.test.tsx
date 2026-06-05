@@ -73,6 +73,7 @@ describe('PlayerBar', () => {
   test('renders the track name and artist when a track is set', () => {
     usePlayerStore.setState({ currentTrack: mockSong })
     render(<PlayerBar />)
+    expect(screen.getByRole('region', { name: '播放器' })).toBeInTheDocument()
     expect(screen.getByText(mockSong.name)).toBeInTheDocument()
     expect(screen.getByText('周杰伦')).toBeInTheDocument()
   })
@@ -150,8 +151,7 @@ describe('PlayerBar', () => {
     const cycleSpy = vi.spyOn(usePlayerStore.getState(), 'cyclePlayMode')
     usePlayerStore.setState({ currentTrack: mockSong })
     render(<PlayerBar />)
-    const buttons = screen.getAllByRole('button')
-    fireEvent.click(buttons[0])
+    fireEvent.click(screen.getByRole('button', { name: '切换播放模式，当前列表循环' }))
     expect(cycleSpy).toHaveBeenCalled()
     cycleSpy.mockRestore()
   })
@@ -160,10 +160,7 @@ describe('PlayerBar', () => {
     const toggleSpy = vi.spyOn(usePlayerStore.getState(), 'toggleMute')
     usePlayerStore.setState({ currentTrack: mockSong })
     render(<PlayerBar />)
-    const buttons = screen.getAllByRole('button')
-    // Last two buttons are: volume (mute), play queue (toggle). Mute is the
-    // second-to-last.
-    fireEvent.click(buttons[buttons.length - 2])
+    fireEvent.click(screen.getByRole('button', { name: '静音' }))
     expect(toggleSpy).toHaveBeenCalled()
     toggleSpy.mockRestore()
   })
@@ -183,6 +180,7 @@ describe('PlayerBar', () => {
     render(<PlayerBar />)
     // The DOM should still render all buttons
     expect(screen.getAllByRole('button').length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: '取消静音' })).toBeInTheDocument()
   })
 
   test('renders the album art with imageUrl sizing', () => {
@@ -214,6 +212,30 @@ describe('PlayerBar', () => {
     render(<PlayerBar />)
     expect(screen.getByText('1:05')).toBeInTheDocument()
     expect(screen.getByText('3:20')).toBeInTheDocument()
+  })
+
+  test('exposes accessible names for progress and volume sliders', () => {
+    usePlayerStore.setState({
+      currentTrack: mockSong,
+      currentTime: 65,
+      duration: 200,
+      volume: 0.42,
+    })
+    render(<PlayerBar />)
+
+    expect(screen.getByRole('slider', { name: '播放进度' })).toHaveAttribute(
+      'aria-valuetext',
+      '1:05 / 3:20',
+    )
+    expect(screen.getByRole('slider', { name: '音量' })).toHaveAttribute('aria-valuetext', '42%')
+  })
+
+  test('exposes expanded state for the play queue toggle', () => {
+    usePlayerStore.setState({ currentTrack: mockSong })
+    useUIStore.setState({ playQueueOpen: true })
+    render(<PlayerBar />)
+    expect(screen.getByRole('button', { name: '播放列表' })).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('button', { name: '播放列表' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   test('hides the duration text when duration is 0', () => {

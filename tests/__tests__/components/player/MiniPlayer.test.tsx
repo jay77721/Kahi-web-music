@@ -28,7 +28,7 @@ function resetStore() {
     playQueueOpen: false,
     searchOpen: false,
     theme: 'dark',
-    isMobile: false,
+    isMobile: true,
   })
   ;(window as unknown as { __playbackCtrl?: unknown }).__playbackCtrl = undefined
 }
@@ -75,14 +75,15 @@ describe('MiniPlayer', () => {
   test('renders a play button when paused', () => {
     usePlayerStore.setState({ currentTrack: mockSong, isPlaying: false })
     render(<MiniPlayer />)
-    // Outer container + inner toggle button (both have role="button")
-    expect(screen.getAllByRole('button').length).toBe(2)
+    expect(screen.getByRole('button', { name: `打开全屏播放器：${mockSong.name}` })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '播放' })).toBeInTheDocument()
   })
 
   test('renders a pause button when playing', () => {
     usePlayerStore.setState({ currentTrack: mockSong, isPlaying: true })
     render(<MiniPlayer />)
-    expect(screen.getAllByRole('button').length).toBe(2)
+    expect(screen.getByRole('button', { name: `打开全屏播放器：${mockSong.name}` })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '暂停' })).toBeInTheDocument()
   })
 
   test('clicking the toggle button calls the global controller and sets hasUserInteracted', () => {
@@ -92,8 +93,7 @@ describe('MiniPlayer', () => {
     }
     usePlayerStore.setState({ currentTrack: mockSong })
     render(<MiniPlayer />)
-    // The inner toggle button is the second button (after the surface container)
-    const button = screen.getAllByRole('button')[1]
+    const button = screen.getByRole('button', { name: '播放' })
     fireEvent.click(button)
     expect(togglePlay).toHaveBeenCalled()
     expect(usePlayerStore.getState().hasUserInteracted).toBe(true)
@@ -102,24 +102,22 @@ describe('MiniPlayer', () => {
   test('clicking the toggle button does not throw when no controller exists', () => {
     usePlayerStore.setState({ currentTrack: mockSong })
     render(<MiniPlayer />)
-    const button = screen.getAllByRole('button')[1]
+    const button = screen.getByRole('button', { name: '播放' })
     expect(() => fireEvent.click(button)).not.toThrow()
   })
 
-  test('clicking the surface (not the button) opens the full-screen player', () => {
+  test('clicking the open-fullscreen button opens the full-screen player', () => {
     const setFullScreenPlayerOpen = vi.fn()
     const originalSet = useUIStore.getState().setFullScreenPlayerOpen
     useUIStore.setState({ setFullScreenPlayerOpen })
     usePlayerStore.setState({ currentTrack: mockSong })
-    const { container } = render(<MiniPlayer />)
-    const surface = container.querySelector('.md\\:hidden') as HTMLElement
-    expect(surface).toBeTruthy()
-    fireEvent.click(surface)
+    render(<MiniPlayer />)
+    fireEvent.click(screen.getByRole('button', { name: `打开全屏播放器：${mockSong.name}` }))
     expect(setFullScreenPlayerOpen).toHaveBeenCalledWith(true)
     useUIStore.setState({ setFullScreenPlayerOpen: originalSet })
   })
 
-  test('clicking the button does not bubble up to the surface click handler', () => {
+  test('clicking the play button does not open the full-screen player', () => {
     const setFullScreenPlayerOpen = vi.fn()
     const originalSet = useUIStore.getState().setFullScreenPlayerOpen
     useUIStore.setState({ setFullScreenPlayerOpen })
@@ -128,8 +126,7 @@ describe('MiniPlayer', () => {
     }
     usePlayerStore.setState({ currentTrack: mockSong })
     render(<MiniPlayer />)
-    // The inner toggle button is the second button (after the surface container)
-    const button = screen.getAllByRole('button')[1]
+    const button = screen.getByRole('button', { name: '播放' })
     fireEvent.click(button)
     expect(setFullScreenPlayerOpen).not.toHaveBeenCalled()
     useUIStore.setState({ setFullScreenPlayerOpen: originalSet })

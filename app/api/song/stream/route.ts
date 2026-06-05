@@ -59,9 +59,9 @@ function isAudioContentType(contentType: string | null): boolean {
 }
 
 function getClientRateLimitKey(request: NextRequest): string {
-  const forwardedByPlatform = request.headers.get('x-vercel-forwarded-for')
-  const realIp = request.headers.get('x-real-ip')
-  return forwardedByPlatform || realIp || 'unknown'
+  // Vercel injects this header at the edge. Do not fall back to X-Forwarded-For
+  // or X-Real-IP here; clients can spoof those headers when they reach this route.
+  return request.headers.get('x-vercel-forwarded-for') || 'unknown'
 }
 
 function rateLimit(request: NextRequest): NextResponse | null {
@@ -140,13 +140,12 @@ export async function GET(request: NextRequest) {
     apiUrl.searchParams.set('id', id)
     apiUrl.searchParams.set('br', br)
 
-    const apiResponse = await fetch(apiUrl.toString(), {
+    const apiResponse = await fetchWithTimeout(apiUrl.toString(), {
       headers: {
         'Cookie': request.headers.get('cookie') || '',
         'User-Agent': request.headers.get('user-agent') || '',
-        'X-Real-IP': request.headers.get('x-forwarded-for') || '127.0.0.1',
       },
-    })
+    }, METADATA_FETCH_TIMEOUT_MS)
 
     if (!apiResponse.ok) {
       return NextResponse.json(
@@ -167,14 +166,13 @@ export async function GET(request: NextRequest) {
 
     // Forward range request headers for seeking support
     const rangeHeader = request.headers.get('range')
-    const audioResponse = await fetch(audioUrl.toString(), {
+    const audioResponse = await fetchWithTimeout(audioUrl.toString(), {
       headers: {
         'User-Agent': request.headers.get('user-agent') || '',
-        'X-Real-IP': request.headers.get('x-forwarded-for') || '127.0.0.1',
         'Referer': 'https://music.163.com/',
         ...(rangeHeader ? { Range: rangeHeader } : {}),
       },
-    })
+    }, AUDIO_FETCH_TIMEOUT_MS)
 
     if (!audioResponse.ok) {
       return NextResponse.json(
@@ -222,6 +220,13 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('[Song Stream] Error:', error)
+    if (error instanceof Error && error.name === 'AbortError') {
+      return NextResponse.json(
+        { code: 504, message: 'Stream request timeout' },
+        { status: 504 },
+      )
+    }
+
     return NextResponse.json(
       { code: 500, message: 'Stream error' },
       { status: 500 }

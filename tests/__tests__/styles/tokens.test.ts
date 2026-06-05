@@ -110,7 +110,8 @@ describe('styles/tokens.css', () => {
   it('exposes tokens.css via the @theme block (Tailwind v4 utilities)', () => {
     // Act + Assert: the @theme directive is processed by Tailwind at build time.
     expect(source).toMatch(/@theme\s*\{/)
-    expect(source).toMatch(/--color-accent:\s*#1ed760/i)
+    expect(source).toMatch(/--color-accent:\s*var\(--accent\)/i)
+    expect(source).toMatch(/--color-foreground:\s*var\(--text-primary\)/i)
   })
 
   it('keeps the @theme and :root blocks organized with section headers', () => {

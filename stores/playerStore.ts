@@ -262,13 +262,50 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   removeFromQueue: (index) => {
-    const { queue, queueIndex } = get()
+    const { queue, queueIndex, isPlaying } = get()
+    if (index < 0 || index >= queue.length) return
+
     const newQueue = queue.filter((_, i) => i !== index)
-    let newIndex = queueIndex
-    if (index < queueIndex) newIndex--
-    else if (index === queueIndex) newIndex = Math.min(newIndex, newQueue.length - 1)
-    const finalIndex = Math.max(0, newIndex)
-    set({ queue: newQueue, queueIndex: finalIndex })
+
+    if (newQueue.length === 0) {
+      audioEngine.stop()
+      set({
+        queue: [],
+        queueIndex: 0,
+        currentTrack: null,
+        isPlaying: false,
+        currentTime: 0,
+        duration: 0,
+        lyrics: [],
+        currentLyricIndex: -1,
+      })
+      storage.set(STORAGE_KEYS.PLAY_QUEUE, [])
+      storage.set(STORAGE_KEYS.PLAY_INDEX, 0)
+      return
+    }
+
+    let finalIndex = queueIndex
+    if (index < queueIndex) {
+      finalIndex = queueIndex - 1
+    } else if (index === queueIndex) {
+      finalIndex = Math.min(queueIndex, newQueue.length - 1)
+    }
+
+    const removedCurrentTrack = index === queueIndex
+    set({
+      queue: newQueue,
+      queueIndex: finalIndex,
+      ...(removedCurrentTrack
+        ? {
+            currentTrack: newQueue[finalIndex] ?? null,
+            isPlaying,
+            currentTime: 0,
+            duration: 0,
+            lyrics: [],
+            currentLyricIndex: -1,
+          }
+        : {}),
+    })
     storage.set(STORAGE_KEYS.PLAY_QUEUE, newQueue)
     storage.set(STORAGE_KEYS.PLAY_INDEX, finalIndex)
   },

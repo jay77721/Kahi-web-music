@@ -31,6 +31,10 @@ function useThemeAttribute(): void {
   const theme = useUIStore((state) => state.theme)
 
   useEffect(() => {
+    useUIStore.getState().restoreTheme()
+  }, [])
+
+  useEffect(() => {
     if (typeof document === 'undefined') return
     const root = document.documentElement
     const media = window.matchMedia('(prefers-color-scheme: dark)')

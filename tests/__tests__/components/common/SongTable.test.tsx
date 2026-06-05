@@ -1,14 +1,12 @@
 'use client'
 
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { SongTable } from '@/components/common/SongTable'
 import { usePlayerStore } from '@/stores/playerStore'
 import { mockSong } from '@/tests/helpers/mock-data'
 
-// ---------------------------------------------------------------------------
-// Mock the player store
-// ---------------------------------------------------------------------------
 vi.mock('@/stores/playerStore', () => ({
   usePlayerStore: vi.fn(),
 }))
@@ -36,7 +34,6 @@ describe('SongTable', () => {
     ;(usePlayerStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockStore)
   })
 
-  // ---- Empty state ----
   describe('empty state', () => {
     test('shows empty message when songs array is empty', () => {
       const { container } = render(<SongTable songs={[]} />)
@@ -54,7 +51,6 @@ describe('SongTable', () => {
     })
   })
 
-  // ---- Loading state ----
   describe('loading state', () => {
     test('renders skeleton rows when isLoading is true', () => {
       const { container } = render(<SongTable songs={[]} isLoading />)
@@ -68,7 +64,6 @@ describe('SongTable', () => {
     })
   })
 
-  // ---- Song rendering ----
   describe('song rendering', () => {
     const songs = [
       makeSong({ id: 1, name: 'Song A', dt: 180000 }),
@@ -113,7 +108,6 @@ describe('SongTable', () => {
     })
   })
 
-  // ---- Header ----
   describe('header', () => {
     const songs = [
       makeSong({ id: 1, name: 'Song A' }),
@@ -122,8 +116,7 @@ describe('SongTable', () => {
 
     test('shows song count in header', () => {
       render(<SongTable songs={songs} />)
-      // "共 2 首" should appear in the header (not in context menu)
-      const countMatches = screen.getAllByText(/共 2 首/)
+      const countMatches = screen.getAllByText('共 2 首')
       expect(countMatches.length).toBeGreaterThanOrEqual(1)
     })
 
@@ -148,7 +141,41 @@ describe('SongTable', () => {
     })
   })
 
-  // ---- Index display ----
+  describe('selection state', () => {
+    const songs = [
+      makeSong({ id: 1, name: 'Visible A' }),
+      makeSong({ id: 2, name: 'Visible B' }),
+    ]
+
+    test('ignores stale selected ids when deriving header checkbox state', () => {
+      const { container } = render(
+        <SongTable
+          songs={songs}
+          selectable
+          selectedIds={new Set(['stale-a', 'stale-b'])}
+        />
+      )
+
+      expect(within(container).getByTestId('song-table-select-all')).toHaveAttribute('data-state', 'none')
+      expect(within(container).getByTestId('song-row-checkbox-1')).toHaveAttribute('data-state', 'none')
+      expect(within(container).getByTestId('song-row-checkbox-2')).toHaveAttribute('data-state', 'none')
+    })
+
+    test('counts only visible selected ids for partial selection state', () => {
+      const { container } = render(
+        <SongTable
+          songs={songs}
+          selectable
+          selectedIds={new Set(['1', 'stale-a'])}
+        />
+      )
+
+      expect(within(container).getByTestId('song-table-select-all')).toHaveAttribute('data-state', 'partial')
+      expect(within(container).getByTestId('song-row-checkbox-1')).toHaveAttribute('data-state', 'all')
+      expect(within(container).getByTestId('song-row-checkbox-2')).toHaveAttribute('data-state', 'none')
+    })
+  })
+
   describe('index display', () => {
     const songs = [
       makeSong({ id: 1, name: 'First' }),
@@ -158,10 +185,8 @@ describe('SongTable', () => {
 
     test('shows 1-based index padded to 2 digits by default', () => {
       const { container } = render(<SongTable songs={songs} />)
-      // Count data-song-id rows to verify 3 songs rendered
       const rows = container.querySelectorAll('[data-song-id]')
       expect(rows.length).toBe(3)
-      // Verify index text appears
       expect(within(container).getByText('01')).toBeInTheDocument()
       expect(within(container).getByText('02')).toBeInTheDocument()
       expect(within(container).getByText('03')).toBeInTheDocument()
@@ -173,7 +198,6 @@ describe('SongTable', () => {
     })
   })
 
-  // ---- Current track highlighting ----
   describe('current track highlighting', () => {
     test('applies accent background and left border when song matches currentTrack', () => {
       const currentSong = makeSong({ id: 1, name: 'Current' })
@@ -195,7 +219,6 @@ describe('SongTable', () => {
     })
   })
 
-  // ---- Playing indicator ----
   describe('playing indicator for current track', () => {
     const currentSong = makeSong({ id: 1, name: 'Current' })
 
@@ -239,24 +262,20 @@ describe('SongTable', () => {
     })
   })
 
-  // ---- Actions column ----
   describe('actions column', () => {
     test('has no row action buttons when showActions is false and no index', () => {
       const { container } = render(<SongTable songs={[makeSong()]} showActions={false} showIndex={false} />)
       const buttons = container.querySelectorAll('button')
-      // Only the play-all header button remains
       expect(buttons.length).toBe(1)
     })
 
     test('has play-all plus one index button when showActions is false but showIndex is true', () => {
       const { container } = render(<SongTable songs={[makeSong()]} showActions={false} />)
       const buttons = container.querySelectorAll('button')
-      // Play-all button in header + index column play button
       expect(buttons.length).toBe(2)
     })
   })
 
-  // ---- Double-click to play ----
   describe('double-click to play', () => {
     test('calls playSong on double-click', () => {
       const song = makeSong({ id: 1 })
@@ -265,9 +284,104 @@ describe('SongTable', () => {
       fireEvent.doubleClick(row!)
       expect(mockStore.playSong).toHaveBeenCalledWith(song)
     })
+
+    test('renders rows as list items instead of nested row buttons', () => {
+      const song = makeSong({ id: 1, name: 'Keyboard Song' })
+      const { container } = render(<SongTable songs={[song]} />)
+      const row = container.querySelector('[data-song-id="1"]') as HTMLElement
+
+      expect(within(container).getByRole('list', { name: '歌曲列表' })).toContainElement(row)
+      expect(row).toHaveAttribute('role', 'listitem')
+      expect(row).not.toHaveAttribute('role', 'button')
+      expect(row).not.toHaveAttribute('tabindex')
+
+      fireEvent.keyDown(row, { key: 'Enter' })
+      fireEvent.keyDown(row, { key: ' ' })
+      expect(mockStore.playSong).not.toHaveBeenCalled()
+      expect(within(container).getByRole('button', { name: '播放歌曲 Keyboard Song' })).toBeInTheDocument()
+    })
+
+    test('plays through the explicit row play button for keyboard users', async () => {
+      const user = userEvent.setup()
+      const song = makeSong({ id: 1, name: 'Keyboard Song' })
+      const { container } = render(<SongTable songs={[song]} />)
+
+      const playButton = within(container).getByRole('button', { name: '播放歌曲 Keyboard Song' })
+      playButton.focus()
+      await user.keyboard('{Enter}')
+      await user.keyboard(' ')
+
+      expect(mockStore.playSong).toHaveBeenCalledTimes(2)
+      expect(mockStore.playSong).toHaveBeenLastCalledWith(song)
+    })
   })
 
-  // ---- CSS class passthrough ----
+  describe('accessibility controls', () => {
+    test('exposes accessible names for icon-only row action buttons', () => {
+      const song = makeSong({ id: 1, name: 'Named Action Song' })
+      render(<SongTable songs={[song]} />)
+
+      expect(screen.getByRole('button', { name: '播放歌曲 Named Action Song' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '添加歌曲 Named Action Song 到播放队列' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '打开歌曲 Named Action Song 的更多操作菜单' })).toBeInTheDocument()
+    })
+
+    test('uses one shared context menu that updates between row triggers', () => {
+      const songs = [
+        makeSong({ id: 1, name: 'Menu Song A' }),
+        makeSong({ id: 2, name: 'Menu Song B' }),
+      ]
+      render(<SongTable songs={songs} />)
+
+      fireEvent.click(screen.getByRole('button', { name: '打开歌曲 Menu Song A 的更多操作菜单' }))
+      expect(screen.getByRole('menu', { name: 'Menu Song A 的操作菜单' })).toBeInTheDocument()
+      expect(screen.getAllByRole('menu')).toHaveLength(1)
+
+      fireEvent.click(screen.getByRole('button', { name: '打开歌曲 Menu Song B 的更多操作菜单' }))
+      expect(screen.getByRole('menu', { name: 'Menu Song B 的操作菜单' })).toBeInTheDocument()
+      expect(screen.queryByRole('menu', { name: 'Menu Song A 的操作菜单' })).not.toBeInTheDocument()
+      expect(screen.getAllByRole('menu')).toHaveLength(1)
+    })
+
+    test('restores focus to the context menu trigger on Escape', async () => {
+      const user = userEvent.setup()
+      const song = makeSong({ id: 1, name: 'Focus Menu Song' })
+      render(<SongTable songs={[song]} />)
+
+      const trigger = screen.getByRole('button', { name: '打开歌曲 Focus Menu Song 的更多操作菜单' })
+      await user.click(trigger)
+
+      const menu = screen.getByRole('menu', { name: 'Focus Menu Song 的操作菜单' })
+      await waitFor(() => expect(within(menu).getAllByRole('menuitem')[0]).toHaveFocus())
+
+      await user.keyboard('{Escape}')
+
+      await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+      expect(trigger).toHaveFocus()
+    })
+
+    test('does not steal focus back to the trigger after outside pointer close', async () => {
+      const user = userEvent.setup()
+      const song = makeSong({ id: 1, name: 'Outside Close Song' })
+      render(
+        <>
+          <button type="button">Outside target</button>
+          <SongTable songs={[song]} />
+        </>
+      )
+
+      const trigger = screen.getByRole('button', { name: '打开歌曲 Outside Close Song 的更多操作菜单' })
+      const outsideTarget = screen.getByRole('button', { name: 'Outside target' })
+      await user.click(trigger)
+      expect(screen.getByRole('menu', { name: 'Outside Close Song 的操作菜单' })).toBeInTheDocument()
+
+      await user.click(outsideTarget)
+
+      await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument())
+      expect(outsideTarget).toHaveFocus()
+    })
+  })
+
   describe('className passthrough', () => {
     test('applies custom className to root container', () => {
       const { container } = render(<SongTable songs={[makeSong()]} className="my-custom-class" />)

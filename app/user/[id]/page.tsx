@@ -9,8 +9,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ncmApi } from '@/lib/api'
 import { normalizePlaylistList, normalizeUserProfile } from '@/lib/api-adapters'
 import { imageUrl, formatCount } from '@/lib/format'
-import { PlayerBar } from '@/components/player/PlayerBar'
-import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import type { Playlist } from '@/types/playlist'
 import type { UserProfile } from '@/types/user'
 
@@ -83,7 +81,6 @@ export default function UserPage() {
           ))}
         </div>
       </div>
-      <PlayerBar /><PlayerOverlays />
     </AppShell>
   )
 }

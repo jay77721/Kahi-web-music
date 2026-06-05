@@ -20,8 +20,6 @@ import {
   type NormalizedPlaylistDetail,
 } from '@/lib/api-adapters'
 import { formatCount, formatDate, imageUrl } from '@/lib/format'
-import { PlayerBar } from '@/components/player/PlayerBar'
-import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { usePlayerStore } from '@/stores/playerStore'
 import { useMultiSelect } from '@/hooks/useMultiSelect'
 import {
@@ -184,7 +182,7 @@ export default function PlaylistDetailPage() {
           actions={
             <>
               <Button
-                className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white"
+                className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--text-inverse)]"
                 onClick={() => tracks.length > 0 && playQueue(tracks, 0)}
               >
                 <Play className="w-4 h-4 mr-1" />
@@ -256,8 +254,6 @@ export default function PlaylistDetailPage() {
           },
         ]}
       />
-      <PlayerBar />
-      <PlayerOverlays />
     </AppShell>
   )
 }

@@ -13,8 +13,6 @@ import {
   normalizeAlbumDetail,
   type NormalizedAlbumDetail,
 } from '@/lib/api-adapters'
-import { PlayerBar } from '@/components/player/PlayerBar'
-import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { usePlayerStore } from '@/stores/playerStore'
 import { Play } from 'lucide-react'
 import Link from 'next/link'
@@ -69,7 +67,7 @@ export default function AlbumPage() {
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <Button
-                className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white"
+                className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--text-inverse)]"
                 onClick={() => playQueue(songs, 0)}
               >
                 <Play className="w-4 h-4 mr-1" /> 播放全部
@@ -85,7 +83,6 @@ export default function AlbumPage() {
           <CommentList id={id} type="album" />
         </div>
       </div>
-      <PlayerBar /><PlayerOverlays />
     </AppShell>
   )
 }

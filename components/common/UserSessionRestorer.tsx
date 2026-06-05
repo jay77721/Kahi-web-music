@@ -16,7 +16,7 @@ import { useUserStore } from '@/stores/userStore'
  */
 export function UserSessionRestorer(): null {
   useEffect(() => {
-    useUserStore.getState().restore()
+    void useUserStore.getState().restore()
   }, [])
   return null
 }

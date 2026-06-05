@@ -10,7 +10,7 @@
 }
 /* Theme-aware color scheme — controls native form/scrollbar styling. */
 html { color-scheme: light dark; scroll-behavior: smooth; }
-[data-theme="dark"] html, html:not([data-theme="light"]) { color-scheme: dark; }
+html[data-theme="dark"], html:not([data-theme="light"]) { color-scheme: dark; }
 html[data-theme="light"] { color-scheme: light; }
 body {
   font-family: var(--font-sans);
@@ -560,7 +560,7 @@ input[type="range"] {
   -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer; height: 16px;
 }
 input[type="range"]::-webkit-slider-runnable-track {
-  height: 4px; background: rgba(255, 255, 255, 0.12); border-radius: 2px;
+  height: 4px; background: var(--border-light); border-radius: 2px;
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none; appearance: none; width: 12px; height: 12px;
@@ -571,7 +571,7 @@ input[type="range"]::-webkit-slider-thumb {
 input[type="range"]:hover::-webkit-slider-thumb,
 input[type="range"]:focus-visible::-webkit-slider-thumb { opacity: 1; transform: scale(1.2); }
 input[type="range"]::-moz-range-track {
-  height: 4px; background: rgba(255, 255, 255, 0.12); border-radius: 2px;
+  height: 4px; background: var(--border-light); border-radius: 2px;
 }
 input[type="range"]::-moz-range-thumb {
   width: 12px; height: 12px; background: var(--text-primary); border-radius: 50%; border: none;
@@ -583,9 +583,9 @@ input[type="range"]:focus-visible::-moz-range-thumb { opacity: 1; transform: sca
 
 .player-slider { --slider-fill: var(--accent); }
 .player-slider input[type="range"]::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, var(--accent) var(--progress, 0%), rgba(255, 255, 255, 0.12) var(--progress, 0%));
+  background: linear-gradient(to right, var(--accent) var(--progress, 0%), var(--border-light) var(--progress, 0%));
 }
-.player-slider input[type="range"]::-moz-range-track { background: rgba(255, 255, 255, 0.12); }
+.player-slider input[type="range"]::-moz-range-track { background: var(--border-light); }
 .player-slider input[type="range"]::-moz-range-progress { background: var(--accent); border-radius: 2px; height: 4px; }
 
 /* ── Blur placeholder ──
