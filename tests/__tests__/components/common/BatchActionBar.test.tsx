@@ -4,9 +4,6 @@ import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { BatchActionBar } from '@/components/common/BatchActionBar'
 
-// The global tests/helpers/setup.ts mock already replaces motion.* with plain
-// <div>s and AnimatePresence with a Fragment, so we do not need a local mock.
-
 describe('BatchActionBar', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -28,7 +25,9 @@ describe('BatchActionBar', () => {
       render(
         <BatchActionBar selectedCount={2} onClear={vi.fn()} actions={[]} animated={false} />
       )
-      expect(screen.getByTestId('batch-action-bar')).toBeInTheDocument()
+      const toolbar = screen.getByTestId('batch-action-bar')
+      expect(toolbar).toBeInTheDocument()
+      expect(toolbar).not.toHaveAttribute('data-framer-motion')
     })
   })
 

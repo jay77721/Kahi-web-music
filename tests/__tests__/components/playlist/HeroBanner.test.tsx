@@ -80,5 +80,6 @@ describe('HeroBanner', () => {
     )
     const banner = container.querySelector('[data-testid="hero-banner"]')
     expect(banner).toHaveClass('custom-hero')
+    expect(banner?.tagName).toBe('SECTION')
   })
 })

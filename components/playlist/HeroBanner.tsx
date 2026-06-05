@@ -2,7 +2,6 @@
 
 import { memo, useMemo, type ReactNode, type CSSProperties } from 'react'
 import Image from 'next/image'
-import { motion } from 'framer-motion'
 import { useDominantColor } from '@/hooks/useDominantColor'
 import { imageUrl } from '@/lib/format'
 import type { DominantColor } from '@/lib/color'
@@ -23,7 +22,6 @@ export interface HeroBannerProps {
   className?: string
 }
 
-const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1]
 const FALLBACK_COLOR_OKLCH = 'oklch(0.18 0 0)'
 
 function withAlpha(oklch: string, alpha: number): string {
@@ -86,13 +84,10 @@ export const HeroBanner = memo(function HeroBanner({
   const backgroundStyle = useMemo(() => buildBackgroundStyle(color), [color])
 
   return (
-    <motion.section
+    <section
       data-testid="hero-banner"
-      className={`hero-banner relative overflow-hidden rounded-2xl mb-6 ${className ?? ''}`}
+      className={`hero-banner relative overflow-hidden rounded-2xl mb-6 motion-safe:animate-[slideUp_400ms_ease-out_both] motion-reduce:animate-none ${className ?? ''}`}
       style={{ minHeight: 'var(--hero-height, 280px)' }}
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: EASE_OUT_EXPO }}
     >
       <div
         aria-hidden="true"
@@ -134,6 +129,6 @@ export const HeroBanner = memo(function HeroBanner({
           {actions && <div className="flex flex-wrap justify-center md:justify-start gap-2 pt-1">{actions}</div>}
         </div>
       </div>
-    </motion.section>
+    </section>
   )
 })
