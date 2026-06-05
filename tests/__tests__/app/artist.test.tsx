@@ -128,6 +128,9 @@ const FAKE_SIMI: Artist[] = Array.from({ length: 3 }, (_, i) => ({
   name: `Similar ${i + 1}`,
   picUrl: `https://pics.example.com/artist/${500 + i}.jpg`,
 }))
+
+let restoreIdleCallbacks: (() => void) | null = null
+
 type ArtistPrimaryData = {
   artist: Artist | null
   songs: Song[]
@@ -142,7 +145,6 @@ type ArtistDeferredData = {
 type SwrMockState = {
   primary?: ArtistPrimaryData
   deferred?: ArtistDeferredData
-  legacy?: ArtistPrimaryData & ArtistDeferredData
   primaryLoading?: boolean
   deferredLoading?: boolean
   error?: unknown
@@ -191,8 +193,7 @@ function stringifySWRKey(key: unknown): string {
 }
 
 function isArtistKey(key: unknown, kind: 'primary' | 'deferred') {
-  const keyText = stringifySWRKey(key).toLowerCase()
-  return keyText.includes('artist') && keyText.includes(kind)
+  return typeof key === 'string' && key.startsWith(`artist-${kind}-`)
 }
 
 function findArtistSWRCall(kind: 'primary' | 'deferred') {
@@ -202,7 +203,6 @@ function findArtistSWRCall(kind: 'primary' | 'deferred') {
 function mockArtistSWR({
   primary = makePrimaryData(),
   deferred = makeDeferredData({ desc: makeLoadedData().desc }),
-  legacy = makeLoadedData(),
   primaryLoading = false,
   deferredLoading = false,
   error,
@@ -217,14 +217,14 @@ function mockArtistSWR({
     }
 
     if (isArtistKey(key, 'deferred')) {
-      return { data: deferred, isLoading: deferredLoading, error }
+      return {
+        data: deferredLoading ? undefined : deferred,
+        isLoading: deferredLoading,
+        error,
+      }
     }
 
-    return {
-      data: legacy,
-      isLoading: primaryLoading || deferredLoading,
-      error,
-    }
+    throw new Error(`Unexpected artist SWR key: ${stringifySWRKey(key)}`)
   })
 }
 
@@ -246,6 +246,73 @@ function clearArtistApiMocks() {
   vi.mocked(ncmApi.artistAlbum).mockClear()
   vi.mocked(ncmApi.artistDesc).mockClear()
   vi.mocked(ncmApi.simiArtist).mockClear()
+}
+
+function restoreWindowProperty(
+  key: 'requestIdleCallback' | 'cancelIdleCallback',
+  descriptor: PropertyDescriptor | undefined
+) {
+  if (descriptor) {
+    Object.defineProperty(window, key, descriptor)
+    return
+  }
+
+  Reflect.deleteProperty(window, key)
+}
+
+function installIdleCallbackMock() {
+  const requestIdleDescriptor = Object.getOwnPropertyDescriptor(window, 'requestIdleCallback')
+  const cancelIdleDescriptor = Object.getOwnPropertyDescriptor(window, 'cancelIdleCallback')
+  const callbacks = new Map<number, IdleRequestCallback>()
+  let nextId = 1
+
+  const requestIdleCallback = vi.fn((callback: IdleRequestCallback) => {
+    const id = nextId
+    nextId += 1
+    callbacks.set(id, callback)
+    return id
+  })
+  const cancelIdleCallback = vi.fn((id: number) => {
+    callbacks.delete(id)
+  })
+
+  Object.defineProperty(window, 'requestIdleCallback', {
+    configurable: true,
+    writable: true,
+    value: requestIdleCallback,
+  })
+  Object.defineProperty(window, 'cancelIdleCallback', {
+    configurable: true,
+    writable: true,
+    value: cancelIdleCallback,
+  })
+
+  restoreIdleCallbacks = () => {
+    restoreWindowProperty('requestIdleCallback', requestIdleDescriptor)
+    restoreWindowProperty('cancelIdleCallback', cancelIdleDescriptor)
+  }
+
+  return {
+    requestIdleCallback,
+    cancelIdleCallback,
+    pendingCount: () => callbacks.size,
+    flushNext: async () => {
+      const next = callbacks.entries().next().value
+      if (!next) {
+        throw new Error('Expected a pending requestIdleCallback')
+      }
+
+      const [id, callback] = next
+      callbacks.delete(id)
+      await act(async () => {
+        callback({
+          didTimeout: false,
+          timeRemaining: () => 50,
+        })
+        await Promise.resolve()
+      })
+    },
+  }
 }
 
 async function flushDeferredArtistRequest() {
@@ -281,6 +348,8 @@ describe('ArtistPage', () => {
 
   afterEach(() => {
     cleanup()
+    restoreIdleCallbacks?.()
+    restoreIdleCallbacks = null
     vi.useRealTimers()
     vi.clearAllMocks()
   })
@@ -313,7 +382,6 @@ describe('ArtistPage', () => {
     mockArtistSWR({
       primary: makePrimaryData({ artist: null, songs: [] }),
       deferred: makeDeferredData({ albums: [], desc: '', simiArtists: [] }),
-      legacy: { artist: null, songs: [], albums: [], desc: '', simiArtists: [] },
     })
 
     const { default: ArtistPage } = await import('@/app/artist/[id]/page')
@@ -387,6 +455,39 @@ describe('ArtistPage', () => {
     expect(screen.getByTestId('song-table')).toHaveTextContent('songs:10')
   })
 
+  test('starts deferred artist data after requestIdleCallback fires', async () => {
+    const idleMock = installIdleCallbackMock()
+    mockArtistSWR()
+
+    const { default: ArtistPage } = await import('@/app/artist/[id]/page')
+    render(<ArtistPage />)
+
+    expect(idleMock.requestIdleCallback).toHaveBeenCalledWith(expect.any(Function), {
+      timeout: 1800,
+    })
+    expect(findArtistSWRCall('deferred')).toBeUndefined()
+
+    await idleMock.flushNext()
+
+    expect(findArtistSWRCall('deferred')).toBeDefined()
+    expect(screen.getByTestId('artist-description')).toHaveTextContent(makeLoadedData().desc)
+  })
+
+  test('cancels a scheduled deferred request when the page unmounts', async () => {
+    const idleMock = installIdleCallbackMock()
+    mockArtistSWR()
+
+    const { default: ArtistPage } = await import('@/app/artist/[id]/page')
+    const { unmount } = render(<ArtistPage />)
+
+    expect(idleMock.pendingCount()).toBe(1)
+    unmount()
+
+    expect(idleMock.cancelIdleCallback).toHaveBeenCalledWith(1)
+    expect(idleMock.pendingCount()).toBe(0)
+    expect(findArtistSWRCall('deferred')).toBeUndefined()
+  })
+
   test('play-all button calls playQueue with the first 10 hot songs', async () => {
     const playQueue = vi.fn()
     mockUsePlayerStore.mockImplementation((selector) =>
@@ -410,13 +511,6 @@ describe('ArtistPage', () => {
     mockArtistSWR({
       primary: makePrimaryData({ songs: FAKE_SONGS.slice(0, 10) }),
       deferred: makeDeferredData({ albums: [], desc: '', simiArtists: [] }),
-      legacy: {
-        artist: FAKE_ARTIST,
-        songs: FAKE_SONGS.slice(0, 10),
-        albums: [],
-        desc: '',
-        simiArtists: [],
-      },
     })
 
     const { default: ArtistPage } = await import('@/app/artist/[id]/page')
@@ -433,13 +527,6 @@ describe('ArtistPage', () => {
     mockArtistSWR({
       primary: makePrimaryData({ songs: [] }),
       deferred: makeDeferredData({ albums: [], desc: '', simiArtists: [] }),
-      legacy: {
-        artist: FAKE_ARTIST,
-        songs: [],
-        albums: [],
-        desc: '',
-        simiArtists: [],
-      },
     })
 
     const { default: ArtistPage } = await import('@/app/artist/[id]/page')
@@ -452,15 +539,31 @@ describe('ArtistPage', () => {
     expect(screen.getByText('暂无内容')).toBeInTheDocument()
   })
 
+  test('keeps the empty hint hidden while deferred content is still loading', async () => {
+    vi.useFakeTimers()
+    mockArtistSWR({
+      primary: makePrimaryData({ songs: [] }),
+      deferredLoading: true,
+    })
+
+    const { default: ArtistPage } = await import('@/app/artist/[id]/page')
+    render(<ArtistPage />)
+
+    await flushDeferredArtistRequest()
+
+    expect(findArtistSWRCall('deferred')).toBeDefined()
+    expect(screen.queryByText('\u6682\u65e0\u5185\u5bb9')).not.toBeInTheDocument()
+  })
+
   test('does not call SWR when id is missing from the route params', async () => {
     mockUseParams.mockReturnValue({})
 
     const { default: ArtistPage } = await import('@/app/artist/[id]/page')
     render(<ArtistPage />)
 
-    // The first arg of SWR is the key. We expect null/undefined so SWR skips fetching.
-    const firstCall = mockUseSWR.mock.calls[0]
-    expect(firstCall?.[0]).toBeFalsy()
+    // The first arg of SWR is the key. Null/undefined keys tell SWR to skip fetching.
+    expect(mockUseSWR.mock.calls.length).toBeGreaterThan(0)
+    expect(mockUseSWR.mock.calls.every(([key]) => !key)).toBe(true)
   })
 
   test('uses a primary SWR key that only fetches artist detail and hot songs', async () => {
@@ -482,7 +585,7 @@ describe('ArtistPage', () => {
     const primaryData = (await primaryCall[1]()) as Partial<ArtistPrimaryData>
 
     expect(ncmApi.artistDetail).toHaveBeenCalledWith('101')
-    expect(ncmApi.artistSongs).toHaveBeenCalledWith('101', 50)
+    expect(ncmApi.artistSongs).toHaveBeenCalledWith('101', 10)
     expect(ncmApi.artistAlbum).not.toHaveBeenCalled()
     expect(ncmApi.artistDesc).not.toHaveBeenCalled()
     expect(ncmApi.simiArtist).not.toHaveBeenCalled()

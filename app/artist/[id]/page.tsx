@@ -271,7 +271,7 @@ function SimilarArtists({ artists }: SimilarArtistsProps) {
 async function loadArtistPrimary(id: string): Promise<ArtistPrimaryData> {
   const [detailRes, songsRes] = await Promise.all([
     ncmApi.artistDetail(id).catch(() => null),
-    ncmApi.artistSongs(id, 50).catch(() => null),
+    ncmApi.artistSongs(id, 10).catch(() => null),
   ])
 
   const normalized = normalizeArtistDetail({
@@ -334,7 +334,7 @@ export default function ArtistPage() {
       if (active) setDeferredReadyId(id)
     }
 
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
       idleId = window.requestIdleCallback(markReady, { timeout: 1800 })
     } else {
       timeoutId = setTimeout(markReady, 900)
@@ -342,7 +342,7 @@ export default function ArtistPage() {
 
     return () => {
       active = false
-      if (idleId !== null && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+      if (idleId !== null && typeof window !== 'undefined' && typeof window.cancelIdleCallback === 'function') {
         window.cancelIdleCallback(idleId)
       }
       if (timeoutId !== null) {
