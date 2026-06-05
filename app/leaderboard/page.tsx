@@ -217,6 +217,7 @@ function LeaderboardPageContent() {
               </div>
               <SongTable
                 songs={visibleTracks}
+                showArtwork={false}
                 onPlayAll={() => visibleTracks.length > 0 && playQueue(visibleTracks, 0)}
               />
               {canExpandTracks && selectedId ? (

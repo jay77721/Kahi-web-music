@@ -29,6 +29,7 @@ interface SongTableRowProps {
   showIndex: boolean
   showActions: boolean
   showAlbum: boolean
+  showArtwork: boolean
   gridClass: string
   animated: boolean
   onPlaySong: (song: Song) => void
@@ -46,6 +47,7 @@ export const SongTableRow = memo(function SongTableRow({
   showIndex,
   showActions,
   showAlbum,
+  showArtwork,
   gridClass,
   animated,
   onPlaySong,
@@ -138,7 +140,7 @@ export const SongTableRow = memo(function SongTableRow({
       )}
 
       <div className="flex items-center gap-3 min-w-0">
-        {song.al?.picUrl && (
+        {showArtwork && song.al?.picUrl && (
           <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 shadow-md">
             <Image
               src={imageUrl(song.al.picUrl, 80)}

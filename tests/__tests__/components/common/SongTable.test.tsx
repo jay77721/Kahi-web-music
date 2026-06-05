@@ -90,6 +90,13 @@ describe('SongTable', () => {
       const rows = container.querySelectorAll('[data-song-id]')
       expect(rows[0]).toHaveAttribute('data-song-pic', 'https://pics.example.com/album/201.jpg')
     })
+
+    test('can skip row artwork while preserving song metadata', () => {
+      const { container } = render(<SongTable songs={songs} showArtwork={false} />)
+      expect(within(container).queryByAltText('叶惠美 封面')).not.toBeInTheDocument()
+      const rows = container.querySelectorAll('[data-song-id]')
+      expect(rows[0]).toHaveAttribute('data-song-pic', 'https://pics.example.com/album/201.jpg')
+    })
   })
 
   describe('header', () => {

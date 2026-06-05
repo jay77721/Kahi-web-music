@@ -22,6 +22,7 @@ interface SongTableProps {
   songs: Song[]
   showIndex?: boolean
   showAlbum?: boolean
+  showArtwork?: boolean
   showActions?: boolean
   isLoading?: boolean
   /**
@@ -60,6 +61,7 @@ export function SongTable({
   songs,
   showIndex = true,
   showAlbum = true,
+  showArtwork = true,
   showActions = true,
   isLoading = false,
   animated = true,
@@ -200,6 +202,7 @@ export function SongTable({
                 showIndex={showIndex}
                 showActions={showActions}
                 showAlbum={showAlbum}
+                showArtwork={showArtwork}
                 gridClass={gridClass}
                 animated={animated}
                 onPlaySong={handlePlaySong}
