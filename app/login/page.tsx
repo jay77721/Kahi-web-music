@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Music2, QrCode, Smartphone } from 'lucide-react'
@@ -41,11 +41,15 @@ export default function LoginPage() {
   const isLoggedIn = useUserStore((s) => s.isLoggedIn)
   const hasRestoredSession = useUserStore((s) => s.hasRestoredSession)
   const [activeTab, setActiveTab] = useState<TabValue>('phone')
+  const hasRedirectedRef = useRef(false)
   const bgStyle = useLoginBackground()
   const isRestoringSession = !hasRestoredSession
 
   useEffect(() => {
-    if (isLoggedIn) router.replace('/my')
+    if (!isLoggedIn || hasRedirectedRef.current) return
+
+    hasRedirectedRef.current = true
+    router.replace('/my')
   }, [isLoggedIn, router])
 
   if (isRestoringSession || isLoggedIn) {
@@ -71,10 +75,7 @@ export default function LoginPage() {
       <BackButton onClick={() => router.push('/')} />
       <BrandHeader />
 
-      <motion.div
-        initial={{ opacity: 0, y: 30, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+      <div
         className="relative w-full max-w-md rounded-2xl border border-[var(--border)] overflow-hidden bg-white/5 backdrop-blur-xl"
         style={{
           boxShadow: '0 24px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
@@ -82,7 +83,7 @@ export default function LoginPage() {
       >
         <TabSwitcher activeTab={activeTab} onChange={setActiveTab} />
         <div className="p-6">
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" initial={false}>
             {activeTab === 'phone' ? (
               <motion.div
                 key="phone"
@@ -107,7 +108,7 @@ export default function LoginPage() {
           </AnimatePresence>
         </div>
         <LegalFooter />
-      </motion.div>
+      </div>
     </main>
   )
 }
@@ -150,12 +151,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
 
 function BrandHeader() {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      className="relative text-center mb-8"
-    >
+    <div className="relative text-center mb-8">
       <div
         className="w-16 h-16 rounded-2xl bg-[var(--accent)] flex items-center justify-center mx-auto mb-4"
         style={{ boxShadow: '0 0 40px var(--accent-glow), 0 8px 32px rgba(0,0,0,0.5)' }}
@@ -166,7 +162,7 @@ function BrandHeader() {
         Kahi Music
       </h1>
       <p className="text-sm text-[var(--text-tertiary)] mt-1.5">登录后享受更多服务</p>
-    </motion.div>
+    </div>
   )
 }
 
@@ -218,7 +214,7 @@ function LegalFooter() {
         登录即表示同意{' '}
         <button
           type="button"
-          className="text-[var(--text-tertiary)] hover:text-[var(--accent)] cursor-pointer transition-colors bg-transparent border-none p-0 text-[11px]"
+          className="text-[var(--text-tertiary)] hover:text-[var(--accent-text)] cursor-pointer transition-colors bg-transparent border-none p-0 text-[11px]"
           aria-label="查看用户协议"
         >
           用户协议
@@ -226,7 +222,7 @@ function LegalFooter() {
         和{' '}
         <button
           type="button"
-          className="text-[var(--text-tertiary)] hover:text-[var(--accent)] cursor-pointer transition-colors bg-transparent border-none p-0 text-[11px]"
+          className="text-[var(--text-tertiary)] hover:text-[var(--accent-text)] cursor-pointer transition-colors bg-transparent border-none p-0 text-[11px]"
           aria-label="查看隐私政策"
         >
           隐私政策

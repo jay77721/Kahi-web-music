@@ -60,7 +60,7 @@ export function RankingPreview() {
                 <h3 className="font-bold text-[var(--text-primary)] text-sm">{ranking.name}</h3>
                 <Link
                   href={`/leaderboard?id=${ranking.id}`}
-                  className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors duration-200"
+                  className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent-text)] transition-colors duration-200"
                 >
                   查看全部
                 </Link>
@@ -74,7 +74,7 @@ export function RankingPreview() {
                   >
                     <span className={`w-5 text-center text-sm font-bold ${
                       index < 3
-                        ? 'text-[var(--accent)]'
+                        ? 'text-[var(--accent-text)]'
                         : 'text-[var(--text-tertiary)]'
                     }`}>
                       {index + 1}
@@ -90,7 +90,7 @@ export function RankingPreview() {
                       />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm truncate font-medium text-[var(--text-primary)] group-hover/song:text-[var(--accent)] transition-colors duration-200">{song.name}</p>
+                      <p className="text-sm truncate font-medium text-[var(--text-primary)] group-hover/song:text-[var(--accent-text)] transition-colors duration-200">{song.name}</p>
                       <p className="text-xs text-[var(--text-secondary)] truncate">
                         {song.ar?.map(a => a.name).join(' / ')}
                       </p>

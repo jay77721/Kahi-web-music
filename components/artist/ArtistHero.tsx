@@ -131,7 +131,7 @@ export function ArtistHero({
         <div className="flex-1 min-w-0 text-center md:text-left flex flex-col gap-3">
           <motion.span
             variants={itemVariants}
-            className="inline-flex self-center md:self-start text-[11px] uppercase tracking-[0.18em] text-[var(--accent)]"
+            className="inline-flex self-center md:self-start text-[11px] uppercase tracking-[0.18em] text-[var(--accent-text)]"
           >
             艺人
           </motion.span>
@@ -177,7 +177,7 @@ export function ArtistHero({
                 type="button"
                 onClick={() => setExpanded((v) => !v)}
                 aria-expanded={expanded}
-                className="inline-flex items-center gap-1 text-xs text-[var(--accent)] hover:underline focus-visible:underline"
+                className="inline-flex items-center gap-1 text-xs text-[var(--accent-text)] hover:underline focus-visible:underline"
               >
                 {expanded ? '收起' : '展开'}
                 <ChevronDown

@@ -69,7 +69,7 @@ export const ProfileHeader = memo(function ProfileHeader({
             <span
               className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border ${
                 isVip
-                  ? 'bg-[var(--accent-subtle)] text-[var(--accent)] border-[var(--border-accent)]'
+                  ? 'bg-[var(--accent-subtle)] text-[var(--accent-text)] border-[var(--border-accent)]'
                   : 'bg-white/5 text-[var(--text-tertiary)] border-white/10'
               }`}
               aria-label={`会员等级：${vipLabel}`}

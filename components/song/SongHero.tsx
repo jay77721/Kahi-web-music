@@ -49,7 +49,7 @@ function buildArtistNodes(artists: Song['ar']): React.ReactNode {
       {index > 0 && <span className="text-[var(--text-quaternary)]">/</span>}
       <Link
         href={`/artist/${artist.id}`}
-        className="text-[var(--accent)] hover:underline transition-colors"
+        className="text-[var(--accent-text)] hover:underline transition-colors"
         data-testid="song-hero-artist"
       >
         {artist.name}
@@ -87,7 +87,7 @@ function AlbumLink({ album }: AlbumLinkProps) {
   return (
     <Link
       href={`/album/${album.id}`}
-      className="text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+      className="text-[var(--text-secondary)] hover:text-[var(--accent-text)] transition-colors"
       data-testid="song-hero-album"
     >
       {album.name}
@@ -142,7 +142,7 @@ function SongHeroImpl({ song, className }: SongHeroProps) {
       </div>
 
       <div className="flex-1 min-w-0 text-center md:text-left flex flex-col gap-2">
-        <span className="inline-flex self-center md:self-start items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-[var(--accent)]">
+        <span className="inline-flex self-center md:self-start items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-[var(--accent-text)]">
           <Disc3 className="w-3.5 h-3.5" aria-hidden="true" />
           歌曲
         </span>

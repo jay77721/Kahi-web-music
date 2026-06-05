@@ -168,7 +168,7 @@ function ErrorState({ message, onRetry }: ErrorStateProps) {
       <button
         type="button"
         onClick={onRetry}
-        className="text-sm text-[var(--accent)] hover:underline"
+        className="text-sm text-[var(--accent-text)] hover:underline"
       >
         重试
       </button>

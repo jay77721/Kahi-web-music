@@ -18,13 +18,13 @@ import type { Song } from '@/types/song'
  */
 export default function FMPage() {
   const router = useRouter()
-  const { isLoggedIn } = useUserStore()
+  const { isLoggedIn, hasRestoredSession } = useUserStore()
 
   useEffect(() => {
-    if (!isLoggedIn) {
-      router.push('/login')
+    if (hasRestoredSession && !isLoggedIn) {
+      router.replace('/login')
     }
-  }, [isLoggedIn, router])
+  }, [hasRestoredSession, isLoggedIn, router])
 
   const { data: fmSongs, mutate, error } = useSWR<Song[]>(
     isLoggedIn ? 'personal-fm' : null,
@@ -49,7 +49,7 @@ export default function FMPage() {
     [mutate]
   )
 
-  if (!isLoggedIn) return null
+  if (!hasRestoredSession || !isLoggedIn) return null
 
   const current = fmSongs?.[0] ?? null
   const isInitialLoading = !fmSongs && !error

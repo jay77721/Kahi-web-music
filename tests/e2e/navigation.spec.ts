@@ -113,6 +113,16 @@ test.describe('Navigation: sidebar interaction', () => {
     const navLinks = page.locator('aside a[href="/leaderboard"]')
     await expect(navLinks.first()).toBeVisible({ timeout: 10000 })
   })
+
+  test('protected sidebar routes replace history when redirecting to login', async ({ page }) => {
+    await page.goto('/')
+    await page.locator('aside a[href="/daily"]').first().click()
+
+    await expect(page).toHaveURL(/\/login/)
+
+    await page.goBack()
+    await expect(page).toHaveURL(/\/$/)
+  })
 })
 
 test.describe('Navigation: mobile hamburger menu', () => {

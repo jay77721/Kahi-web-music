@@ -1,10 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { buildNcmCookieHeader } from '@/lib/server/ncm-cookies'
 
-const API_BASE = process.env.API_URL || 'http://localhost:3000'
 const DEFAULT_BITRATE = '320000'
 const ALLOWED_BITRATES = new Set(['128000', '192000', '320000', '740000', '999000'])
 const DEFAULT_AUDIO_HOST_PATTERNS = [/^(?:[^.]+\.)*music\.126\.net$/i]
 const AUDIO_CONTENT_TYPES = ['audio/', 'application/octet-stream', 'binary/octet-stream']
+const GENERIC_BINARY_CONTENT_TYPES = new Set(['application/octet-stream', 'binary/octet-stream'])
+const AUDIO_EXTENSION_MIME_TYPES = new Map([
+  ['.mp3', 'audio/mpeg'],
+  ['.m4a', 'audio/mp4'],
+  ['.aac', 'audio/aac'],
+  ['.flac', 'audio/flac'],
+  ['.wav', 'audio/wav'],
+  ['.ogg', 'audio/ogg'],
+  ['.oga', 'audio/ogg'],
+])
 const RATE_LIMIT_WINDOW_MS = 60_000
 const RATE_LIMIT_MAX_REQUESTS = 60
 const METADATA_FETCH_TIMEOUT_MS = 8_000
@@ -28,6 +38,18 @@ function isAllowedAudioHost(hostname: string): boolean {
   }
 
   return DEFAULT_AUDIO_HOST_PATTERNS.some((pattern) => pattern.test(normalizedHost))
+}
+
+function getApiBase(): string | null {
+  if (process.env.API_URL) {
+    return process.env.API_URL
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return 'http://localhost:3000'
+  }
+
+  return null
 }
 
 function parseAudioUrl(value: unknown): URL | null {
@@ -56,6 +78,17 @@ function isAudioContentType(contentType: string | null): boolean {
 
   const normalizedType = contentType.split(';')[0].trim().toLowerCase()
   return AUDIO_CONTENT_TYPES.some((allowedType) => normalizedType.startsWith(allowedType))
+}
+
+function getBrowserPlayableContentType(contentType: string, audioUrl: URL): string {
+  const normalizedType = contentType.split(';')[0].trim().toLowerCase()
+  if (!GENERIC_BINARY_CONTENT_TYPES.has(normalizedType)) {
+    return contentType
+  }
+
+  const lastDotIndex = audioUrl.pathname.lastIndexOf('.')
+  const extension = lastDotIndex >= 0 ? audioUrl.pathname.slice(lastDotIndex).toLowerCase() : ''
+  return AUDIO_EXTENSION_MIME_TYPES.get(extension) || contentType
 }
 
 function getClientRateLimitKey(request: NextRequest): string {
@@ -135,15 +168,24 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const apiBase = getApiBase()
+    if (!apiBase) {
+      return NextResponse.json(
+        { code: 500, message: 'API_URL is not configured' },
+        { status: 500 },
+      )
+    }
+
     // Fetch audio URL from backend
-    const apiUrl = new URL('/song/url', API_BASE)
+    const apiUrl = new URL('/song/url', apiBase)
     apiUrl.searchParams.set('id', id)
     apiUrl.searchParams.set('br', br)
 
+    const cookieHeader = buildNcmCookieHeader(request)
     const apiResponse = await fetchWithTimeout(apiUrl.toString(), {
       headers: {
-        'Cookie': request.headers.get('cookie') || '',
         'User-Agent': request.headers.get('user-agent') || '',
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
       },
     }, METADATA_FETCH_TIMEOUT_MS)
 
@@ -189,7 +231,7 @@ export async function GET(request: NextRequest) {
         { status: 502 },
       )
     }
-    const contentType = rawContentType!.split(';')[0].trim()
+    const contentType = getBrowserPlayableContentType(rawContentType!.split(';')[0].trim(), audioUrl)
 
     // Build response headers - forward relevant headers from CDN
     const headers = new Headers(getCorsHeaders(request))

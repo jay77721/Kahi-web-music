@@ -80,7 +80,7 @@ export default function MVPage() {
                   <li
                     key={tag}
                     className="px-3 py-1 text-xs rounded-full
-                               bg-[var(--bg-accent-subtle)] text-[var(--accent)]
+                               bg-[var(--bg-accent-subtle)] text-[var(--accent-text)]
                                border border-[var(--border-accent)]"
                   >
                     #{tag}
@@ -122,7 +122,7 @@ export default function MVPage() {
                       loading="lazy"
                     />
                   </div>
-                  <p className="text-sm font-medium truncate group-hover:text-[var(--accent)] transition-colors">
+                  <p className="text-sm font-medium truncate group-hover:text-[var(--accent-text)] transition-colors">
                     {mvItem.name}
                   </p>
                   <p className="text-xs text-[var(--text-tertiary)] truncate">

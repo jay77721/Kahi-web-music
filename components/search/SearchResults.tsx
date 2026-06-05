@@ -65,7 +65,7 @@ export function SearchResults({ keywords }: SearchResultsProps) {
           <TabsTrigger
             key={tab.value}
             value={tab.value}
-            className="gap-1.5 data-active:text-[var(--accent)]"
+            className="gap-1.5 data-active:text-[var(--accent-text)]"
           >
             <tab.icon className="w-4 h-4" />
             {tab.label}
@@ -205,7 +205,7 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
                   loading="lazy"
                 />
               </div>
-              <p className="text-sm font-medium truncate group-hover:text-[var(--accent)] transition-colors">
+              <p className="text-sm font-medium truncate group-hover:text-[var(--accent-text)] transition-colors">
                 {album.name}
               </p>
               <p className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">
@@ -244,7 +244,7 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
                   loading="lazy"
                 />
               </div>
-              <p className="text-sm font-medium truncate group-hover:text-[var(--accent)] transition-colors">
+              <p className="text-sm font-medium truncate group-hover:text-[var(--accent-text)] transition-colors">
                 {mv.name}
               </p>
               <p className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">

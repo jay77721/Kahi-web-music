@@ -47,7 +47,7 @@ export function MVInfo({ mv, likedCount = 0, shareCount = 0, className }: MVInfo
         {artistId !== undefined ? (
           <Link
             href={`/artist/${artistId}`}
-            className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+            className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-text)] transition-colors"
           >
             {artistName}
           </Link>

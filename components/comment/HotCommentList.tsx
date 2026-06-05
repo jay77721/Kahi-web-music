@@ -50,7 +50,7 @@ export function HotCommentList({
             aria-label={`热门评论第 ${idx + 1} 名`}
           >
             <span
-              className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--bg-surface)] text-[var(--accent)] text-xs font-bold flex items-center justify-center"
+              className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--bg-surface)] text-[var(--accent-text)] text-xs font-bold flex items-center justify-center"
               aria-hidden="true"
             >
               {idx + 1}

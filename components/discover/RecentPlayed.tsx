@@ -109,7 +109,7 @@ export function RecentPlayed({ maxItems = 12 }: RecentPlayedProps) {
                   </div>
                 </div>
               </div>
-              <p className="mt-2 text-sm text-[var(--text-primary)] truncate group-hover:text-[var(--accent)] transition-colors duration-200">
+              <p className="mt-2 text-sm text-[var(--text-primary)] truncate group-hover:text-[var(--accent-text)] transition-colors duration-200">
                 {song.name}
               </p>
             </motion.button>

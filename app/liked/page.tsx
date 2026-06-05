@@ -43,7 +43,7 @@ function shuffle<T>(input: ReadonlyArray<T>): T[] {
 
 export default function LikedPage() {
   const router = useRouter()
-  const { isLoggedIn, profile } = useUserStore()
+  const { isLoggedIn, profile, hasRestoredSession } = useUserStore()
   const { playQueue, setPlayMode } = usePlayerStore()
 
   const sampledAvatar = profile ? imageUrl(profile.avatarUrl, 120) : null
@@ -62,8 +62,8 @@ export default function LikedPage() {
   }, [color])
 
   useEffect(() => {
-    if (!isLoggedIn) router.push('/login')
-  }, [isLoggedIn, router])
+    if (hasRestoredSession && !isLoggedIn) router.replace('/login')
+  }, [hasRestoredSession, isLoggedIn, router])
 
   const { data, isLoading, error, mutate } = useSWR<Song[]>(
     isLoggedIn && profile?.userId ? 'liked-songs' : null,
@@ -88,7 +88,7 @@ export default function LikedPage() {
     playQueue(shuffle(data), 0)
   }, [data, playQueue, setPlayMode])
 
-  if (!isLoggedIn) return null
+  if (!hasRestoredSession || !isLoggedIn) return null
 
   const total = data?.length ?? 0
 
@@ -163,7 +163,7 @@ export default function LikedPage() {
               variant="ghost"
               size="sm"
               onClick={() => void mutate()}
-              className="text-[var(--accent)] hover:bg-[var(--bg-hover)]"
+              className="text-[var(--accent-text)] hover:bg-[var(--bg-hover)]"
             >
               <RefreshCw className="w-4 h-4 mr-1.5" aria-hidden="true" />
               重试

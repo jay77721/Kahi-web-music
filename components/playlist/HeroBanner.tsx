@@ -117,7 +117,7 @@ export const HeroBanner = memo(function HeroBanner({
         )}
         <div className="flex-1 min-w-0 text-center md:text-left flex flex-col gap-3">
           {badge && (
-            <span className="inline-flex self-center md:self-start text-[11px] uppercase tracking-[0.18em] text-[var(--accent)]">
+            <span className="inline-flex self-center md:self-start text-[11px] uppercase tracking-[0.18em] text-[var(--accent-text)]">
               {badge}
             </span>
           )}

@@ -151,7 +151,7 @@ export const SongTableRow = memo(function SongTableRow({
           </div>
         )}
         <div className="min-w-0">
-          <p className={cn('text-sm truncate font-medium', isCurrent && 'text-[var(--accent)]')}>
+          <p className={cn('text-sm truncate font-medium', isCurrent && 'text-[var(--accent-text)]')}>
             {song.name}
           </p>
           <p className="text-xs text-[var(--text-tertiary)] truncate md:hidden">
@@ -174,7 +174,7 @@ export const SongTableRow = memo(function SongTableRow({
         <span
           className={cn(
             'text-xs transition-opacity duration-200',
-            isCurrent ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)]',
+            isCurrent ? 'text-[var(--accent-text)]' : 'text-[var(--text-tertiary)]',
             showActions && 'group-hover:opacity-0 group-focus-within:opacity-0'
           )}
         >

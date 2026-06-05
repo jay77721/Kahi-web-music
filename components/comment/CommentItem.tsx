@@ -77,8 +77,8 @@ export function CommentItem({
             className={
               'flex items-center gap-1 text-xs transition-colors ' +
               (liked
-                ? 'text-[var(--accent)]'
-                : 'text-[var(--text-tertiary)] hover:text-[var(--accent)]')
+                ? 'text-[var(--accent-text)]'
+                : 'text-[var(--text-tertiary)] hover:text-[var(--accent-text)]')
             }
           >
             <ThumbsUp className="w-3.5 h-3.5" aria-hidden="true" />
@@ -125,7 +125,7 @@ function ReplyQuote({ replies }: ReplyQuoteProps) {
     >
       {replies.map((reply, idx) => (
         <p key={`${reply.user?.userId ?? 'reply'}-${idx}`}>
-          <span className="text-[var(--accent)]">@{reply.user?.nickname || '匿名'}</span>
+          <span className="text-[var(--accent-text)]">@{reply.user?.nickname || '匿名'}</span>
           {': '}
           {reply.content}
         </p>

@@ -33,6 +33,8 @@ function MiniPlayerContent() {
 
   return (
     <div
+      role="region"
+      aria-label="迷你播放器"
       className="md:hidden fixed bottom-14 left-0 right-0 z-40 glass flex items-center px-3 gap-1"
       style={{ borderLeft: '3px solid var(--accent)' }}
     >
