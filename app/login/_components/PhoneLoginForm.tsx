@@ -4,7 +4,6 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
-import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ncmApi } from '@/lib/api'
@@ -171,7 +170,7 @@ export function PhoneLoginForm() {
         )}
       </div>
 
-      <motion.div whileTap={{ scale: 0.985 }}>
+      <div className="transition-transform duration-150 active:scale-[0.985]">
         <Button
           type="submit"
           disabled={!canSubmit}
@@ -180,7 +179,7 @@ export function PhoneLoginForm() {
           {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
           {submitting ? '登录中…' : '登 录'}
         </Button>
-      </motion.div>
+      </div>
     </form>
   )
 }

@@ -12,7 +12,6 @@ import {
 import { useUIStore } from '@/stores/uiStore'
 import { useUserStore } from '@/stores/userStore'
 import { cn } from '@/lib/utils'
-import { motion } from 'framer-motion'
 
 const mainNavItems = [
   { href: '/', label: '发现音乐', icon: Home },
@@ -56,6 +55,20 @@ function isSidebarNavItemActive(item: NavItem, pathname: string, activeTab: stri
   return pathname === basePath || pathname.startsWith(`${basePath}/`)
 }
 
+function SidebarActiveIndicator({ active, compact = false }: { active: boolean; compact?: boolean }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-[var(--accent)] transition-all duration-200 ease-out',
+        compact ? 'h-5' : 'h-6',
+        active ? 'opacity-100 scale-y-100' : 'opacity-0 scale-y-50'
+      )}
+      style={{ boxShadow: compact ? '0 0 8px var(--accent-glow)' : '0 0 10px var(--accent-glow)' }}
+    />
+  )
+}
+
 export function Sidebar() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -79,15 +92,7 @@ export function Sidebar() {
             : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
         )}
       >
-        {isActive && (
-          <motion.span
-            layoutId="sidebarActive"
-            aria-hidden="true"
-            className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-[var(--accent)]"
-            style={{ boxShadow: '0 0 10px var(--accent-glow)' }}
-            transition={{ type: 'spring', bounce: 0.25, duration: 0.5 }}
-          />
-        )}
+        <SidebarActiveIndicator active={isActive} />
         <Icon aria-hidden="true" className={cn(
           'w-[20px] h-[20px] flex-shrink-0 transition-all duration-200',
           isActive ? 'text-[var(--accent)] scale-110' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)] group-hover:scale-110'
@@ -137,12 +142,7 @@ export function Sidebar() {
                 )}
                 title={item.label}
               >
-                {isActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-[var(--accent)]"
-                    aria-hidden="true"
-                    style={{ boxShadow: '0 0 8px var(--accent-glow)' }}
-                  />
-                )}
+                <SidebarActiveIndicator active={isActive} compact />
                 <Icon className="w-6 h-6" aria-hidden="true" />
               </Link>
             )
@@ -160,13 +160,7 @@ export function Sidebar() {
             )}
             title="设置"
           >
-            {pathname === '/settings' && (
-              <span
-                aria-hidden="true"
-                className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-[var(--accent)]"
-                style={{ boxShadow: '0 0 8px var(--accent-glow)' }}
-              />
-            )}
+            <SidebarActiveIndicator active={pathname === '/settings'} compact />
             <SettingsIcon className="w-6 h-6" aria-hidden="true" />
           </Link>
         </nav>
@@ -290,15 +284,7 @@ export function Sidebar() {
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
             )}
           >
-            {pathname === '/settings' && (
-              <motion.span
-                layoutId="sidebarActive"
-                aria-hidden="true"
-                className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full bg-[var(--accent)]"
-                style={{ boxShadow: '0 0 10px var(--accent-glow)' }}
-                transition={{ type: 'spring', bounce: 0.25, duration: 0.5 }}
-              />
-            )}
+            <SidebarActiveIndicator active={pathname === '/settings'} />
             <SettingsIcon aria-hidden="true" className={cn(
               'w-[20px] h-[20px] flex-shrink-0 transition-all duration-200',
               pathname === '/settings' ? 'text-[var(--accent)] scale-110' : 'text-[var(--text-tertiary)] group-hover:text-[var(--text-secondary)] group-hover:scale-110'

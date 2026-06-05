@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Music2, QrCode, Smartphone } from 'lucide-react'
 import { useUserStore } from '@/stores/userStore'
 import { useDominantColor } from '@/hooks/useDominantColor'
@@ -75,49 +74,39 @@ export default function LoginPage() {
       <BackButton onClick={() => router.push('/')} />
       <BrandHeader />
 
-      <motion.div
-        initial={{ opacity: 0, y: 30, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-md rounded-2xl border border-[var(--border)] overflow-hidden bg-[var(--bg-elevated)]/80 backdrop-blur-xl"
+      <div
+        className="relative w-full max-w-md rounded-2xl border border-[var(--border)] overflow-hidden bg-[var(--bg-elevated)]/80 backdrop-blur-xl animate-slide-up"
         style={{
+          animationDelay: '150ms',
           boxShadow: 'var(--shadow-lg), inset 0 1px 0 var(--border-subtle)',
         }}
       >
         <TabSwitcher activeTab={activeTab} onChange={setActiveTab} />
         <div className="p-6">
-          <AnimatePresence mode="wait" initial={false}>
-            {activeTab === 'phone' ? (
-              <motion.div
-                key="phone"
-                id="tab-panel-phone"
-                role="tabpanel"
-                aria-labelledby="login-tab-phone"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2 }}
-              >
-                <PhoneLoginForm />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="qr"
-                id="tab-panel-qr"
-                role="tabpanel"
-                aria-labelledby="login-tab-qr"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.2 }}
-              >
-                <QRLoginPanel />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {activeTab === 'phone' ? (
+            <div
+              key="phone"
+              id="tab-panel-phone"
+              role="tabpanel"
+              aria-labelledby="login-tab-phone"
+              className="animate-slide-up"
+            >
+              <PhoneLoginForm />
+            </div>
+          ) : (
+            <div
+              key="qr"
+              id="tab-panel-qr"
+              role="tabpanel"
+              aria-labelledby="login-tab-qr"
+              className="animate-slide-up"
+            >
+              <QRLoginPanel />
+            </div>
+          )}
         </div>
         <LegalFooter />
-      </motion.div>
+      </div>
     </main>
   )
 }
@@ -193,21 +182,14 @@ function TabSwitcher({ activeTab, onChange }: TabSwitcherProps) {
             role="tab"
             aria-selected={isActive}
             aria-controls={`tab-panel-${value}`}
+            data-state={isActive ? 'active' : 'inactive'}
             onClick={() => onChange(value)}
             className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-all duration-300 relative ${
               isActive
-                ? 'text-[var(--accent-foreground)]'
+                ? 'bg-[var(--accent)] text-[var(--accent-foreground)]'
                 : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
             }`}
           >
-            {isActive && (
-              <motion.div
-                layoutId="activeTab"
-                className="absolute inset-0 bg-[var(--accent)]"
-                style={{ borderRadius: 0 }}
-                transition={{ type: 'spring', bounce: 0.2, duration: 0.5 }}
-              />
-            )}
             <Icon className="w-4 h-4 relative z-10" />
             <span className="relative z-10">{label}</span>
           </button>

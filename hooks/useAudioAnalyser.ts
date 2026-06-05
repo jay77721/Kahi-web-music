@@ -1,17 +1,29 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Howler } from 'howler'
+
+interface HowlerLike {
+  ctx?: AudioContext | null
+  masterGain?: GainNode | null
+}
+
+interface HowlerModule {
+  Howler?: HowlerLike
+  default?: {
+    Howler?: HowlerLike
+  }
+}
 
 export interface UseAudioAnalyserOptions {
-  /** FFT size (default 256 → 128 frequency bins). */
+  /** FFT size (default 256 -> 128 frequency bins). */
   fftSize?: number
   /** Smoothing time constant 0..1 (default 0.8). */
   smoothingTimeConstant?: number
   /** When false, only expose the AnalyserNode and skip the hook-owned rAF sampler. */
   collectFrequencyData?: boolean
-  /** Optional externally provided AnalyserNode; if given, the hook
-   *  will not create one. Useful for testing. */
+  /** When false, skip Howler resolution and return an inactive analyser result. */
+  enabled?: boolean
+  /** Optional externally provided AnalyserNode; if given, the hook will not create one. */
   externalAnalyser?: AnalyserNode | null
 }
 
@@ -25,17 +37,19 @@ export interface UseAudioAnalyserResult {
 }
 
 /**
- * Resolves the Howler.js Web Audio context and creates an AnalyserNode
- * tapped off the master gain. Falls back gracefully (returns null) when
- * Howler is unavailable or only running in html5 mode.
+ * Resolve Howler lazily so fullscreen-player code can render without putting
+ * howler in the initial player chunk. Missing WebAudio support falls back to
+ * a null analyser result.
  */
-function resolveHowlerContext(): {
+async function resolveHowlerContext(): Promise<{
   ctx: AudioContext | null
   masterGain: GainNode | null
-} {
+}> {
   try {
-    const ctx: AudioContext | null = Howler?.ctx ?? null
-    const masterGain: GainNode | null = Howler?.masterGain ?? null
+    const howlerModule = await import('howler') as HowlerModule
+    const howler = howlerModule.Howler ?? howlerModule.default?.Howler ?? null
+    const ctx: AudioContext | null = howler?.ctx ?? null
+    const masterGain: GainNode | null = howler?.masterGain ?? null
     return { ctx, masterGain }
   } catch {
     return { ctx: null, masterGain: null }
@@ -49,12 +63,15 @@ export function useAudioAnalyser(
     fftSize = 256,
     smoothingTimeConstant = 0.8,
     collectFrequencyData = true,
+    enabled = true,
     externalAnalyser = null,
   } = options
 
-  const [analyser, setAnalyser] = useState<AnalyserNode | null>(externalAnalyser)
+  const [analyser, setAnalyser] = useState<AnalyserNode | null>(
+    enabled ? externalAnalyser : null
+  )
   const [frequencyData, setFrequencyData] = useState<Uint8Array<ArrayBuffer> | null>(
-    externalAnalyser && collectFrequencyData
+    enabled && externalAnalyser && collectFrequencyData
       ? new Uint8Array(new ArrayBuffer(externalAnalyser.frequencyBinCount))
       : null
   )
@@ -64,69 +81,91 @@ export function useAudioAnalyser(
   const dataRef = useRef<Uint8Array<ArrayBuffer> | null>(null)
 
   useEffect(() => {
-    // If the caller handed us an analyser, wire it up directly.
-    let analyserNode: AnalyserNode | null = externalAnalyser
-    // We only own the connection we created ourselves; never disconnect a
-    // node the caller passed in.
-    const ownsConnection = !externalAnalyser
+    let cancelled = false
+    let analyserNode: AnalyserNode | null = null
+    let ownsConnection = false
 
-    if (!analyserNode) {
-      const { ctx, masterGain } = resolveHowlerContext()
-      if (!ctx || !masterGain) return
-      try {
-        analyserNode = ctx.createAnalyser()
-        analyserNode.fftSize = fftSize
-        analyserNode.smoothingTimeConstant = smoothingTimeConstant
-        masterGain.connect(analyserNode)
-      } catch {
-        return
-      }
-    } else {
-      analyserNode.fftSize = fftSize
-      analyserNode.smoothingTimeConstant = smoothingTimeConstant
-    }
-
-    const data = collectFrequencyData
-      ? new Uint8Array(new ArrayBuffer(analyserNode.frequencyBinCount))
-      : null
-    dataRef.current = data
-
-    // Defer the synchronous setStates to a microtask so the "no setState in
-    // effect body" rule is satisfied — they all happen after the current
-    // render commits, not inside the effect synchronously.
-    Promise.resolve().then(() => {
-      setFrequencyData(data)
-      setAnalyser(analyserNode)
-      setIsActive(collectFrequencyData)
-    })
-
-    if (collectFrequencyData) {
-      const tick = (): void => {
-        if (analyserNode && dataRef.current) {
-          analyserNode.getByteFrequencyData(dataRef.current)
-        }
-        rafIdRef.current = requestAnimationFrame(tick)
-      }
-      rafIdRef.current = requestAnimationFrame(tick)
-    }
-
-    return () => {
+    const stopSampling = (): void => {
       if (rafIdRef.current !== null) {
         cancelAnimationFrame(rafIdRef.current)
         rafIdRef.current = null
       }
-      // Disconnect the analyser we created so the master gain is no longer
-      // feeding it once the consumer unmounts.
+    }
+
+    const publishState = (
+      nextAnalyser: AnalyserNode | null,
+      data: Uint8Array<ArrayBuffer> | null,
+      active: boolean
+    ): void => {
+      Promise.resolve().then(() => {
+        if (cancelled) return
+        setFrequencyData(data)
+        setAnalyser(nextAnalyser)
+        setIsActive(active)
+      })
+    }
+
+    const startAnalyser = (node: AnalyserNode, ownsNodeConnection: boolean): void => {
+      analyserNode = node
+      ownsConnection = ownsNodeConnection
+
+      const data = collectFrequencyData
+        ? new Uint8Array(new ArrayBuffer(node.frequencyBinCount))
+        : null
+      dataRef.current = data
+
+      publishState(node, data, collectFrequencyData)
+
+      if (collectFrequencyData) {
+        const tick = (): void => {
+          if (analyserNode && dataRef.current) {
+            analyserNode.getByteFrequencyData(dataRef.current)
+          }
+          rafIdRef.current = requestAnimationFrame(tick)
+        }
+        rafIdRef.current = requestAnimationFrame(tick)
+      }
+    }
+
+    if (!enabled) {
+      dataRef.current = null
+      publishState(null, null, false)
+    } else if (externalAnalyser) {
+      startAnalyser(externalAnalyser, false)
+    } else {
+      void resolveHowlerContext().then(({ ctx, masterGain }) => {
+        if (cancelled) return
+        if (!ctx || !masterGain) {
+          publishState(null, null, false)
+          return
+        }
+
+        try {
+          const node = ctx.createAnalyser()
+          node.fftSize = fftSize
+          node.smoothingTimeConstant = smoothingTimeConstant
+          masterGain.connect(node)
+          startAnalyser(node, true)
+        } catch {
+          publishState(null, null, false)
+        }
+      })
+    }
+
+    return () => {
+      cancelled = true
+      stopSampling()
+      dataRef.current = null
+
       if (ownsConnection && analyserNode) {
         try {
           analyserNode.disconnect()
         } catch {
-          // ignore — already disconnected or never connected
+          // Ignore nodes that are already disconnected.
         }
       }
-      setIsActive(false)
     }
-  }, [fftSize, smoothingTimeConstant, collectFrequencyData, externalAnalyser])
+  }, [fftSize, smoothingTimeConstant, collectFrequencyData, enabled, externalAnalyser])
 
   return { analyser, frequencyData, isActive }
 }

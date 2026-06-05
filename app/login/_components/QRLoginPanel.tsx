@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -197,24 +196,18 @@ export function QRLoginPanel() {
         {status === 'loading' && '正在生成二维码…'}
       </p>
 
-      <AnimatePresence>
-        {status === 'expired' && (
-          <motion.div
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -5 }}
+      {status === 'expired' && (
+        <div className="animate-slide-up">
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-[var(--border)] text-sm rounded-lg hover:bg-[var(--bg-hover)] hover:border-[var(--border-strong)] transition-all"
+            onClick={generateQR}
           >
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-[var(--border)] text-sm rounded-lg hover:bg-[var(--bg-hover)] hover:border-[var(--border-strong)] transition-all"
-              onClick={generateQR}
-            >
-              重新生成二维码
-            </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            重新生成二维码
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

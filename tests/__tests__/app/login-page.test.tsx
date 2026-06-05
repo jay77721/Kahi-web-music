@@ -1,6 +1,8 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { StrictMode } from 'react'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import LoginPage from '@/app/login/page'
 
 const mocks = vi.hoisted(() => ({
@@ -11,6 +13,12 @@ const mocks = vi.hoisted(() => ({
     hasRestoredSession: true,
   },
 }))
+
+const LOGIN_CLIENT_SOURCE_FILES = [
+  'app/login/page.tsx',
+  'app/login/_components/QRLoginPanel.tsx',
+  'app/login/_components/PhoneLoginForm.tsx',
+] as const
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -48,6 +56,20 @@ function getClassNames(container: HTMLElement): string {
     .join(' ')
 }
 
+function getLoginTabs(): HTMLButtonElement[] {
+  return screen.getAllByRole('tab') as HTMLButtonElement[]
+}
+
+describe('LoginPage motion dependency', () => {
+  test('keeps login client sources free of framer-motion imports', () => {
+    for (const filePath of LOGIN_CLIENT_SOURCE_FILES) {
+      const source = readFileSync(join(process.cwd(), filePath), 'utf8')
+
+      expect(source).not.toContain('framer-motion')
+    }
+  })
+})
+
 describe('LoginPage session restoration gate', () => {
   beforeEach(() => {
     mocks.userStoreState.isLoggedIn = false
@@ -67,6 +89,27 @@ describe('LoginPage session restoration gate', () => {
     expect(screen.getByText('PhoneLoginForm')).toBeInTheDocument()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(mocks.routerReplace).not.toHaveBeenCalled()
+  })
+
+  test('switches login panels with native tab state', () => {
+    render(<LoginPage />)
+
+    const [phoneTab, qrTab] = getLoginTabs()
+    expect(phoneTab).toHaveAttribute('aria-selected', 'true')
+    expect(phoneTab).toHaveAttribute('data-state', 'active')
+    expect(phoneTab).toHaveClass('bg-[var(--accent)]')
+    expect(qrTab).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('tabpanel')).toHaveClass('animate-slide-up')
+    expect(screen.getByText('PhoneLoginForm')).toBeInTheDocument()
+
+    fireEvent.click(qrTab)
+
+    expect(phoneTab).toHaveAttribute('aria-selected', 'false')
+    expect(phoneTab).toHaveAttribute('data-state', 'inactive')
+    expect(qrTab).toHaveAttribute('aria-selected', 'true')
+    expect(qrTab).toHaveAttribute('data-state', 'active')
+    expect(screen.getByText('QRLoginPanel')).toBeInTheDocument()
+    expect(screen.queryByText('PhoneLoginForm')).not.toBeInTheDocument()
   })
 
   test('does not render the login form while session restoration is pending', () => {

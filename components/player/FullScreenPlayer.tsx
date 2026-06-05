@@ -105,7 +105,11 @@ function FullScreenPlayerContent() {
 
   const coverUrl = stableUrl ? imageUrl(stableUrl, 224) : null
   const { color } = useDominantColor(coverUrl, { timeoutMs: 5000 })
-  const { analyser } = useAudioAnalyser({ collectFrequencyData: false })
+  const { analyser } = useAudioAnalyser({
+    collectFrequencyData: false,
+    enabled: isPlaying,
+  })
+  const prefersReducedMotion = useReducedMotion()
 
   // Responsive vinyl sizing — use a small/medium breakpoint similar to Tailwind's `sm`.
   const [vinylSize, setVinylSize] = useState(VINYL_SIZE_MOBILE)
@@ -282,8 +286,6 @@ function FullScreenPlayerContent() {
       transition: { duration: 0.35, delay: 0.15 }
     }
   })
-
-  const prefersReducedMotion = useReducedMotion()
 
   // Inline motion props for the header, spectrum and lyrics. When the user
   // prefers reduced motion we collapse to the final state and skip the

@@ -49,9 +49,15 @@ vi.mock('@/hooks/useDominantColor', () => ({
 }))
 
 // Stub the audio analyser hook — jsdom has no WebAudio context.
-const useAudioAnalyserSpy = vi.fn(() => ({ analyser: null, frequencyData: null, isActive: false }))
+const useAudioAnalyserSpy = vi.fn((_options?: unknown) => ({
+  // Keep the optional argument in the spy signature so option assertions are typed.
+  ...(_options === undefined ? {} : {}),
+  analyser: null,
+  frequencyData: null,
+  isActive: false,
+}))
 vi.mock('@/hooks/useAudioAnalyser', () => ({
-  useAudioAnalyser: () => useAudioAnalyserSpy(),
+  useAudioAnalyser: (options?: unknown) => useAudioAnalyserSpy(options),
 }))
 
 // Stub the spectrum visualizer to a thin span so jsdom doesn't try to
@@ -188,5 +194,43 @@ describe('FullScreenPlayer', () => {
     // The first non-null argument should be falsy when there's no cover URL
     const firstCallUrl = useDominantColorSpy.mock.calls[0]?.[0]
     expect(firstCallUrl).toBeFalsy()
+  })
+
+  test('does not request a Howler analyser while opened but paused', () => {
+    mockUI.fullScreenPlayerOpen = true
+    mockStore.isPlaying = false
+    mockStore.currentTrack = {
+      id: 1,
+      name: 'Test',
+      ar: [{ id: 1, name: 'Artist' }],
+      al: { id: 1, name: 'Album', picUrl: 'https://example.com/cover.jpg' },
+      mv: 0,
+    }
+
+    render(<FullScreenPlayer />)
+
+    expect(useAudioAnalyserSpy).toHaveBeenCalledWith({
+      collectFrequencyData: false,
+      enabled: false,
+    })
+  })
+
+  test('requests a Howler analyser while opened and playing', () => {
+    mockUI.fullScreenPlayerOpen = true
+    mockStore.isPlaying = true
+    mockStore.currentTrack = {
+      id: 1,
+      name: 'Test',
+      ar: [{ id: 1, name: 'Artist' }],
+      al: { id: 1, name: 'Album', picUrl: 'https://example.com/cover.jpg' },
+      mv: 0,
+    }
+
+    render(<FullScreenPlayer />)
+
+    expect(useAudioAnalyserSpy).toHaveBeenCalledWith({
+      collectFrequencyData: false,
+      enabled: true,
+    })
   })
 })
