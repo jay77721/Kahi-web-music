@@ -3,6 +3,7 @@ import { Howl } from 'howler'
 type AudioEventCallback = () => void
 type AudioTimeCallback = (time: number) => void
 type AudioErrorCallback = (error: unknown) => void
+type AudioUnsubscribe = () => void
 
 export class AudioEngine {
   private howl: Howl | null = null
@@ -31,40 +32,49 @@ export class AudioEngine {
 
     this.destroy()
 
-    this.howl = new Howl({
+    let howl: Howl | null = null
+    howl = new Howl({
       src: [url],
       html5: true,
       preload: true,
       format: ['mp3'],
       volume: this.volume ?? 1,
       onload: () => {
+        if (this.howl !== howl) return
         this.onLoadCallback?.()
       },
       onloaderror: (_id: number, error: unknown) => {
+        if (this.howl !== howl) return
         console.error('[AudioEngine] Load error:', error)
         this.onErrorCallback?.(error)
       },
       onplayerror: (_id: number, error: unknown) => {
+        if (this.howl !== howl) return
         console.error('[AudioEngine] Play error:', error)
         this.onErrorCallback?.(error)
       },
       onplay: () => {
+        if (this.howl !== howl) return
         this.onPlayCallback?.()
         this.startTimeUpdate()
       },
       onpause: () => {
+        if (this.howl !== howl) return
         this.onPauseCallback?.()
         this.stopTimeUpdate()
       },
       onend: () => {
+        if (this.howl !== howl) return
         this.stopTimeUpdate()
         this.onEndCallback?.()
       },
       onstop: () => {
+        if (this.howl !== howl) return
         this.stopTimeUpdate()
       },
     })
 
+    this.howl = howl
     this.currentUrl = url
   }
 
@@ -133,12 +143,47 @@ export class AudioEngine {
   }
 
   // Event registration
-  onPlay(callback: AudioEventCallback): void { this.onPlayCallback = callback }
-  onPause(callback: AudioEventCallback): void { this.onPauseCallback = callback }
-  onEnd(callback: AudioEventCallback): void { this.onEndCallback = callback }
-  onError(callback: AudioErrorCallback): void { this.onErrorCallback = callback }
-  onTimeUpdate(callback: AudioTimeCallback): void { this.onTimeUpdateCallback = callback }
-  onLoad(callback: AudioEventCallback): void { this.onLoadCallback = callback }
+  onPlay(callback: AudioEventCallback): AudioUnsubscribe {
+    this.onPlayCallback = callback
+    return () => {
+      if (this.onPlayCallback === callback) this.onPlayCallback = null
+    }
+  }
+
+  onPause(callback: AudioEventCallback): AudioUnsubscribe {
+    this.onPauseCallback = callback
+    return () => {
+      if (this.onPauseCallback === callback) this.onPauseCallback = null
+    }
+  }
+
+  onEnd(callback: AudioEventCallback): AudioUnsubscribe {
+    this.onEndCallback = callback
+    return () => {
+      if (this.onEndCallback === callback) this.onEndCallback = null
+    }
+  }
+
+  onError(callback: AudioErrorCallback): AudioUnsubscribe {
+    this.onErrorCallback = callback
+    return () => {
+      if (this.onErrorCallback === callback) this.onErrorCallback = null
+    }
+  }
+
+  onTimeUpdate(callback: AudioTimeCallback): AudioUnsubscribe {
+    this.onTimeUpdateCallback = callback
+    return () => {
+      if (this.onTimeUpdateCallback === callback) this.onTimeUpdateCallback = null
+    }
+  }
+
+  onLoad(callback: AudioEventCallback): AudioUnsubscribe {
+    this.onLoadCallback = callback
+    return () => {
+      if (this.onLoadCallback === callback) this.onLoadCallback = null
+    }
+  }
 
   private startTimeUpdate(): void {
     this.stopTimeUpdate()
@@ -146,8 +191,10 @@ export class AudioEngine {
       if (this.howl && this.howl.playing()) {
         const time = this.howl.seek() as number
         this.onTimeUpdateCallback?.(time)
+        this._rafId = requestAnimationFrame(tick)
+      } else {
+        this._rafId = null
       }
-      this._rafId = requestAnimationFrame(tick)
     }
     this._rafId = requestAnimationFrame(tick)
   }

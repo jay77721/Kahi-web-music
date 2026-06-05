@@ -74,6 +74,7 @@ const LOGOUT_ERROR_FALLBACK = '退出登录请求失败，服务器会话可能�
 const DEFAULT_QUALITY = 'exhigh'
 const DEFAULT_DOWNLOAD_DIR = '~/Downloads/KahiMusic'
 const DEFAULT_NOTIFICATIONS_ENABLED = true
+const QUALITY_VALUES = new Set(QUALITY_OPTIONS.map((option) => option.value))
 
 function getLogoutErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message) {
@@ -81,6 +82,21 @@ function getLogoutErrorMessage(error: unknown): string {
   }
 
   return LOGOUT_ERROR_FALLBACK
+}
+
+function getStoredQuality(): string {
+  const saved = storage.get<unknown>('play:quality', DEFAULT_QUALITY)
+  return typeof saved === 'string' && QUALITY_VALUES.has(saved) ? saved : DEFAULT_QUALITY
+}
+
+function getStoredDownloadDir(): string {
+  const saved = storage.get<unknown>('download:dir', DEFAULT_DOWNLOAD_DIR)
+  return typeof saved === 'string' && saved.trim().length > 0 ? saved : DEFAULT_DOWNLOAD_DIR
+}
+
+function getStoredNotificationsEnabled(): boolean {
+  const saved = storage.get<unknown>('notifications:enabled', DEFAULT_NOTIFICATIONS_ENABLED)
+  return typeof saved === 'boolean' ? saved : DEFAULT_NOTIFICATIONS_ENABLED
 }
 
 /**
@@ -201,6 +217,7 @@ export default function SettingsPage() {
     DEFAULT_NOTIFICATIONS_ENABLED,
   )
   const [hasLoadedLocalSettings, setHasLoadedLocalSettings] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -208,9 +225,9 @@ export default function SettingsPage() {
     queueMicrotask(() => {
       if (cancelled) return
 
-      setQuality(storage.get('play:quality', DEFAULT_QUALITY))
-      setDownloadDir(storage.get('download:dir', DEFAULT_DOWNLOAD_DIR))
-      setNotificationsEnabled(storage.get('notifications:enabled', DEFAULT_NOTIFICATIONS_ENABLED))
+      setQuality(getStoredQuality())
+      setDownloadDir(getStoredDownloadDir())
+      setNotificationsEnabled(getStoredNotificationsEnabled())
       setHasLoadedLocalSettings(true)
     })
 
@@ -249,13 +266,17 @@ export default function SettingsPage() {
   )
 
   const handleLogout = useCallback(async () => {
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
     try {
       await logout()
       toast.success('已退出登录')
     } catch (error) {
       toast.error(getLogoutErrorMessage(error))
+    } finally {
+      setIsLoggingOut(false)
     }
-  }, [logout])
+  }, [isLoggingOut, logout])
 
   const themeIcon = (t: Theme) => {
     if (t === 'system') return <Monitor className="w-3.5 h-3.5" />
@@ -508,10 +529,11 @@ export default function SettingsPage() {
                         <button
                           type="button"
                           onClick={handleLogout}
+                          disabled={isLoggingOut}
                           className="inline-flex h-9 items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 text-sm font-medium text-red-700 transition-colors hover:bg-red-500/20 dark:text-red-300"
                         >
                           <LogOut className="size-4" aria-hidden="true" />
-                          退出登录
+                          {isLoggingOut ? '退出中...' : '退出登录'}
                         </button>
                       }
                     />

@@ -134,19 +134,21 @@ export function PlaybackController() {
       const dur = audioEngine.getDuration()
       if (dur > 0) usePlayerStore.getState().setDuration(dur)
     }
+    const onTimeUpdate = (time: number) => {
+      usePlayerStore.getState().setCurrentTime(time)
+    }
 
-    audioEngine.onPlay(onPlay)
-    audioEngine.onPause(onPause)
-    audioEngine.onEnd(onEnd)
-    audioEngine.onError(onError)
-    audioEngine.onLoad(onLoad)
+    const unsubscribe = [
+      audioEngine.onPlay(onPlay),
+      audioEngine.onPause(onPause),
+      audioEngine.onEnd(onEnd),
+      audioEngine.onError(onError),
+      audioEngine.onLoad(onLoad),
+      audioEngine.onTimeUpdate(onTimeUpdate),
+    ]
 
     return () => {
-      audioEngine.onPlay(() => {})
-      audioEngine.onPause(() => {})
-      audioEngine.onEnd(() => {})
-      audioEngine.onError(() => {})
-      audioEngine.onLoad(() => {})
+      unsubscribe.forEach((off) => off())
     }
   }, [setIsPlaying, setPlaybackError, clearPlaybackError, next])
 
@@ -228,7 +230,11 @@ export function PlaybackController() {
       }),
     }
     ;(window as unknown as Window).__playbackCtrl = controls
-    return () => { delete (window as unknown as Window).__playbackCtrl }
+    return () => {
+      if ((window as unknown as Window).__playbackCtrl === controls) {
+        delete (window as unknown as Window).__playbackCtrl
+      }
+    }
   }, [setHasUserInteracted])
 
   return null

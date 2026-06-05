@@ -3,6 +3,7 @@
 import { describe, test, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { Sparkles } from 'lucide-react'
+import type { HTMLAttributes, ReactNode } from 'react'
 import { BentoCard } from '@/components/discover/BentoCard'
 
 // ---------------------------------------------------------------------------
@@ -20,13 +21,33 @@ vi.mock('next/image', () => ({
 // Mock framer-motion to plain divs so we can assert on the rendered DOM
 // without dealing with transforms / animation timing.
 // ---------------------------------------------------------------------------
+type MotionDivMockProps = HTMLAttributes<HTMLDivElement> & {
+  children?: ReactNode
+  initial?: unknown
+  animate?: unknown
+  variants?: unknown
+  whileHover?: unknown
+  whileTap?: unknown
+  transition?: unknown
+}
+
+function stripMotionProps(props: MotionDivMockProps) {
+  const domProps = { ...props }
+  delete domProps.initial
+  delete domProps.animate
+  delete domProps.variants
+  delete domProps.whileHover
+  delete domProps.whileTap
+  delete domProps.transition
+  return domProps
+}
+
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, className, ...rest }: { children: React.ReactNode; className?: string }) => (
-      <div className={className} {...rest}>
-        {children}
-      </div>
-    ),
+    div: (props: MotionDivMockProps) => {
+      const { children, ...rest } = stripMotionProps(props)
+      return <div {...rest}>{children}</div>
+    },
   },
 }))
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { GET, OPTIONS } from '@/app/api/[...path]/route'
+import { GET, OPTIONS, POST } from '@/app/api/[...path]/route'
 
 const originalAllowedOrigins = process.env.ALLOWED_ORIGINS
 const originalApiUrl = process.env.API_URL
@@ -104,6 +104,24 @@ describe('API proxy route CORS', () => {
 
     const [, init] = vi.mocked(global.fetch).mock.calls[0]
     expect(init?.headers).toEqual({ 'User-Agent': 'KahiTest/1.0' })
+  })
+
+  test('forwards request body bytes without text-decoding binary payloads', async () => {
+    const payload = new Uint8Array([0, 195, 40, 255])
+
+    await POST(
+      createRequest('https://app.example.test/api/user/cloud/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: payload,
+      }),
+      { params: Promise.resolve({ path: ['user', 'cloud', 'add'] }) },
+    )
+
+    const [, init] = vi.mocked(global.fetch).mock.calls[0]
+    expect(init?.headers).toMatchObject({ 'Content-Type': 'application/octet-stream' })
+    expect(init?.body).toBeInstanceOf(ArrayBuffer)
+    expect(Array.from(new Uint8Array(init?.body as ArrayBuffer))).toEqual(Array.from(payload))
   })
 
   test('rejects GET requests to mutating endpoints', async () => {

@@ -59,13 +59,23 @@ export const FMMainPlayer = memo(function FMMainPlayer({
   // is the visual anchor of the page so we keep it generous.
   const COVER_SIZE_MOBILE = 280
   const COVER_SIZE_DESKTOP = 360
+  const COVER_SIZE_MIN = 160
+  const COVER_VIEWPORT_GUTTER = 48
   const [coverSize, setCoverSize] = useState(COVER_SIZE_MOBILE)
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 640px)')
-    const apply = () => setCoverSize(mq.matches ? COVER_SIZE_DESKTOP : COVER_SIZE_MOBILE)
+    const apply = () => {
+      const ideal = mq.matches ? COVER_SIZE_DESKTOP : COVER_SIZE_MOBILE
+      const available = Math.max(COVER_SIZE_MIN, window.innerWidth - COVER_VIEWPORT_GUTTER)
+      setCoverSize(Math.min(ideal, available))
+    }
     apply()
     mq.addEventListener('change', apply)
-    return () => mq.removeEventListener('change', apply)
+    window.addEventListener('resize', apply)
+    return () => {
+      mq.removeEventListener('change', apply)
+      window.removeEventListener('resize', apply)
+    }
   }, [])
 
   const coverUrl = song?.al?.picUrl ? imageUrl(song.al.picUrl, coverSize) : null
@@ -297,7 +307,7 @@ interface FMActionsProps {
 function FMActions({ isActive, isPlaying, onDislike, onPlayPause, onNext }: FMActionsProps) {
   return (
     <div
-      className="w-full max-w-md px-6 mt-6 mb-10 flex items-center justify-between"
+      className="w-full max-w-md px-6 mt-6 mb-10 flex flex-wrap items-center justify-center gap-2 sm:justify-between"
       data-testid="fm-actions"
       role="group"
       aria-label="FM 播放控件"

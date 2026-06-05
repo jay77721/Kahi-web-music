@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { usePlayerStore } from '@/stores/playerStore'
+import { audioEngine } from '@/lib/audio'
 import { mockSong } from '@/tests/helpers/mock-data'
 
 function resetStore() {
@@ -67,6 +68,28 @@ describe('playerStore', () => {
     it('sets isMuted when volume is 0', () => {
       usePlayerStore.getState().setVolume(0)
       expect(usePlayerStore.getState().isMuted).toBe(true)
+    })
+
+    it('clamps out-of-range volume before storing and applying it', () => {
+      const setVolumeSpy = vi.spyOn(audioEngine, 'setVolume').mockImplementation(() => {})
+
+      usePlayerStore.getState().setVolume(2)
+      expect(usePlayerStore.getState().volume).toBe(1)
+      expect(localStorage.getItem('kahi-web-music:player:volume')).toBe('1')
+      expect(setVolumeSpy).toHaveBeenLastCalledWith(1)
+
+      usePlayerStore.getState().setVolume(-1)
+      expect(usePlayerStore.getState().volume).toBe(0)
+      expect(usePlayerStore.getState().isMuted).toBe(true)
+      expect(setVolumeSpy).toHaveBeenLastCalledWith(0)
+
+      setVolumeSpy.mockRestore()
+    })
+
+    it('falls back to the default volume for non-finite input', () => {
+      usePlayerStore.getState().setVolume(Number.NaN)
+      expect(usePlayerStore.getState().volume).toBe(0.8)
+      expect(usePlayerStore.getState().isMuted).toBe(false)
     })
   })
 
@@ -141,6 +164,25 @@ describe('playerStore', () => {
     it('defaults startIndex to 0', () => {
       const songs = [{ ...mockSong, id: 1 }, { ...mockSong, id: 2 }]
       usePlayerStore.getState().playQueue(songs)
+
+      const state = usePlayerStore.getState()
+      expect(state.queueIndex).toBe(0)
+      expect(state.currentTrack).toBe(songs[0])
+    })
+
+    it('clamps an out-of-range startIndex to a valid queue item', () => {
+      const songs = [{ ...mockSong, id: 1 }, { ...mockSong, id: 2 }]
+      usePlayerStore.getState().playQueue(songs, 99)
+
+      const state = usePlayerStore.getState()
+      expect(state.queueIndex).toBe(1)
+      expect(state.currentTrack).toBe(songs[1])
+      expect(localStorage.getItem('kahi-web-music:player:index')).toBe('1')
+    })
+
+    it('clamps a negative startIndex to the first queue item', () => {
+      const songs = [{ ...mockSong, id: 1 }, { ...mockSong, id: 2 }]
+      usePlayerStore.getState().playQueue(songs, -2)
 
       const state = usePlayerStore.getState()
       expect(state.queueIndex).toBe(0)
@@ -262,6 +304,16 @@ describe('playerStore', () => {
     it('updates currentTime', () => {
       usePlayerStore.getState().seek(42)
       expect(usePlayerStore.getState().currentTime).toBe(42)
+    })
+
+    it('clamps invalid seek times before touching the engine', () => {
+      const seekSpy = vi.spyOn(audioEngine, 'seek').mockImplementation(() => 0)
+
+      usePlayerStore.getState().seek(-12)
+
+      expect(usePlayerStore.getState().currentTime).toBe(0)
+      expect(seekSpy).toHaveBeenCalledWith(0)
+      seekSpy.mockRestore()
     })
   })
 
@@ -401,6 +453,61 @@ describe('playerStore', () => {
       expect(state.queueIndex).toBe(0)
       expect(state.currentTrack).toBeNull()
       expect(state.isPlaying).toBe(false)
+    })
+
+    it('stops audio and clears playback-derived state', () => {
+      const stopSpy = vi.spyOn(audioEngine, 'stop').mockImplementation(() => {})
+      const songs = [{ ...mockSong, id: 1 }]
+      usePlayerStore.getState().playQueue(songs, 0)
+      usePlayerStore.getState().setCurrentTime(12)
+      usePlayerStore.getState().setDuration(180)
+      usePlayerStore.getState().setLyrics([{ time: 1, text: 'old lyric' }])
+      usePlayerStore.getState().setCurrentLyricIndex(0)
+      usePlayerStore.getState().setPlaybackError('old error')
+
+      usePlayerStore.getState().clearQueue()
+
+      const state = usePlayerStore.getState()
+      expect(stopSpy).toHaveBeenCalled()
+      expect(state.currentTime).toBe(0)
+      expect(state.duration).toBe(0)
+      expect(state.lyrics).toEqual([])
+      expect(state.currentLyricIndex).toBe(-1)
+      expect(state.playbackError).toBeNull()
+      stopSpy.mockRestore()
+    })
+  })
+
+  describe('restorePlayerState', () => {
+    it('clamps restored volume and queue index', () => {
+      const songs = [{ ...mockSong, id: 1 }, { ...mockSong, id: 2 }]
+      localStorage.setItem('kahi-web-music:player:volume', '3')
+      localStorage.setItem('kahi-web-music:player:queue', JSON.stringify(songs))
+      localStorage.setItem('kahi-web-music:player:index', '99')
+      localStorage.setItem('kahi-web-music:player:mode', JSON.stringify('repeat-all'))
+
+      usePlayerStore.getState().restorePlayerState()
+
+      const state = usePlayerStore.getState()
+      expect(state.volume).toBe(1)
+      expect(state.queue).toEqual(songs)
+      expect(state.queueIndex).toBe(1)
+      expect(state.playMode).toBe('repeat-all')
+    })
+
+    it('falls back when persisted player state has invalid shapes', () => {
+      localStorage.setItem('kahi-web-music:player:volume', JSON.stringify('loud'))
+      localStorage.setItem('kahi-web-music:player:queue', JSON.stringify({ bad: true }))
+      localStorage.setItem('kahi-web-music:player:index', JSON.stringify('later'))
+      localStorage.setItem('kahi-web-music:player:mode', JSON.stringify('unknown'))
+
+      usePlayerStore.getState().restorePlayerState()
+
+      const state = usePlayerStore.getState()
+      expect(state.volume).toBe(0.8)
+      expect(state.queue).toEqual([])
+      expect(state.queueIndex).toBe(0)
+      expect(state.playMode).toBe('sequential')
     })
   })
 

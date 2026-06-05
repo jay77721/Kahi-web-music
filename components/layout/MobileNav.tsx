@@ -32,7 +32,10 @@ export function MobileNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg-primary)] border-t border-[var(--border)]">
+    <nav
+      aria-label="移动主导航"
+      className="fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--border)] bg-[var(--bg-primary)] pb-[env(safe-area-inset-bottom)] md:hidden"
+    >
       {/* Navigation tabs */}
       <div className="flex items-center justify-around h-14">
         {navItems.map((item) => {
@@ -50,10 +53,13 @@ export function MobileNav() {
                   : 'text-[var(--text-tertiary)]'
               )}
             >
-              <Icon className="w-5 h-5" />
-              <span className="text-[10px]">{item.label}</span>
+              <Icon className="w-5 h-5" aria-hidden="true" />
+              <span className="text-[10px] leading-none">{item.label}</span>
               {isActive && (
-                <span className="absolute bottom-1 w-4 h-[2px] rounded-full bg-[var(--accent)]" />
+                <span
+                  aria-hidden="true"
+                  className="absolute bottom-1 w-4 h-[2px] rounded-full bg-[var(--accent)]"
+                />
               )}
             </Link>
           )

@@ -8,9 +8,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { HotCommentList } from './HotCommentList'
 import { CommentItem } from './CommentItem'
 import { ncmApi } from '@/lib/api'
+import { normalizeCommentResponse } from '@/lib/api-adapters'
 import { formatCount } from '@/lib/format'
 import { toast } from 'sonner'
-import type { ApiResponse } from '@/types/api'
 import type { Comment, CommentResponse } from '@/types/comment'
 
 interface CommentListProps {
@@ -19,25 +19,34 @@ interface CommentListProps {
 }
 
 const COMMENT_LIMIT = 50
+const EMPTY_COMMENTS: CommentResponse = {
+  hotComments: [],
+  comments: [],
+  total: 0,
+  hasMore: false,
+}
 
 export function CommentList({ id, type }: CommentListProps) {
   const [tab, setTab] = useState('hot')
-  const swrKey = `comments-${type}-${id}`
+  const resourceId = String(id ?? '').trim()
+  const swrKey = resourceId ? `comments-${type}-${resourceId}` : null
   const { mutate } = useSWRConfig()
 
-  const fetcher = useCallback(async (): Promise<ApiResponse<CommentResponse>> => {
-    if (type === 'song') return ncmApi.request<ApiResponse<CommentResponse>>('/comment/music', { id, limit: COMMENT_LIMIT })
-    if (type === 'playlist') return ncmApi.request<ApiResponse<CommentResponse>>('/comment/playlist', { id, limit: COMMENT_LIMIT })
-    if (type === 'album') return ncmApi.request<ApiResponse<CommentResponse>>('/comment/album', { id, limit: COMMENT_LIMIT })
-    if (type === 'mv') return ncmApi.request<ApiResponse<CommentResponse>>('/comment/mv', { id, limit: COMMENT_LIMIT })
+  const fetcher = useCallback(async (): Promise<CommentResponse> => {
+    if (!resourceId) return EMPTY_COMMENTS
+    const params = { id: resourceId, limit: COMMENT_LIMIT }
+    if (type === 'song') return normalizeCommentResponse(await ncmApi.request('/comment/music', params))
+    if (type === 'playlist') return normalizeCommentResponse(await ncmApi.request('/comment/playlist', params))
+    if (type === 'album') return normalizeCommentResponse(await ncmApi.request('/comment/album', params))
+    if (type === 'mv') return normalizeCommentResponse(await ncmApi.request('/comment/mv', params))
     throw new Error(`Unsupported comment type: ${type}`)
-  }, [id, type])
+  }, [resourceId, type])
 
-  const { data, isLoading, error } = useSWR<ApiResponse<CommentResponse>>(swrKey, fetcher)
+  const { data, isLoading, error } = useSWR<CommentResponse>(swrKey, fetcher)
 
-  const hotComments: Comment[] = data?.data?.hotComments ?? []
-  const comments: Comment[] = data?.data?.comments ?? []
-  const total: number = data?.data?.total ?? 0
+  const hotComments: Comment[] = data?.hotComments ?? []
+  const comments: Comment[] = data?.comments ?? []
+  const total: number = data?.total ?? 0
 
   if (isLoading) return <CommentListSkeleton />
 

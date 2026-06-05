@@ -1,10 +1,12 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { Banner } from '@/components/discover/Banner'
 import { BentoGrid } from '@/components/discover/BentoGrid'
 import { RecentPlayed } from '@/components/discover/RecentPlayed'
 import { AppShell } from '@/components/layout/AppShell'
+
+const DEFAULT_GREETING = '欢迎回来'
 
 function getGreeting(): string {
   const hour = new Date().getHours()
@@ -14,14 +16,18 @@ function getGreeting(): string {
 }
 
 export default function HomePage() {
-  const greeting = useMemo(() => getGreeting(), [])
+  const [greeting, setGreeting] = useState(DEFAULT_GREETING)
+
+  useEffect(() => {
+    setGreeting(getGreeting())
+  }, [])
 
   return (
     <AppShell>
       <div className="p-4 md:p-6 space-y-10">
         {/* Greeting */}
         <section className="animate-fade-in pt-2">
-          <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
+          <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)]">
             {greeting}
           </h1>
         </section>

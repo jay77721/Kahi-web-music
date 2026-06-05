@@ -2,6 +2,7 @@
 
 import { afterEach, describe, test, expect, vi, beforeEach } from 'vitest'
 import { cleanup, fireEvent, render } from '@testing-library/react'
+import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react'
 import { RecentPlayed } from '@/components/discover/RecentPlayed'
 import { useHistoryStore } from '@/stores/historyStore'
 import { usePlayerStore } from '@/stores/playerStore'
@@ -13,8 +14,43 @@ import { mockSong } from '@/tests/helpers/mock-data'
 vi.mock('next/image', () => ({
   default: (props: Record<string, unknown>) => {
     const { alt = '', src = '', ...rest } = props
+    delete rest.fill
     // eslint-disable-next-line @next/next/no-img-element
     return <img alt={alt as string} src={src as string} {...rest} />
+  },
+}))
+
+type MotionMockProps<TElement> = HTMLAttributes<TElement> & {
+  children?: ReactNode
+  initial?: unknown
+  animate?: unknown
+  variants?: unknown
+  whileHover?: unknown
+  whileTap?: unknown
+  transition?: unknown
+}
+
+function stripMotionProps<TElement>(props: MotionMockProps<TElement>) {
+  const domProps = { ...props }
+  delete domProps.initial
+  delete domProps.animate
+  delete domProps.variants
+  delete domProps.whileHover
+  delete domProps.whileTap
+  delete domProps.transition
+  return domProps
+}
+
+vi.mock('framer-motion', () => ({
+  motion: {
+    div: (props: MotionMockProps<HTMLDivElement>) => {
+      const { children, ...domProps } = stripMotionProps(props)
+      return <div {...domProps}>{children}</div>
+    },
+    button: (props: MotionMockProps<HTMLButtonElement> & ButtonHTMLAttributes<HTMLButtonElement>) => {
+      const { children, ...domProps } = stripMotionProps<HTMLButtonElement>(props)
+      return <button {...domProps}>{children}</button>
+    },
   },
 }))
 

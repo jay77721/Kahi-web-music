@@ -174,7 +174,9 @@ function FullScreenPlayerContent() {
     overlay?.focus()
 
     return () => {
-      previouslyFocusedRef.current?.focus()
+      if (previouslyFocusedRef.current?.isConnected) {
+        previouslyFocusedRef.current.focus()
+      }
     }
   }, [])
 
@@ -192,7 +194,7 @@ function FullScreenPlayerContent() {
 
     const focusableElements = Array.from(
       overlay.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-    ).filter((element) => element.offsetParent !== null || element === document.activeElement)
+    )
 
     if (focusableElements.length === 0) {
       event.preventDefault()

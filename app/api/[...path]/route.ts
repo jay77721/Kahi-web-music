@@ -4,6 +4,7 @@ import { buildNcmCookieHeader } from '@/lib/server/ncm-cookies'
 const RATE_LIMIT_WINDOW_MS = 60_000
 const RATE_LIMIT_MAX_REQUESTS = 30
 const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>()
+let lastRateLimitPruneAt = 0
 const RATE_LIMITED_PATH_PATTERNS = [
   /^\/captcha(?:\/|$)/,
   /^\/login(?:\/|$)/,
@@ -59,6 +60,7 @@ function getCorsHeaders(request: NextRequest): HeadersInit {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Cookie',
     'Access-Control-Allow-Credentials': 'true',
+    'Vary': 'Origin',
   }
 }
 
@@ -102,6 +104,19 @@ function shouldRateLimit(endpoint: string): boolean {
   return RATE_LIMITED_PATH_PATTERNS.some((pattern) => pattern.test(endpoint))
 }
 
+function pruneExpiredRateLimitBuckets(now: number): void {
+  if (now - lastRateLimitPruneAt < RATE_LIMIT_WINDOW_MS) {
+    return
+  }
+
+  lastRateLimitPruneAt = now
+  for (const [key, bucket] of rateLimitBuckets) {
+    if (bucket.resetAt <= now) {
+      rateLimitBuckets.delete(key)
+    }
+  }
+}
+
 function isSafePathSegment(segment: string): boolean {
   const normalizedSegment = segment.toLowerCase()
   return segment !== '.'
@@ -119,6 +134,8 @@ function rateLimit(request: NextRequest, endpoint: string): NextResponse | null 
   }
 
   const now = Date.now()
+  pruneExpiredRateLimitBuckets(now)
+
   const key = `${getClientRateLimitKey(request)}:${endpoint}`
   const bucket = rateLimitBuckets.get(key)
   if (!bucket || bucket.resetAt <= now) {
@@ -223,7 +240,7 @@ async function proxyRequest(request: NextRequest, path: string[]) {
   // Forward body only for methods that carry one. Use clone() so the
   // original request stream can still be read elsewhere if needed.
   const hasBody = method !== 'GET' && method !== 'HEAD'
-  const body = hasBody ? await request.clone().text() : undefined
+  const body = hasBody ? await request.clone().arrayBuffer() : undefined
 
   // Forward Content-Type from the original request when present; some
   // callers (e.g., login, lyric upload) send form-urlencoded or multipart.

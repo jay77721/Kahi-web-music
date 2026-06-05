@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
+import { useCallback } from 'react'
 import Image from 'next/image'
 import { Play, Pause, SkipBack, SkipForward, Repeat, Repeat1, Shuffle, Volume2, VolumeX, List } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -38,7 +38,6 @@ function PlayerBarContent() {
   const cyclePlayMode = usePlayerStore((state) => state.cyclePlayMode)
   const togglePlayQueue = useUIStore((state) => state.togglePlayQueue)
   const playQueueOpen = useUIStore((state) => state.playQueueOpen)
-  const isSeeking = useRef(false)
 
   const handleTogglePlay = useCallback(() => {
     const ctrl = (window as unknown as Window).__playbackCtrl
@@ -55,10 +54,8 @@ function PlayerBarContent() {
 
   const handleSeek = useCallback((value: number | readonly number[]) => {
     const time = Array.isArray(value) ? value[0] : value
-    isSeeking.current = true
     setCurrentTime(time)
     audioEngine.seek(time)
-    setTimeout(() => { isSeeking.current = false }, 100)
   }, [setCurrentTime])
 
   const handleVolumeChange = useCallback((value: number | readonly number[]) => {

@@ -12,6 +12,24 @@ import { resolve } from 'node:path'
 
 const TOKENS_PATH = resolve(__dirname, '../../../styles/tokens.css')
 
+const LOGIN_PAGE_COLOR_TOKENS = [
+  '--bg-primary',
+  '--bg-secondary',
+  '--bg-surface',
+  '--bg-elevated',
+  '--bg-hover',
+  '--text-primary',
+  '--text-secondary',
+  '--text-tertiary',
+  '--accent',
+  '--accent-hover',
+  '--accent-foreground',
+  '--accent-glow',
+  '--border',
+  '--border-strong',
+  '--shadow-lg',
+] as const
+
 // Tokens that MUST exist in tokens.css. Grouped by category to keep
 // failure messages actionable — if one drops, the category header shows
 // the developer where to re-add it.
@@ -34,7 +52,7 @@ const REQUIRED_TOKENS = {
     '--text-quaternary',
     '--text-inverse',
   ],
-  accent: ['--accent', '--accent-hover', '--accent-glow', '--accent-subtle'],
+  accent: ['--accent', '--accent-hover', '--accent-foreground', '--accent-glow', '--accent-subtle'],
   border: ['--border', '--border-subtle', '--border-light', '--border-strong', '--border-accent'],
   spacing: ['--space-xs', '--space-sm', '--space-md', '--space-lg', '--space-xl'],
   radius: [
@@ -112,6 +130,15 @@ describe('styles/tokens.css', () => {
     expect(source).toMatch(/@theme\s*\{/)
     expect(source).toMatch(/--color-accent:\s*var\(--accent\)/i)
     expect(source).toMatch(/--color-foreground:\s*var\(--text-primary\)/i)
+  })
+
+  it('light theme overrides every color token used by the login page', () => {
+    const lightThemeBlock = source.match(/\[data-theme="light"\]\s*\{(?<body>[\s\S]*?)\n\}/)?.groups?.body ?? ''
+
+    for (const token of LOGIN_PAGE_COLOR_TOKENS) {
+      const declaration = new RegExp(`${token}\\s*:`)
+      expect(lightThemeBlock, `${token} should be overridden in [data-theme="light"]`).toMatch(declaration)
+    }
   })
 
   it('keeps the @theme and :root blocks organized with section headers', () => {

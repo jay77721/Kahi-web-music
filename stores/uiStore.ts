@@ -3,6 +3,13 @@ import { storage, STORAGE_KEYS } from '@/lib/storage'
 
 type Theme = 'dark' | 'light' | 'system'
 
+const DEFAULT_THEME: Theme = 'dark'
+const THEMES = new Set<Theme>(['dark', 'light', 'system'])
+
+function isTheme(value: unknown): value is Theme {
+  return typeof value === 'string' && THEMES.has(value as Theme)
+}
+
 interface UIState {
   // Sidebar (PC)
   sidebarOpen: boolean
@@ -41,7 +48,7 @@ export const useUIStore = create<UIState>((set) => ({
   fullScreenPlayerOpen: false,
   playQueueOpen: false,
   searchOpen: false,
-  theme: 'dark' as Theme,
+  theme: DEFAULT_THEME,
   isMobile: false,
 
   toggleSidebar: () => set(state => ({ sidebarOpen: !state.sidebarOpen })),
@@ -56,8 +63,8 @@ export const useUIStore = create<UIState>((set) => ({
   },
   restoreTheme: () => {
     if (typeof window === 'undefined') return
-    const saved = storage.get(STORAGE_KEYS.THEME, 'dark' as Theme)
-    set({ theme: saved })
+    const saved = storage.get<unknown>(STORAGE_KEYS.THEME, DEFAULT_THEME)
+    set({ theme: isTheme(saved) ? saved : DEFAULT_THEME })
   },
   setIsMobile: (isMobile) => set({ isMobile }),
 }))

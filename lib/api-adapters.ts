@@ -15,6 +15,9 @@ import type { SearchSuggestResponse } from '@/types/search'
 import type { LoginQRCreate, LoginQRKey, UserProfile } from '@/types/user'
 
 type UnknownRecord = Record<string, unknown>
+type SearchSuggestResult = NonNullable<SearchSuggestResponse['result']>
+type SearchSuggestArrayItem<K extends keyof SearchSuggestResult> =
+  NonNullable<SearchSuggestResult[K]> extends Array<infer Item> ? Item : never
 
 export type NormalizedSearchResult = SearchResponse['result']
 
@@ -143,6 +146,10 @@ function looksLikeMv(value: unknown): value is MV {
   return isRecord(value) && typeof value.id === 'number' && typeof value.name === 'string'
 }
 
+function looksLikeSearchSuggestMatch(value: unknown): value is NonNullable<SearchSuggestResult['allMatch']> {
+  return isRecord(value) && typeof value.keyword === 'string'
+}
+
 function unwrapSingleRecord(raw: unknown): UnknownRecord | null {
   for (const layer of candidateLayers(raw)) {
     if (isRecord(layer)) return layer
@@ -157,6 +164,11 @@ function normalizeMappedSongs(items: unknown[]): Song[] {
       return item.simpleSong ?? item.data ?? item.song ?? item
     })
     .filter((item): item is Song => isRecord(item) && typeof item.id === 'number')
+}
+
+function normalizeSearchSuggestMatch(value: unknown): SearchSuggestResult['allMatch'] {
+  if (looksLikeSearchSuggestMatch(value)) return value
+  return asArray<unknown>(value).find(looksLikeSearchSuggestMatch)
 }
 
 export function normalizeSongList(raw: unknown): Song[] {
@@ -434,11 +446,11 @@ export function normalizeSearchSuggest(raw: unknown): SearchSuggestResponse {
   return {
     code: asNumber(readField<unknown>(raw, 'code'), 200),
     result: {
-      allMatch: isRecord(result.allMatch) ? result.allMatch as SearchSuggestResponse['result']['allMatch'] : undefined,
-      songs: asArray<NonNullable<SearchSuggestResponse['result']['songs']>[number]>(result.songs),
-      artists: asArray<NonNullable<SearchSuggestResponse['result']['artists']>[number]>(result.artists),
-      albums: asArray<NonNullable<SearchSuggestResponse['result']['albums']>[number]>(result.albums),
-      playlists: asArray<NonNullable<SearchSuggestResponse['result']['playlists']>[number]>(result.playlists),
+      allMatch: normalizeSearchSuggestMatch(result.allMatch),
+      songs: asArray<SearchSuggestArrayItem<'songs'>>(result.songs),
+      artists: asArray<SearchSuggestArrayItem<'artists'>>(result.artists),
+      albums: asArray<SearchSuggestArrayItem<'albums'>>(result.albums),
+      playlists: asArray<SearchSuggestArrayItem<'playlists'>>(result.playlists),
     },
   }
 }

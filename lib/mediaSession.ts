@@ -36,6 +36,18 @@ function getSession(): MediaSession | null {
   return navigator.mediaSession
 }
 
+function setActionHandlerSafe(
+  session: MediaSession,
+  action: MediaSessionAction,
+  handler: MediaSessionActionHandler | null
+): void {
+  try {
+    session.setActionHandler(action, handler)
+  } catch {
+    // Some browsers expose Media Session but reject unsupported actions.
+  }
+}
+
 /**
  * Update the metadata displayed in the OS / browser media UI.
  * Pass empty strings (or omit) to clear the current metadata.
@@ -48,39 +60,41 @@ export function setMediaMetadata(metadata: MediaSessionMetadataInput): void {
   const { title, artist, album, artwork } = metadata
   const safeArtwork: MediaImage[] = Array.isArray(artwork) ? artwork : []
 
-  const mediaMetadata = new MediaMetadata({
-    title,
-    artist,
-    album,
-    artwork: safeArtwork,
-  })
-  session.metadata = mediaMetadata
+  try {
+    session.metadata = new MediaMetadata({
+      title,
+      artist,
+      album,
+      artwork: safeArtwork,
+    })
+  } catch {
+    session.metadata = null
+  }
 }
 
 /**
  * Register action handlers invoked when the user interacts with the
  * OS / browser media UI (play, pause, skip, seek, etc.).
  *
- * Only the provided handlers are updated; omitted actions keep their
- * previous binding (or none, if never set).
+ * Omitted actions are cleared so stale handlers cannot survive a re-bind.
  */
 export function setMediaActionHandlers(handlers: MediaActionHandlers): void {
   const session = getSession()
   if (!session) return
 
-  session.setActionHandler('play', handlers.play ?? null)
-  session.setActionHandler('pause', handlers.pause ?? null)
-  session.setActionHandler('nexttrack', handlers.nextTrack ?? null)
-  session.setActionHandler('previoustrack', handlers.previousTrack ?? null)
+  setActionHandlerSafe(session, 'play', handlers.play ?? null)
+  setActionHandlerSafe(session, 'pause', handlers.pause ?? null)
+  setActionHandlerSafe(session, 'nexttrack', handlers.nextTrack ?? null)
+  setActionHandlerSafe(session, 'previoustrack', handlers.previousTrack ?? null)
 
   if (handlers.seek) {
-    session.setActionHandler('seekto', (details) => {
+    setActionHandlerSafe(session, 'seekto', (details) => {
       if (details.seekTime !== undefined) {
         handlers.seek?.(details.seekTime)
       }
     })
   } else {
-    session.setActionHandler('seekto', null)
+    setActionHandlerSafe(session, 'seekto', null)
   }
 }
 
@@ -98,9 +112,9 @@ export function clearMediaSession(): void {
 
   session.metadata = null
   session.playbackState = 'none'
-  session.setActionHandler('play', null)
-  session.setActionHandler('pause', null)
-  session.setActionHandler('nexttrack', null)
-  session.setActionHandler('previoustrack', null)
-  session.setActionHandler('seekto', null)
+  setActionHandlerSafe(session, 'play', null)
+  setActionHandlerSafe(session, 'pause', null)
+  setActionHandlerSafe(session, 'nexttrack', null)
+  setActionHandlerSafe(session, 'previoustrack', null)
+  setActionHandlerSafe(session, 'seekto', null)
 }

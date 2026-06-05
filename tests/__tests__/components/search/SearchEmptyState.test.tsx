@@ -20,12 +20,13 @@ describe('SearchEmptyState', () => {
   })
 
   test('localizes the type label for each type', () => {
-    const cases: Array<['all' | 'songs' | 'artists' | 'albums' | 'playlists' | 'mvs', string]> = [
+    const cases: Array<['all' | 'songs' | 'artists' | 'albums' | 'playlists' | 'mvs' | 'lyrics', string]> = [
       ['songs', '歌曲'],
       ['artists', '歌手'],
       ['albums', '专辑'],
       ['playlists', '歌单'],
       ['mvs', 'MV'],
+      ['lyrics', '歌词'],
     ]
     for (const [type, expected] of cases) {
       cleanup()

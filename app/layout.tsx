@@ -10,6 +10,24 @@ import { SkipNav } from "@/components/common/SkipNav"
 import { UserSessionRestorer } from "@/components/common/UserSessionRestorer"
 import "./globals.css"
 
+const themeInitScript = `
+(() => {
+  try {
+    const stored = window.localStorage.getItem("kahi-web-music:ui:theme")
+    const theme = stored ? JSON.parse(stored) : "dark"
+    const resolved = theme === "system"
+      ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+      : theme
+
+    if (resolved === "dark" || resolved === "light") {
+      document.documentElement.dataset.theme = resolved
+    }
+  } catch {
+    document.documentElement.dataset.theme = "dark"
+  }
+})()
+`
+
 export const metadata: Metadata = {
   title: "Kahi Music",
   description: "Web music player",
@@ -40,6 +58,7 @@ export default function RootLayout({
     <html lang="zh-CN" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
         <SkipNav />

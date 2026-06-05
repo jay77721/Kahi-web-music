@@ -102,16 +102,16 @@ export default function LikedPage() {
         <header className="mb-6 animate-fade-in">
           <div className="flex items-center gap-3 mb-2">
             <div
-              className="w-11 h-11 rounded-2xl flex items-center justify-center bg-[var(--accent)]/15"
+              className="w-11 h-11 rounded-2xl flex shrink-0 items-center justify-center bg-[var(--accent)]/15"
               style={{ boxShadow: '0 0 18px var(--accent-glow)' }}
             >
               <Heart className="w-6 h-6 text-[var(--accent)]" aria-hidden="true" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
+            <h1 className="min-w-0 text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
               我喜欢的音乐
             </h1>
           </div>
-          <p className="text-sm text-[var(--text-tertiary)] ml-14">
+          <p className="text-sm text-[var(--text-tertiary)] sm:ml-14">
             你收藏的所有歌曲
             {total > 0 && (
               <span className="ml-2">· 共 {total} 首</span>
@@ -120,7 +120,7 @@ export default function LikedPage() {
         </header>
 
         {total > 0 && (
-          <div className="flex items-center gap-3 mb-6 ml-14">
+          <div className="flex flex-wrap items-center gap-3 mb-6 sm:ml-14">
             <Button
               size="sm"
               onClick={handlePlayAll}

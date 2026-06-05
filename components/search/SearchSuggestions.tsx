@@ -4,7 +4,14 @@ import { useState, useCallback, useRef, useEffect, useMemo, type RefObject } fro
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import useSWR from 'swr'
 import { ncmApi } from '@/lib/api'
-import type { SearchSuggestResponse, SuggestSong, SuggestArtist, SuggestAlbum, SuggestPlaylist } from '@/types/search'
+import type {
+  SearchSuggestionSection,
+  SearchSuggestResponse,
+  SuggestSong,
+  SuggestArtist,
+  SuggestAlbum,
+  SuggestPlaylist,
+} from '@/types/search'
 import { cn } from '@/lib/utils'
 
 function escapeRegex(value: string): string {
@@ -19,9 +26,15 @@ interface SearchSuggestionsProps {
 
 type Section = 'songs' | 'artists' | 'albums' | 'playlists'
 
+interface SuggestionItem {
+  id: number
+  name: string
+  sub?: string
+}
+
 interface SuggestionSection {
-  section: Section
-  items: Array<{ id: number; name: string; sub?: string }>
+  section: SearchSuggestionSection
+  items: SuggestionItem[]
 }
 
 const LISTBOX_ID = 'search-suggestions-listbox'
@@ -32,13 +45,14 @@ export function SearchSuggestions({ query, onSelect, inputRef }: SearchSuggestio
   const containerRef = useRef<HTMLDivElement>(null)
   const debouncedQuery = useDebouncedValue(query, 300)
   const trimmedQuery = query.trim()
+  const debouncedTrimmedQuery = debouncedQuery.trim()
+  const isDebouncing = trimmedQuery.length > 0 && debouncedTrimmedQuery !== trimmedQuery
 
   const { data, isLoading } = useSWR<SearchSuggestResponse>(
-    debouncedQuery.trim() ? `/search/suggest:${debouncedQuery.trim()}` : null,
+    debouncedTrimmedQuery ? `/search/suggest:${debouncedTrimmedQuery}` : null,
     async () => {
-      return (await ncmApi.searchSuggest(debouncedQuery.trim())) as SearchSuggestResponse
-    },
-    { keepPreviousData: true }
+      return (await ncmApi.searchSuggest(debouncedTrimmedQuery)) as SearchSuggestResponse
+    }
   )
 
   const sections = useMemo<SuggestionSection[]>(() => {
@@ -52,7 +66,7 @@ export function SearchSuggestions({ query, onSelect, inputRef }: SearchSuggestio
         items: result.songs.map((s: SuggestSong) => ({
           id: s.id,
           name: s.name,
-          sub: s.artists.map((a: { id: number; name: string }) => a.name).join(' / '),
+          sub: s.artists?.map((a) => a.name).filter(Boolean).join(' / '),
         })),
       })
     }
@@ -86,12 +100,11 @@ export function SearchSuggestions({ query, onSelect, inputRef }: SearchSuggestio
     return nextSections
   }, [data])
 
-  const flatItems = useMemo(
-    () => sections.flatMap((section) => section.items),
-    [sections]
-  )
+  const showLoading = isDebouncing || isLoading
+  const visibleSections = useMemo(() => (showLoading ? [] : sections), [sections, showLoading])
+  const flatItems = useMemo(() => visibleSections.flatMap((section) => section.items), [visibleSections])
   const totalItems = flatItems.length
-  const isOpen = trimmedQuery.length > 0 && dismissedQuery !== trimmedQuery && (isLoading || totalItems > 0)
+  const isOpen = trimmedQuery.length > 0 && dismissedQuery !== trimmedQuery && (showLoading || totalItems > 0)
   const boundedActiveIndex = activeIndex >= 0 && activeIndex < totalItems ? activeIndex : -1
   const activeOptionId =
     boundedActiveIndex >= 0 ? `suggestion-${boundedActiveIndex}` : undefined
@@ -233,10 +246,18 @@ export function SearchSuggestions({ query, onSelect, inputRef }: SearchSuggestio
       role="listbox"
       id={LISTBOX_ID}
       aria-label="搜索建议"
-      aria-busy={isLoading}
+      aria-busy={showLoading}
     >
-      {isLoading ? (
+      {showLoading ? (
         <div className="p-4">
+          <div
+            role="status"
+            aria-live="polite"
+            aria-label="正在加载搜索建议"
+            className="sr-only"
+          >
+            正在加载搜索建议
+          </div>
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3 py-2">
               <div className="h-4 w-4 rounded-full bg-white/5" />
@@ -246,7 +267,7 @@ export function SearchSuggestions({ query, onSelect, inputRef }: SearchSuggestio
         </div>
       ) : (
         <div className="max-h-80 overflow-y-auto p-2">
-          {sections.map((section) => (
+          {visibleSections.map((section) => (
             <div key={section.section} className="mb-2 last:mb-0">
               <div className="px-2 py-1.5 text-xs font-medium text-[var(--text-tertiary)]">
                 {sectionLabel[section.section]}
@@ -265,11 +286,13 @@ export function SearchSuggestions({ query, onSelect, inputRef }: SearchSuggestio
                       isActive ? 'bg-white/10 text-[var(--text-primary)]' : 'text-[var(--text-secondary)] hover:bg-white/5'
                     )}
                     onMouseEnter={() => setActiveIndex(currentIndex)}
+                    onMouseDown={(event) => event.preventDefault()}
                     onClick={() => handleSelect(item.name)}
+                    tabIndex={-1}
                     type="button"
                   >
                     <span className="flex-1 truncate text-sm">
-                      {highlightText(item.name, query)}
+                      {highlightText(item.name, trimmedQuery)}
                     </span>
                     {item.sub && (
                       <span className="truncate text-xs text-[var(--text-tertiary)]">{item.sub}</span>

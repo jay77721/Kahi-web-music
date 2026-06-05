@@ -314,6 +314,59 @@ describe('AudioEngine', () => {
       expect(onLoad).toHaveBeenCalled()
     })
 
+    test('unsubscribe clears the matching callback', () => {
+      engine.load('https://example.com/audio.mp3')
+      const onPlay = vi.fn()
+      const unsubscribe = engine.onPlay(onPlay)
+
+      unsubscribe()
+
+      const howl = mockState.howlInstances[0] as {
+        _handlers: Record<string, ((...args: unknown[]) => void) | null>
+      }
+      howl._handlers.onplay?.()
+      howl._handlers.onpause?.()
+      expect(onPlay).not.toHaveBeenCalled()
+    })
+
+    test('an older unsubscribe does not clear a newer callback', () => {
+      engine.load('https://example.com/audio.mp3')
+      const oldOnPlay = vi.fn()
+      const newOnPlay = vi.fn()
+      const unsubscribeOld = engine.onPlay(oldOnPlay)
+      engine.onPlay(newOnPlay)
+
+      unsubscribeOld()
+
+      const howl = mockState.howlInstances[0] as {
+        _handlers: Record<string, ((...args: unknown[]) => void) | null>
+      }
+      howl._handlers.onplay?.()
+      howl._handlers.onpause?.()
+      expect(oldOnPlay).not.toHaveBeenCalled()
+      expect(newOnPlay).toHaveBeenCalled()
+    })
+
+    test('ignores stale events from an unloaded Howl instance', () => {
+      const onLoad = vi.fn()
+      engine.onLoad(onLoad)
+      engine.load('https://example.com/a.mp3')
+      const first = mockState.howlInstances[0] as {
+        _handlers: Record<string, ((...args: unknown[]) => void) | null>
+      }
+
+      engine.load('https://example.com/b.mp3')
+      first._handlers.onload?.()
+
+      expect(onLoad).not.toHaveBeenCalled()
+
+      const second = mockState.howlInstances[1] as {
+        _handlers: Record<string, ((...args: unknown[]) => void) | null>
+      }
+      second._handlers.onload?.()
+      expect(onLoad).toHaveBeenCalledTimes(1)
+    })
+
     test('reset also clears all event callbacks', () => {
       engine.load('https://example.com/audio.mp3')
       const onPlay = vi.fn()

@@ -10,10 +10,19 @@ import React from 'react'
 
 const mockUseSWR = vi.fn()
 const mockUsePlayerStore = vi.fn()
+const mockUseSearchParams = vi.fn()
 
 vi.mock('swr', () => ({
   default: (...args: unknown[]) => mockUseSWR(...args),
 }))
+
+vi.mock('next/navigation', async () => {
+  const actual = await vi.importActual<typeof import('next/navigation')>('next/navigation')
+  return {
+    ...actual,
+    useSearchParams: () => mockUseSearchParams(),
+  }
+})
 
 vi.mock('@/stores/playerStore', () => ({
   usePlayerStore: (selector?: (s: Record<string, unknown>) => unknown) =>
@@ -94,6 +103,8 @@ function swrState<T>(overrides: Partial<{ data: T; isLoading: boolean; error: un
 beforeEach(() => {
   mockUseSWR.mockReset()
   mockUsePlayerStore.mockReset()
+  mockUseSearchParams.mockReset()
+  mockUseSearchParams.mockReturnValue(new URLSearchParams())
   mockUsePlayerStore.mockImplementation((selector?: (s: Record<string, unknown>) => unknown) =>
     selector ? selector(makePlayerStore() as unknown as Record<string, unknown>) : makePlayerStore()
   )
@@ -187,6 +198,39 @@ describe('LeaderboardPage', () => {
 
     expect(screen.getByTestId('leaderboard-detail')).toBeInTheDocument()
     expect(screen.getByTestId('song-table')).toHaveTextContent('2 songs')
+  })
+
+  test('opens the chart id from the query string before auto-selecting the first chart', async () => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams('id=19723756'))
+
+    mockUseSWR.mockImplementation((key: string | null) => {
+      if (key === 'toplist') {
+        return swrState({
+          data: [
+            { id: 3779629, name: '新歌榜', coverImgUrl: 'https://x/1.jpg' },
+            { id: 19723756, name: '飙升榜', coverImgUrl: 'https://x/2.jpg' },
+          ],
+        })
+      }
+      if (key === 'top-list-19723756') {
+        return swrState({
+          data: {
+            name: '飙升榜',
+            coverImgUrl: 'https://x/2.jpg',
+            tracks: [{ id: 3, name: 'Song C' }] as never,
+          },
+        })
+      }
+      return swrState()
+    })
+
+    const { default: LeaderboardPage } = await import('@/app/leaderboard/page')
+    render(<LeaderboardPage />)
+
+    expect(screen.getByTestId('chart-card-19723756')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('chart-card-3779629')).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByTestId('song-table')).toHaveTextContent('1 songs')
+    expect(mockUseSWR.mock.calls.some(([key]) => key === 'top-list-19723756')).toBe(true)
   })
 
   test('shows loading skeleton when detail is loading', async () => {

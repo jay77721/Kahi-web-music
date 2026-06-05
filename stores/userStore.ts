@@ -60,6 +60,7 @@ export const useUserStore = create<UserState>((set) => ({
   restoreError: null,
 
   setProfile: (profile) => {
+    storage.remove(STORAGE_KEYS.USER_COOKIE)
     set({ profile, isLoggedIn: true, hasRestoredSession: true, restoreError: null })
     storage.set(STORAGE_KEYS.USER_PROFILE, profile)
   },
@@ -75,6 +76,7 @@ export const useUserStore = create<UserState>((set) => ({
       throw new Error(res?.message || '登录失败，请检查手机号或验证码')
     }
     const profile = res.profile
+    storage.remove(STORAGE_KEYS.USER_COOKIE)
     set({ profile, isLoggedIn: true, hasRestoredSession: true, logoutError: null, restoreError: null })
     storage.set(STORAGE_KEYS.USER_PROFILE, profile)
     return profile
@@ -106,44 +108,46 @@ export const useUserStore = create<UserState>((set) => ({
   restore: () => {
     if (restoreSessionPromise) return restoreSessionPromise
 
-    restoreSessionPromise = (async () => {
-      let cachedProfile: UserProfile | null = null
+    restoreSessionPromise = Promise.resolve()
+      .then(async () => {
+        let cachedProfile: UserProfile | null = null
 
-      try {
-        storage.remove(STORAGE_KEYS.USER_COOKIE)
-        cachedProfile = storage.get<UserProfile | null>(STORAGE_KEYS.USER_PROFILE, null)
+        try {
+          storage.remove(STORAGE_KEYS.USER_COOKIE)
+          cachedProfile = storage.get<UserProfile | null>(STORAGE_KEYS.USER_PROFILE, null)
 
-        set({
-          cookie: null,
-          profile: cachedProfile,
-          isLoggedIn: false,
-          hasRestoredSession: false,
-          restoreError: null,
-        })
+          set({
+            cookie: null,
+            profile: cachedProfile,
+            isLoggedIn: false,
+            hasRestoredSession: false,
+            restoreError: null,
+          })
 
-        const status = (await ncmApi.loginStatus()) as unknown as LoginStatusResult
-        const isVerifiedSession = hasVerifiedSession(status)
-        const verifiedProfile = isVerifiedSession ? status.profile ?? null : null
+          const status = (await ncmApi.loginStatus()) as unknown as LoginStatusResult
+          const isVerifiedSession = hasVerifiedSession(status)
+          const verifiedProfile = isVerifiedSession ? status.profile ?? null : null
 
-        set({
-          cookie: null,
-          profile: verifiedProfile ?? cachedProfile,
-          isLoggedIn: isVerifiedSession,
-          hasRestoredSession: true,
-          restoreError: null,
-        })
-      } catch (error) {
-        set({
-          cookie: null,
-          profile: cachedProfile,
-          isLoggedIn: false,
-          hasRestoredSession: true,
-          restoreError: getErrorMessage(error, '恢复登录状态失败'),
-        })
-      } finally {
+          set({
+            cookie: null,
+            profile: verifiedProfile ?? cachedProfile,
+            isLoggedIn: isVerifiedSession,
+            hasRestoredSession: true,
+            restoreError: null,
+          })
+        } catch (error) {
+          set({
+            cookie: null,
+            profile: cachedProfile,
+            isLoggedIn: false,
+            hasRestoredSession: true,
+            restoreError: getErrorMessage(error, '恢复登录状态失败'),
+          })
+        }
+      })
+      .finally(() => {
         restoreSessionPromise = null
-      }
-    })()
+      })
 
     return restoreSessionPromise
   },

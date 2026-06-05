@@ -13,10 +13,13 @@ interface MVInfoProps {
   className?: string
 }
 
+const UNKNOWN_TEXT = '未知'
+const UNKNOWN_ARTIST = '未知艺人'
+
 function formatPublishTime(value: string | undefined): string {
-  if (!value) return '—'
+  if (!value) return UNKNOWN_TEXT
   const trimmed = value.trim()
-  if (!trimmed) return '—'
+  if (!trimmed) return UNKNOWN_TEXT
   if (/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(trimmed)) {
     return trimmed.slice(0, 10).replace(/-/g, '.')
   }
@@ -26,7 +29,8 @@ function formatPublishTime(value: string | undefined): string {
 export function MVInfo({ mv, likedCount = 0, shareCount = 0, className }: MVInfoProps) {
   const playCount = mv.playCount ?? 0
   const artistId = mv.artistId
-  const artistName = mv.artistName ?? '未知艺人'
+  const artistName = mv.artistName?.trim() || UNKNOWN_ARTIST
+  const title = mv.name?.trim() || '未知 MV'
 
   return (
     <aside
@@ -42,7 +46,7 @@ export function MVInfo({ mv, likedCount = 0, shareCount = 0, className }: MVInfo
           className="text-2xl md:text-3xl font-bold leading-tight tracking-tight"
           data-testid="mv-info-title"
         >
-          {mv.name}
+          {title}
         </h1>
         {artistId !== undefined ? (
           <Link

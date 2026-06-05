@@ -20,6 +20,8 @@ const RATE_LIMIT_MAX_REQUESTS = 60
 const METADATA_FETCH_TIMEOUT_MS = 8_000
 const AUDIO_FETCH_TIMEOUT_MS = 12_000
 const rateLimitBuckets = new Map<string, { count: number; resetAt: number }>()
+const SINGLE_BYTE_RANGE_PATTERN = /^bytes=(?:\d+-\d*|\d*-\d+)$/
+let lastRateLimitPruneAt = 0
 
 function getAllowedAudioHosts(): Set<string> {
   return new Set(
@@ -97,8 +99,23 @@ function getClientRateLimitKey(request: NextRequest): string {
   return request.headers.get('x-vercel-forwarded-for') || 'unknown'
 }
 
+function pruneExpiredRateLimitBuckets(now: number): void {
+  if (now - lastRateLimitPruneAt < RATE_LIMIT_WINDOW_MS) {
+    return
+  }
+
+  lastRateLimitPruneAt = now
+  for (const [key, bucket] of rateLimitBuckets) {
+    if (bucket.resetAt <= now) {
+      rateLimitBuckets.delete(key)
+    }
+  }
+}
+
 function rateLimit(request: NextRequest): NextResponse | null {
   const now = Date.now()
+  pruneExpiredRateLimitBuckets(now)
+
   const key = getClientRateLimitKey(request)
   const bucket = rateLimitBuckets.get(key)
   if (!bucket || bucket.resetAt <= now) {
@@ -107,7 +124,8 @@ function rateLimit(request: NextRequest): NextResponse | null {
   }
 
   if (bucket.count >= RATE_LIMIT_MAX_REQUESTS) {
-    return NextResponse.json(
+    return jsonWithCors(
+      request,
       { code: 429, message: 'Too many requests' },
       {
         status: 429,
@@ -118,6 +136,10 @@ function rateLimit(request: NextRequest): NextResponse | null {
 
   rateLimitBuckets.set(key, { ...bucket, count: bucket.count + 1 })
   return null
+}
+
+function isValidSingleByteRange(rangeHeader: string): boolean {
+  return SINGLE_BYTE_RANGE_PATTERN.test(rangeHeader)
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
@@ -148,7 +170,24 @@ function getCorsHeaders(request: NextRequest): HeadersInit {
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Range',
     'Access-Control-Allow-Credentials': 'true',
+    'Vary': 'Origin',
   }
+}
+
+function applyCors(request: NextRequest, response: NextResponse): NextResponse {
+  const corsHeaders = getCorsHeaders(request)
+  for (const [key, value] of Object.entries(corsHeaders)) {
+    response.headers.set(key, value)
+  }
+  return response
+}
+
+function jsonWithCors(
+  request: NextRequest,
+  body: unknown,
+  init?: ResponseInit,
+): NextResponse {
+  return applyCors(request, NextResponse.json(body, init))
 }
 
 export async function GET(request: NextRequest) {
@@ -159,18 +198,24 @@ export async function GET(request: NextRequest) {
 
   const id = request.nextUrl.searchParams.get('id')
   if (!id || !/^\d+$/.test(id)) {
-    return NextResponse.json({ code: 400, message: 'Invalid song id' }, { status: 400 })
+    return jsonWithCors(request, { code: 400, message: 'Invalid song id' }, { status: 400 })
   }
 
   const br = request.nextUrl.searchParams.get('br') || DEFAULT_BITRATE
   if (!ALLOWED_BITRATES.has(br)) {
-    return NextResponse.json({ code: 400, message: 'Invalid bitrate' }, { status: 400 })
+    return jsonWithCors(request, { code: 400, message: 'Invalid bitrate' }, { status: 400 })
+  }
+
+  const rangeHeader = request.headers.get('range')?.trim()
+  if (rangeHeader !== undefined && !isValidSingleByteRange(rangeHeader)) {
+    return jsonWithCors(request, { code: 400, message: 'Invalid range header' }, { status: 400 })
   }
 
   try {
     const apiBase = getApiBase()
     if (!apiBase) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { code: 500, message: 'API_URL is not configured' },
         { status: 500 },
       )
@@ -190,7 +235,8 @@ export async function GET(request: NextRequest) {
     }, METADATA_FETCH_TIMEOUT_MS)
 
     if (!apiResponse.ok) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { code: apiResponse.status, message: 'Failed to get song URL' },
         { status: apiResponse.status }
       )
@@ -200,14 +246,14 @@ export async function GET(request: NextRequest) {
     const audioUrl = parseAudioUrl(urlData?.data?.[0]?.url)
 
     if (!audioUrl) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { code: 404, message: 'Audio URL not available' },
         { status: 404 }
       )
     }
 
     // Forward range request headers for seeking support
-    const rangeHeader = request.headers.get('range')
     const audioResponse = await fetchWithTimeout(audioUrl.toString(), {
       headers: {
         'User-Agent': request.headers.get('user-agent') || '',
@@ -217,7 +263,8 @@ export async function GET(request: NextRequest) {
     }, AUDIO_FETCH_TIMEOUT_MS)
 
     if (!audioResponse.ok) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { code: 502, message: 'Failed to stream audio' },
         { status: 502 }
       )
@@ -226,7 +273,8 @@ export async function GET(request: NextRequest) {
     // Get content type from response and only proxy audio-like payloads.
     const rawContentType = audioResponse.headers.get('content-type')
     if (!isAudioContentType(rawContentType)) {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { code: 502, message: 'Upstream response is not audio' },
         { status: 502 },
       )
@@ -237,6 +285,7 @@ export async function GET(request: NextRequest) {
     const headers = new Headers(getCorsHeaders(request))
     headers.set('Content-Type', contentType)
     headers.set('Accept-Ranges', 'bytes')
+    headers.set('X-Content-Type-Options', 'nosniff')
 
     // Forward content-length if available
     const contentLength = audioResponse.headers.get('content-length')
@@ -263,13 +312,15 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[Song Stream] Error:', error)
     if (error instanceof Error && error.name === 'AbortError') {
-      return NextResponse.json(
+      return jsonWithCors(
+        request,
         { code: 504, message: 'Stream request timeout' },
         { status: 504 },
       )
     }
 
-    return NextResponse.json(
+    return jsonWithCors(
+      request,
       { code: 500, message: 'Stream error' },
       { status: 500 }
     )

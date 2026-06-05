@@ -4,6 +4,7 @@ import { GET } from '@/app/api/song/stream/route'
 
 const originalApiUrl = process.env.API_URL
 const originalAllowedHosts = process.env.AUDIO_URL_ALLOWED_HOSTS
+const originalAllowedOrigins = process.env.ALLOWED_ORIGINS
 const originalFetch = global.fetch
 let requestCounter = 0
 
@@ -35,11 +36,13 @@ describe('song stream route hardening', () => {
   beforeEach(() => {
     process.env.API_URL = 'https://api.example.test'
     process.env.AUDIO_URL_ALLOWED_HOSTS = 'cdn.example.test'
+    delete process.env.ALLOWED_ORIGINS
   })
 
   afterEach(() => {
     process.env.API_URL = originalApiUrl
     process.env.AUDIO_URL_ALLOWED_HOSTS = originalAllowedHosts
+    process.env.ALLOWED_ORIGINS = originalAllowedOrigins
     vi.unstubAllEnvs()
     global.fetch = originalFetch
     vi.restoreAllMocks()
@@ -61,6 +64,23 @@ describe('song stream route hardening', () => {
     await expect(response.json()).resolves.toMatchObject({ message: 'Invalid bitrate' })
   })
 
+  test('adds CORS headers to JSON error responses for allowed origins', async () => {
+    process.env.ALLOWED_ORIGINS = 'https://allowed.example.test'
+
+    const response = await GET(
+      createRequest('https://app.example.test/api/song/stream', {
+        headers: { Origin: 'https://allowed.example.test' },
+      }),
+    )
+
+    expect(response.status).toBe(400)
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe(
+      'https://allowed.example.test',
+    )
+    expect(response.headers.get('Access-Control-Allow-Credentials')).toBe('true')
+    expect(response.headers.get('Vary')).toBe('Origin')
+  })
+
   test('returns configuration error without fetching localhost when production API_URL is missing', async () => {
     process.env.API_URL = ''
     vi.stubEnv('NODE_ENV', 'production')
@@ -70,6 +90,20 @@ describe('song stream route hardening', () => {
 
     expect(response.status).toBe(500)
     await expect(response.json()).resolves.toMatchObject({ message: 'API_URL is not configured' })
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  test('rejects malformed range headers before upstream fetches', async () => {
+    global.fetch = vi.fn()
+
+    const response = await GET(
+      createRequest('https://app.example.test/api/song/stream?id=123', {
+        headers: { Range: 'bytes=0-9,20-29' },
+      }),
+    )
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({ message: 'Invalid range header' })
     expect(global.fetch).not.toHaveBeenCalled()
   })
 

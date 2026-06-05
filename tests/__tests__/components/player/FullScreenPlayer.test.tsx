@@ -1,7 +1,7 @@
 'use client'
 
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@/tests/helpers/test-utils'
+import { cleanup, fireEvent, render, screen, within } from '@/tests/helpers/test-utils'
 
 // Mock the swr module so SWRConfig is available in the test wrapper.
 const sharedCache = new Map<string, { data?: unknown; error?: unknown; isValidating?: boolean; isLoading?: boolean }>()
@@ -93,6 +93,7 @@ describe('FullScreenPlayer', () => {
 
   afterEach(() => {
     cleanup()
+    document.body.replaceChildren()
   })
 
   test('renders nothing when fullScreenPlayerOpen is false', () => {
@@ -120,11 +121,14 @@ describe('FullScreenPlayer', () => {
       mv: 0,
     }
 
-    render(<FullScreenPlayer />)
+    const { unmount } = render(<FullScreenPlayer />)
 
     const dialog = screen.getByRole('dialog', { name: '全屏播放器' })
     expect(dialog).toHaveAttribute('aria-modal', 'true')
     expect(dialog).toHaveFocus()
+
+    unmount()
+    expect(opener).toHaveFocus()
   })
 
   test('closes the modal dialog when Escape is pressed', () => {
@@ -141,6 +145,30 @@ describe('FullScreenPlayer', () => {
     fireEvent.keyDown(screen.getByRole('dialog', { name: '全屏播放器' }), { key: 'Escape' })
 
     expect(mockUI.setFullScreenPlayerOpen).toHaveBeenCalledWith(false)
+  })
+
+  test('keeps tab focus inside the modal dialog', () => {
+    mockUI.fullScreenPlayerOpen = true
+    mockStore.currentTrack = {
+      id: 1,
+      name: 'Test',
+      ar: [{ id: 1, name: 'Artist' }],
+      al: { id: 1, name: 'Album', picUrl: 'https://example.com/cover.jpg' },
+      mv: 0,
+    }
+    render(<FullScreenPlayer />)
+
+    const dialog = screen.getByRole('dialog', { name: '全屏播放器' })
+    const buttons = within(dialog).getAllByRole('button')
+    const firstButton = buttons[0]
+    const lastButton = buttons[buttons.length - 1]
+
+    firstButton.focus()
+    fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true })
+    expect(lastButton).toHaveFocus()
+
+    fireEvent.keyDown(dialog, { key: 'Tab' })
+    expect(firstButton).toHaveFocus()
   })
 
   test('passes the cover URL to useDominantColor when opened with a track', () => {

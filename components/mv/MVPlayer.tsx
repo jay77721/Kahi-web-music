@@ -1,12 +1,15 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Play, Pause, Volume2, VolumeX, AlertCircle, Loader2 } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
 import { formatTime } from '@/lib/format'
 
 export type MVPlayerStatus = 'loading' | 'ready' | 'error'
+const NO_SOURCE_MESSAGE = '无法获取播放地址'
+const LOAD_ERROR_MESSAGE = '视频加载失败'
+const PLAY_ERROR_MESSAGE = '播放失败'
 
 interface MVPlayerProps {
   src: string | null | undefined
@@ -24,9 +27,8 @@ export function MVPlayer({
   onError,
 }: MVPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const [trackedSrc, setTrackedSrc] = useState(src ?? null)
   const [hasErrored, setHasErrored] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string>(src ? '' : '无法获取播放地址')
+  const [errorMessage, setErrorMessage] = useState<string>(src ? '' : NO_SOURCE_MESSAGE)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -34,13 +36,14 @@ export function MVPlayer({
   const [isMuted, setIsMuted] = useState(false)
   const [isReady, setIsReady] = useState(false)
 
-  // Derive status from props/state during render — no setState-in-effect needed.
-  if (src !== trackedSrc) {
-    setTrackedSrc(src ?? null)
+  useEffect(() => {
     setHasErrored(false)
     setIsReady(false)
-    setErrorMessage(src ? '' : '无法获取播放地址')
-  }
+    setIsPlaying(false)
+    setCurrentTime(0)
+    setDuration(0)
+    setErrorMessage(src ? '' : NO_SOURCE_MESSAGE)
+  }, [src])
 
   const status: MVPlayerStatus = !src
     ? 'error'
@@ -68,8 +71,8 @@ export function MVPlayer({
 
   const handleError = useCallback(() => {
     setHasErrored(true)
-    setErrorMessage('视频加载失败')
-    onError?.('视频加载失败')
+    setErrorMessage(LOAD_ERROR_MESSAGE)
+    onError?.(LOAD_ERROR_MESSAGE)
   }, [onError])
 
   const togglePlay = useCallback(() => {
@@ -78,7 +81,7 @@ export function MVPlayer({
     if (video.paused) {
       void video.play().catch(() => {
         setHasErrored(true)
-        setErrorMessage('播放失败')
+        setErrorMessage(PLAY_ERROR_MESSAGE)
       })
     } else {
       video.pause()
@@ -176,7 +179,9 @@ export function MVPlayer({
           data-testid="mv-player-error"
         >
           <AlertCircle className="w-10 h-10 text-[var(--text-tertiary)]" aria-hidden="true" />
-          <p className="text-sm text-[var(--text-tertiary)]">{errorMessage}</p>
+          <p className="text-sm text-[var(--text-tertiary)]">
+            {errorMessage || (src ? LOAD_ERROR_MESSAGE : NO_SOURCE_MESSAGE)}
+          </p>
         </div>
       ) : null}
 

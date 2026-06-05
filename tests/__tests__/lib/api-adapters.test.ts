@@ -9,6 +9,7 @@ import {
   normalizePlaylistDetail,
   normalizePlaylistList,
   normalizeSearchResult,
+  normalizeSearchSuggest,
   normalizeSongList,
   normalizeUserProfile,
 } from '@/lib/api-adapters'
@@ -190,6 +191,46 @@ describe('api adapters', () => {
         artistCount: 0,
         albumCount: 0,
         mvCount: 0,
+      })
+    })
+  })
+
+  describe('normalizeSearchSuggest()', () => {
+    test('returns a stable empty result when suggestions are missing', () => {
+      expect(normalizeSearchSuggest({ code: 200 })).toEqual({
+        code: 200,
+        result: {
+          allMatch: undefined,
+          songs: [],
+          artists: [],
+          albums: [],
+          playlists: [],
+        },
+      })
+    })
+
+    test('accepts array-shaped allMatch payloads and suggestion lists', () => {
+      expect(
+        normalizeSearchSuggest({
+          data: {
+            result: {
+              allMatch: [{ keyword: 'Song A', type: 1 }, { type: 2 }],
+              songs: [{ id: song.id, name: song.name }],
+              artists: [{ id: artist.id, name: artist.name }],
+              albums: [{ id: album.id, name: album.name }],
+              playlists: [{ id: playlist.id, name: playlist.name }],
+            },
+          },
+        })
+      ).toEqual({
+        code: 200,
+        result: {
+          allMatch: { keyword: 'Song A', type: 1 },
+          songs: [{ id: song.id, name: song.name }],
+          artists: [{ id: artist.id, name: artist.name }],
+          albums: [{ id: album.id, name: album.name }],
+          playlists: [{ id: playlist.id, name: playlist.name }],
+        },
       })
     })
   })

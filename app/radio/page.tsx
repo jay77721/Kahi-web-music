@@ -43,10 +43,10 @@ export default function RadioPage() {
 
           <div className="relative px-4 md:px-6 pt-6 pb-8">
             <div className="flex items-center gap-4 mb-4">
-              <div className="w-16 h-16 rounded-2xl bg-[var(--accent)] flex items-center justify-center shadow-[var(--shadow-glow-lg)]">
+              <div className="w-16 h-16 shrink-0 rounded-2xl bg-[var(--accent)] flex items-center justify-center shadow-[var(--shadow-glow-lg)]">
                 <Radio className="w-8 h-8 text-black" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] tracking-tight">
                   电台与播客
                 </h1>
@@ -61,6 +61,8 @@ export default function RadioPage() {
               {tabs.map((tab) => (
                 <button
                   key={tab.key}
+                  type="button"
+                  aria-pressed={activeTab === tab.key}
                   onClick={() => setActiveTab(tab.key)}
                   className={cn(
                     'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200',
@@ -139,7 +141,7 @@ function HotRadioSection() {
             <RadioCardSkeleton key={i} />
           ))}
         </div>
-      ) : (
+      ) : data && data.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {data?.map((radio) => (
             <motion.div key={radio.id} variants={staggerItem}>
@@ -147,6 +149,8 @@ function HotRadioSection() {
             </motion.div>
           ))}
         </div>
+      ) : (
+        <RadioEmptyState title="暂无热门电台" />
       )}
     </motion.div>
   )
@@ -196,7 +200,7 @@ function AllRadioSection() {
             <RadioCardSkeleton key={i} />
           ))}
         </div>
-      ) : (
+      ) : data && data.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
           {data?.map((radio) => (
             <motion.div key={radio.id} variants={staggerItem}>
@@ -204,6 +208,8 @@ function AllRadioSection() {
             </motion.div>
           ))}
         </div>
+      ) : (
+        <RadioEmptyState title="暂无电台内容" />
       )}
     </motion.div>
   )
@@ -259,7 +265,7 @@ function ProgramToplistSection() {
             </div>
           ))}
         </div>
-      ) : (
+      ) : data && data.length > 0 ? (
         <div className="space-y-1 stagger-children">
           {data?.map((program, index) => (
             <motion.div
@@ -330,6 +336,8 @@ function ProgramToplistSection() {
             </motion.div>
           ))}
         </div>
+      ) : (
+        <RadioEmptyState title="暂无精品节目" />
       )}
     </motion.div>
   )
@@ -434,6 +442,15 @@ function RadioCardSkeleton() {
         <Skeleton className="h-4 w-full bg-[var(--bg-overlay)]" />
         <Skeleton className="h-3 w-2/3 bg-[var(--bg-overlay)]" />
       </div>
+    </div>
+  )
+}
+
+function RadioEmptyState({ title }: { title: string }) {
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-12 text-center">
+      <Radio className="mx-auto mb-3 h-8 w-8 text-[var(--text-quaternary)]" aria-hidden="true" />
+      <p className="text-sm text-[var(--text-tertiary)]">{title}</p>
     </div>
   )
 }

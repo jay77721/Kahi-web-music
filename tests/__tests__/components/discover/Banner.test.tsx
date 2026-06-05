@@ -39,7 +39,10 @@ vi.mock('next/image', () => ({
     className?: string
     src: string
     style?: CSSProperties
-  }) => <img alt={alt} className={className} src={src} style={style} />,
+  }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img alt={alt} className={className} src={src} style={style} />
+  ),
 }))
 
 describe('Banner', () => {
