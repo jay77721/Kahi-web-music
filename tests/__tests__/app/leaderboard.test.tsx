@@ -35,10 +35,22 @@ vi.mock('@/components/layout/AppShell', () => ({
 }))
 
 vi.mock('@/components/common/SongTable', () => ({
-  SongTable: ({ songs }: { songs: { id: number }[] }) =>
+  SongTable: ({
+    songs,
+    animated,
+    showArtwork,
+  }: {
+    songs: { id: number }[]
+    animated?: boolean
+    showArtwork?: boolean
+  }) =>
     React.createElement(
       'div',
-      { 'data-testid': 'song-table' },
+      {
+        'data-testid': 'song-table',
+        'data-animated': String(animated),
+        'data-show-artwork': String(showArtwork),
+      },
       `${songs.length} songs`
     ),
 }))
@@ -159,7 +171,7 @@ describe('LeaderboardPage', () => {
     expect(screen.getByTestId('chart-card-60131')).toBeInTheDocument()
   })
 
-  test('auto-selects the first chart and renders the song table', async () => {
+  test('requests the default official chart immediately and renders the song table', async () => {
     const mockPlayQueue = vi.fn()
     mockUsePlayerStore.mockImplementation((selector?: (s: Record<string, unknown>) => unknown) =>
       selector
@@ -191,11 +203,7 @@ describe('LeaderboardPage', () => {
     const { default: LeaderboardPage } = await import('@/app/leaderboard/page')
     render(<LeaderboardPage />)
 
-    // Allow the auto-select effect to flush.
-    await act(async () => {
-      await Promise.resolve()
-    })
-
+    expect(mockUseSWR.mock.calls.some(([key]) => key === 'top-list-3779629')).toBe(true)
     expect(screen.getByTestId('leaderboard-detail')).toBeInTheDocument()
     expect(screen.getByTestId('song-table')).toHaveTextContent('2 songs')
   })
@@ -279,9 +287,11 @@ describe('LeaderboardPage', () => {
     render(<LeaderboardPage />)
 
     await waitFor(() => {
-      expect(screen.getByTestId('song-table')).toHaveTextContent('30 songs')
+      expect(screen.getByTestId('song-table')).toHaveTextContent('20 songs')
     })
-    expect(screen.getByText('已显示 30/50 首 · 共 60 首')).toBeInTheDocument()
+    expect(screen.getByTestId('song-table')).toHaveAttribute('data-animated', 'false')
+    expect(screen.getByTestId('song-table')).toHaveAttribute('data-show-artwork', 'false')
+    expect(screen.getByText('已显示 20/50 首 · 共 60 首')).toBeInTheDocument()
 
     fireEvent.click(screen.getByTestId('leaderboard-load-full'))
 

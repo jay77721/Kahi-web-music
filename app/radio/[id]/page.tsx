@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
@@ -13,6 +14,10 @@ import { ncmApi } from '@/lib/api'
 import { normalizeDjProgramList } from '@/lib/api-adapters'
 import { formatRelativeTime, imageUrl } from '@/lib/format'
 import type { DjProgram } from '@/types/dj'
+
+const INITIAL_PROGRAM_VISIBLE_COUNT = 12
+const PROGRAM_VISIBLE_INCREMENT = 12
+const EMPTY_PROGRAMS: DjProgram[] = []
 
 function getRouteId(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value[0] ?? '' : value ?? ''
@@ -35,6 +40,19 @@ export default function RadioDetailPage() {
     hasValidId ? `djprogram-${radioId}` : null,
     async () => normalizeDjProgramList(await ncmApi.djprogram(radioId, 30))
   )
+  const [visibleState, setVisibleState] = useState({
+    radioId,
+    count: INITIAL_PROGRAM_VISIBLE_COUNT,
+  })
+  const visibleCount =
+    visibleState.radioId === radioId ? visibleState.count : INITIAL_PROGRAM_VISIBLE_COUNT
+  const programs = data ?? EMPTY_PROGRAMS
+  const effectiveVisibleCount = Math.min(visibleCount, programs.length)
+  const visiblePrograms = useMemo(
+    () => programs.slice(0, effectiveVisibleCount),
+    [effectiveVisibleCount, programs]
+  )
+  const remainingProgramCount = programs.length - effectiveVisibleCount
 
   if (isLoading) {
     return (
@@ -67,8 +85,6 @@ export default function RadioDetailPage() {
       </AppShell>
     )
   }
-
-  const programs = data ?? []
 
   return (
     <AppShell>
@@ -109,9 +125,28 @@ export default function RadioDetailPage() {
             aria-label="电台节目列表"
             data-testid="radio-program-list"
           >
-            {programs.map((program, index) => (
+            {visiblePrograms.map((program, index) => (
               <ProgramRow key={`${program.id}-${index}`} program={program} index={index} />
             ))}
+            {remainingProgramCount > 0 ? (
+              <div className="flex justify-center pt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  data-testid="radio-program-load-more"
+                  aria-label={`显示更多电台节目，已显示 ${effectiveVisibleCount} / ${programs.length}`}
+                  onClick={() =>
+                    setVisibleState({
+                      radioId,
+                      count: Math.min(visibleCount + PROGRAM_VISIBLE_INCREMENT, programs.length),
+                    })
+                  }
+                >
+                  显示更多节目 ({remainingProgramCount})
+                </Button>
+              </div>
+            ) : null}
           </section>
         ) : (
           <div
@@ -150,6 +185,7 @@ function ProgramRow({ program, index }: { program: DjProgram; index: number }) {
           height={56}
           className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
+          decoding="async"
         />
       </div>
 

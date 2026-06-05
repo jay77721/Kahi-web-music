@@ -46,6 +46,19 @@ const SEARCH_TABS: SearchTabConfig[] = [
   { value: 'mvs', label: 'MV', type: 1004, icon: Video },
 ]
 
+const COUNT_KEY_BY_TAB = {
+  songs: 'songCount',
+  artists: 'artistCount',
+  albums: 'albumCount',
+  playlists: 'playlistCount',
+  mvs: 'mvCount',
+} satisfies Record<TabValue, SearchCountKey>
+
+const SEARCH_RESULT_SWR_OPTIONS = {
+  revalidateOnFocus: false,
+  keepPreviousData: false,
+} as const
+
 function isTabValue(value: string): value is TabValue {
   return SEARCH_TABS.some((tab) => tab.value === value)
 }
@@ -89,7 +102,8 @@ export function SearchResults({ keywords }: SearchResultsProps) {
 function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type: number; tabValue: TabValue }) {
   const { data, isLoading } = useSWR<NormalizedSearchResult>(
     keywords ? `search:${keywords}:${type}` : null,
-    async () => normalizeSearchResult(await ncmApi.search(keywords, type, 30))
+    async () => normalizeSearchResult(await ncmApi.search(keywords, type, 30)),
+    SEARCH_RESULT_SWR_OPTIONS
   )
   const result = useMemo<NormalizedSearchResult>(() => data ?? normalizeSearchResult(null), [data])
 
@@ -101,14 +115,7 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
     return <SearchEmptyState query={keywords} type={tabValue} />
   }
 
-  const countKeyMap = {
-    songs: 'songCount',
-    artists: 'artistCount',
-    albums: 'albumCount',
-    playlists: 'playlistCount',
-    mvs: 'mvCount',
-  } satisfies Record<TabValue, SearchCountKey>
-  const count = result[countKeyMap[tabValue]] ?? 0
+  const count = result[COUNT_KEY_BY_TAB[tabValue]] ?? 0
 
   if (count === 0) {
     return <SearchEmptyState query={keywords} type={tabValue} />
@@ -169,6 +176,7 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
                   alt={artist.name}
                   width={160}
                   height={160}
+                  sizes="(min-width: 1024px) 160px, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
                 />
@@ -203,6 +211,7 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
                   alt={album.name}
                   width={200}
                   height={200}
+                  sizes="(min-width: 1024px) 20vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
                 />
@@ -242,6 +251,7 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
                   alt={mv.name}
                   width={320}
                   height={180}
+                  sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, (min-width: 640px) 50vw, 100vw"
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
                 />

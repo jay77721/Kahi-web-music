@@ -14,7 +14,7 @@ const { mockUseSWR, mockSearchLyric, mockPlaySong, mockSearchEmptyState } = vi.h
 }))
 
 vi.mock('swr', () => ({
-  default: (key: unknown, fetcher: unknown) => mockUseSWR(key, fetcher),
+  default: (...args: unknown[]) => mockUseSWR(...args),
 }))
 
 vi.mock('@/lib/api', () => ({
@@ -137,6 +137,9 @@ describe('LyricSearchResults', () => {
       const calls = mockUseSWR.mock.calls
       const lastCall = calls[calls.length - 1]
       expect(lastCall[0]).toBe('lyric-search:moonlight')
+      expect(lastCall[2]).toEqual(
+        expect.objectContaining({ revalidateOnFocus: false, keepPreviousData: false })
+      )
     })
   })
 

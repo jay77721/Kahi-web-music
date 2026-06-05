@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState, useRef } from 'react'
+import { Suspense, useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import useSWR from 'swr'
 import Image from 'next/image'
@@ -28,8 +28,13 @@ const OFFICIAL_CHARTS: LeaderboardTabItem<number>[] = [
   { id: 19723756, label: '飙升榜' },
   { id: 60131, label: '原创榜' },
 ]
-const INITIAL_TRACK_LIMIT = 30
+const INITIAL_TRACK_LIMIT = 20
 const FULL_TRACK_LIMIT = 50
+const LEADERBOARD_SWR_OPTIONS = {
+  revalidateOnFocus: false,
+  dedupingInterval: 5 * 60 * 1000,
+} as const
+const EMPTY_TRACKS: NormalizedLeaderboardDetail['tracks'] = []
 
 function parseChartId(raw: string | null): number | null {
   if (!raw) return null
@@ -48,13 +53,14 @@ export default function LeaderboardPage() {
 function LeaderboardPageContent() {
   const searchParams = useSearchParams()
   const chartIdFromUrl = parseChartId(searchParams.get('id'))
-  const [selectedId, setSelectedId] = useState<number | null>(chartIdFromUrl)
+  const [selectedId, setSelectedId] = useState<number | null>(chartIdFromUrl ?? OFFICIAL_CHARTS[0].id)
   const [expandedChartId, setExpandedChartId] = useState<number | null>(null)
-  const { playQueue } = usePlayerStore()
-  const selectedIdRef = useRef<number | null>(chartIdFromUrl)
+  const playQueue = usePlayerStore((state) => state.playQueue)
 
-  const { data: toplist } = useSWR<NormalizedLeaderboardItem[]>('toplist', async () =>
-    normalizeLeaderboardList(await ncmApi.toplist())
+  const { data: toplist } = useSWR<NormalizedLeaderboardItem[]>(
+    'toplist',
+    async () => normalizeLeaderboardList(await ncmApi.toplist()),
+    LEADERBOARD_SWR_OPTIONS
   )
 
   const { data: detail, isLoading: detailLoading } = useSWR<NormalizedLeaderboardDetail | null>(
@@ -62,17 +68,9 @@ function LeaderboardPageContent() {
     async () => {
       const result = await ncmApi.topList(selectedId as number)
       return normalizeLeaderboardDetail(result)
-    }
+    },
+    LEADERBOARD_SWR_OPTIONS
   )
-
-  // Auto-select the first chart when the list loads.
-  useEffect(() => {
-    if (toplist && toplist.length > 0 && selectedId === null && !selectedIdRef.current) {
-      const first = toplist[0]
-      selectedIdRef.current = first.id
-      setSelectedId(first.id)
-    }
-  }, [toplist, selectedId])
 
   // Build the cards shown above the tab strip. When the toplist is loaded we
   // fall back to our canonical chart set so the user always sees 4 official
@@ -81,11 +79,16 @@ function LeaderboardPageContent() {
     ? toplist.slice(0, 4).map((c) => ({ id: c.id, label: c.name, coverUrl: c.coverImgUrl }))
     : OFFICIAL_CHARTS
 
-  const tracks = detail?.tracks ?? []
+  const tracks = detail?.tracks ?? EMPTY_TRACKS
   const displayLimit = expandedChartId === selectedId ? FULL_TRACK_LIMIT : INITIAL_TRACK_LIMIT
-  const visibleTracks = tracks.slice(0, displayLimit)
+  const visibleTracks = useMemo(() => tracks.slice(0, displayLimit), [tracks, displayLimit])
   const cappedTrackCount = Math.min(tracks.length, FULL_TRACK_LIMIT)
   const canExpandTracks = visibleTracks.length < cappedTrackCount
+  const handlePlayVisibleTracks = useCallback(() => {
+    if (visibleTracks.length > 0) {
+      playQueue(visibleTracks, 0)
+    }
+  }, [playQueue, visibleTracks])
 
   return (
     <AppShell>
@@ -218,7 +221,8 @@ function LeaderboardPageContent() {
               <SongTable
                 songs={visibleTracks}
                 showArtwork={false}
-                onPlayAll={() => visibleTracks.length > 0 && playQueue(visibleTracks, 0)}
+                animated={false}
+                onPlayAll={handlePlayVisibleTracks}
               />
               {canExpandTracks && selectedId ? (
                 <div className="mt-5 flex justify-center">

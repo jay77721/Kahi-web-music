@@ -132,6 +132,9 @@ describe('SearchResults', () => {
       render(<SearchResults keywords="  jay  " />)
 
       expect(mockUseSWR.mock.calls[0][0]).toBe('search:jay:1')
+      expect(mockUseSWR.mock.calls[0][2]).toEqual(
+        expect.objectContaining({ revalidateOnFocus: false, keepPreviousData: false })
+      )
     })
 
     test('renders song results when the normalized song count is positive', () => {

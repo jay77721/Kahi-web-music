@@ -22,6 +22,7 @@ interface SearchSuggestionsProps {
   query: string
   onSelect: (keyword: string) => void
   inputRef?: RefObject<HTMLInputElement | null>
+  enabled?: boolean
 }
 
 type Section = 'songs' | 'artists' | 'albums' | 'playlists'
@@ -39,7 +40,19 @@ interface SuggestionSection {
 
 const LISTBOX_ID = 'search-suggestions-listbox'
 
-export function SearchSuggestions({ query, onSelect, inputRef }: SearchSuggestionsProps) {
+const SUGGESTION_SWR_OPTIONS = {
+  revalidateOnFocus: false,
+  keepPreviousData: false,
+} as const
+
+function clearComboboxAttributes(input: HTMLInputElement) {
+  input.removeAttribute('aria-activedescendant')
+  input.removeAttribute('aria-controls')
+  input.removeAttribute('aria-expanded')
+  input.removeAttribute('aria-autocomplete')
+}
+
+export function SearchSuggestions({ query, onSelect, inputRef, enabled = true }: SearchSuggestionsProps) {
   const [activeIndex, setActiveIndex] = useState(-1)
   const [dismissedQuery, setDismissedQuery] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -47,12 +60,14 @@ export function SearchSuggestions({ query, onSelect, inputRef }: SearchSuggestio
   const trimmedQuery = query.trim()
   const debouncedTrimmedQuery = debouncedQuery.trim()
   const isDebouncing = trimmedQuery.length > 0 && debouncedTrimmedQuery !== trimmedQuery
+  const shouldFetchSuggestions = enabled && debouncedTrimmedQuery.length > 0
 
   const { data, isLoading } = useSWR<SearchSuggestResponse>(
-    debouncedTrimmedQuery ? `/search/suggest:${debouncedTrimmedQuery}` : null,
+    shouldFetchSuggestions ? `/search/suggest:${debouncedTrimmedQuery}` : null,
     async () => {
       return (await ncmApi.searchSuggest(debouncedTrimmedQuery)) as SearchSuggestResponse
-    }
+    },
+    SUGGESTION_SWR_OPTIONS
   )
 
   const sections = useMemo<SuggestionSection[]>(() => {
@@ -100,11 +115,11 @@ export function SearchSuggestions({ query, onSelect, inputRef }: SearchSuggestio
     return nextSections
   }, [data])
 
-  const showLoading = isDebouncing || isLoading
+  const showLoading = enabled && (isDebouncing || isLoading)
   const visibleSections = useMemo(() => (showLoading ? [] : sections), [sections, showLoading])
   const flatItems = useMemo(() => visibleSections.flatMap((section) => section.items), [visibleSections])
   const totalItems = flatItems.length
-  const isOpen = trimmedQuery.length > 0 && dismissedQuery !== trimmedQuery && (showLoading || totalItems > 0)
+  const isOpen = enabled && trimmedQuery.length > 0 && dismissedQuery !== trimmedQuery && (showLoading || totalItems > 0)
   const boundedActiveIndex = activeIndex >= 0 && activeIndex < totalItems ? activeIndex : -1
   const activeOptionId =
     boundedActiveIndex >= 0 ? `suggestion-${boundedActiveIndex}` : undefined
@@ -128,6 +143,10 @@ export function SearchSuggestions({ query, onSelect, inputRef }: SearchSuggestio
   useEffect(() => {
     const input = inputRef?.current
     if (!input) return
+    if (!enabled) {
+      clearComboboxAttributes(input)
+      return
+    }
 
     input.setAttribute('aria-autocomplete', 'list')
     input.setAttribute('aria-expanded', String(isOpen))
@@ -143,16 +162,13 @@ export function SearchSuggestions({ query, onSelect, inputRef }: SearchSuggestio
     }
 
     return () => {
-      input.removeAttribute('aria-activedescendant')
-      input.removeAttribute('aria-controls')
-      input.removeAttribute('aria-expanded')
-      input.removeAttribute('aria-autocomplete')
+      clearComboboxAttributes(input)
     }
-  }, [activeOptionId, inputRef, isOpen])
+  }, [activeOptionId, enabled, inputRef, isOpen])
 
   useEffect(() => {
     const input = inputRef?.current
-    if (!input) return
+    if (!input || !enabled) return
 
     function handleInput() {
       setActiveIndex(-1)
@@ -161,7 +177,7 @@ export function SearchSuggestions({ query, onSelect, inputRef }: SearchSuggestio
 
     input.addEventListener('input', handleInput)
     return () => input.removeEventListener('input', handleInput)
-  }, [inputRef])
+  }, [enabled, inputRef])
 
   useEffect(() => {
     const input = inputRef?.current
@@ -206,6 +222,8 @@ export function SearchSuggestions({ query, onSelect, inputRef }: SearchSuggestio
   }, [boundedActiveIndex, flatItems, handleSelect, inputRef, isOpen, totalItems, trimmedQuery])
 
   useEffect(() => {
+    if (!isOpen) return
+
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node
       if (containerRef.current?.contains(target) || inputRef?.current?.contains(target)) return
@@ -215,7 +233,7 @@ export function SearchSuggestions({ query, onSelect, inputRef }: SearchSuggestio
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [inputRef, trimmedQuery])
+  }, [inputRef, isOpen, trimmedQuery])
 
   const highlightText = useCallback(
     (text: string, query: string): React.ReactNode => {

@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next"
 import Script from "next/script"
-import { Toaster } from "@/components/ui/sonner"
 import { PlaybackController } from "@/components/player/PlaybackController"
 import { PageTransitionShell } from "@/components/layout/PageTransitionShell"
 import { GlobalShortcuts } from "@/components/common/GlobalShortcuts"
+import { RootToaster } from "@/components/common/RootToaster"
 import { ServiceWorkerRegistrar } from "@/components/common/ServiceWorkerRegistrar"
 import { ErrorBoundary } from "@/components/common/ErrorBoundary"
 import { ThemeProvider } from "@/components/common/ThemeProvider"
@@ -70,7 +70,7 @@ export default function RootLayout({
           <PlaybackController />
           <GlobalShortcuts />
           <ServiceWorkerRegistrar />
-          <Toaster />
+          <RootToaster />
         </ThemeProvider>
       </body>
     </html>

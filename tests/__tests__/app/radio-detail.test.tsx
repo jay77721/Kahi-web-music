@@ -1,7 +1,7 @@
 'use client'
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import React from 'react'
 import type { DjProgram } from '@/types/dj'
 
@@ -45,6 +45,15 @@ const PROGRAMS: DjProgram[] = [
     description: 'A short episode description',
   },
 ]
+
+function makePrograms(count: number): DjProgram[] {
+  return Array.from({ length: count }, (_, index) => ({
+    ...PROGRAMS[0],
+    id: index + 1,
+    name: `Episode ${index + 1}`,
+    coverUrl: `https://pics.example.com/program/${index + 1}.jpg`,
+  }))
+}
 
 describe('RadioDetailPage', () => {
   beforeEach(() => {
@@ -103,5 +112,26 @@ describe('RadioDetailPage', () => {
     expect(screen.getByTestId('radio-program-card-101')).toBeInTheDocument()
     expect(screen.getByText('Late Night Episode')).toBeInTheDocument()
     expect(screen.getByText('Host A')).toBeInTheDocument()
+
+    const cover = screen.getByRole('img', { name: 'Late Night Episode' })
+    expect(cover).toHaveAttribute('loading', 'lazy')
+    expect(cover).toHaveAttribute('decoding', 'async')
+  })
+
+  test('renders a lighter initial program list and expands on demand', async () => {
+    mockUseSWR.mockReturnValue({ data: makePrograms(14), isLoading: false, error: undefined })
+
+    const { default: RadioDetailPage } = await import('@/app/radio/[id]/page')
+    render(<RadioDetailPage />)
+
+    expect(screen.getByTestId('radio-program-card-1')).toBeInTheDocument()
+    expect(screen.getByTestId('radio-program-card-12')).toBeInTheDocument()
+    expect(screen.queryByTestId('radio-program-card-13')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('radio-program-load-more'))
+
+    expect(screen.getByTestId('radio-program-card-13')).toBeInTheDocument()
+    expect(screen.getByTestId('radio-program-card-14')).toBeInTheDocument()
+    expect(screen.queryByTestId('radio-program-load-more')).not.toBeInTheDocument()
   })
 })

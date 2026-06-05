@@ -18,6 +18,7 @@ interface BannerItem {
 }
 
 const PAUSE_TOGGLE_SELECTOR = '[data-banner-pause-toggle="true"]'
+const BANNER_ROTATE_MS = 5000
 
 function isPauseToggleEvent(event: SyntheticEvent<HTMLElement>): boolean {
   return event.target instanceof Element && event.target.closest(PAUSE_TOGGLE_SELECTOR) !== null
@@ -34,6 +35,7 @@ export function Banner() {
 
   const [current, setCurrent] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
+  const [isTabVisible, setIsTabVisible] = useState(true)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const banners = data || []
   const activeIndex = banners.length > 0 ? Math.min(current, banners.length - 1) : 0
@@ -59,12 +61,19 @@ export function Banner() {
     return () => mediaQuery.removeEventListener('change', updateMotionPreference)
   }, [])
 
-  // Auto-rotate
   useEffect(() => {
-    if (banners.length <= 1 || isPaused || prefersReducedMotion) return
-    const timer = setInterval(next, 5000)
+    const updateVisibility = () => setIsTabVisible(document.visibilityState === 'visible')
+
+    updateVisibility()
+    document.addEventListener('visibilitychange', updateVisibility)
+    return () => document.removeEventListener('visibilitychange', updateVisibility)
+  }, [])
+
+  useEffect(() => {
+    if (banners.length <= 1 || isPaused || prefersReducedMotion || !isTabVisible) return
+    const timer = setInterval(next, BANNER_ROTATE_MS)
     return () => clearInterval(timer)
-  }, [banners.length, isPaused, next, prefersReducedMotion])
+  }, [banners.length, isPaused, isTabVisible, next, prefersReducedMotion])
 
   if (isLoading) {
     return <Skeleton className="w-full aspect-[3/1] md:aspect-[4/1] rounded-2xl" />
@@ -111,21 +120,18 @@ export function Banner() {
       onFocus={pauseForCarouselInteraction}
       onPointerDown={pauseForCarouselInteraction}
     >
-      {/* Only render the visible banner image so the carousel does not fetch every slide up front. */}
       <BlurImage
         key={`${banner.targetId}-${banner.targetType}-${activeIndex}`}
-        src={banner.imageUrl + '?param=1080y270'}
+        src={`${banner.imageUrl}?param=1080y270`}
         alt={banner.typeTitle}
         fill
         className="object-cover animate-fade-in"
         priority
       />
 
-      {/* Dramatic gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
       <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent" />
 
-      {/* Type badge */}
       <span
         className="absolute bottom-3 right-3 px-2.5 py-1 text-xs rounded-full font-medium shadow-md"
         style={{ backgroundColor: banner.titleColor || 'var(--accent)' }}
@@ -133,7 +139,6 @@ export function Banner() {
         {banner.typeTitle}
       </span>
 
-      {/* Navigation arrows */}
       <Button
         variant="ghost"
         size="icon"
@@ -170,7 +175,6 @@ export function Banner() {
         {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
       </Button>
 
-      {/* Dots with accent color for active */}
       <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
         {banners.map((_, i) => (
           <button

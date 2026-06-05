@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { Banner } from '@/components/discover/Banner'
 
 const mockBanners = vi.hoisted(() => [
@@ -29,6 +29,8 @@ vi.mock('swr', () => ({
 
 afterEach(() => {
   cleanup()
+  vi.useRealTimers()
+  Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' })
 })
 
 describe('Banner', () => {
@@ -65,5 +67,29 @@ describe('Banner', () => {
       'aria-pressed',
       'false'
     )
+  })
+
+  test('does not auto-rotate while the tab is hidden', () => {
+    vi.useFakeTimers()
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' })
+
+    render(<Banner />)
+
+    expect(screen.getAllByRole('img')[0]).toHaveAttribute('src', expect.stringContaining('banner-a'))
+
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+
+    expect(screen.getAllByRole('img')[0]).toHaveAttribute('src', expect.stringContaining('banner-a'))
+
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' })
+    fireEvent(document, new Event('visibilitychange'))
+
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+
+    expect(screen.getAllByRole('img')[0]).toHaveAttribute('src', expect.stringContaining('banner-b'))
   })
 })

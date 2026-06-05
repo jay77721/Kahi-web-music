@@ -17,7 +17,7 @@ vi.mock('@/hooks/useDebouncedValue', () => ({
 }))
 
 vi.mock('swr', () => ({
-  default: (_key: unknown, _fetcher: unknown) => mockUseSWR(_key, _fetcher),
+  default: (...args: unknown[]) => mockUseSWR(...args),
 }))
 
 vi.mock('@/lib/api', () => ({
@@ -132,8 +132,23 @@ describe('SearchSuggestions', () => {
   test('uses a null SWR key for whitespace-only queries', () => {
     render(<SearchSuggestions query="   " onSelect={onSelect} />)
 
-    expect(mockUseSWR).toHaveBeenCalledWith(null, expect.any(Function))
+    expect(mockUseSWR).toHaveBeenCalledWith(
+      null,
+      expect.any(Function),
+      expect.objectContaining({ revalidateOnFocus: false, keepPreviousData: false })
+    )
     expect(screen.queryByRole('listbox', { name: '搜索建议' })).not.toBeInTheDocument()
+  })
+
+  test('keeps suggestions idle when disabled', () => {
+    render(<SearchSuggestions query="jay" onSelect={onSelect} enabled={false} />)
+
+    expect(mockUseSWR).toHaveBeenCalledWith(
+      null,
+      expect.any(Function),
+      expect.objectContaining({ revalidateOnFocus: false, keepPreviousData: false })
+    )
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
 
   test('shows loading instead of stale options while waiting for debounce', () => {

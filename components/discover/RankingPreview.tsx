@@ -15,22 +15,29 @@ const RANKING_IDS = [
   { id: 2884035, name: '热歌榜' },
 ]
 
+const TRACK_PREVIEW_LIMIT = 5
+
+function getPreviewTracks(tracks: Song[] | undefined): Song[] {
+  return (tracks || []).slice(0, TRACK_PREVIEW_LIMIT)
+}
+
 export function RankingPreview() {
   const { data, isLoading } = useSWR('rankings-preview', async () => {
     const results = await Promise.all(
       RANKING_IDS.map(async (r) => {
         const data = await ncmApi.topList(r.id)
+        const playlist = (data as { playlist?: { tracks?: Song[]; coverImgUrl?: string } } | undefined)?.playlist
         return {
           ...r,
-          tracks: (data as { playlist?: { tracks?: Song[] } } | undefined)?.playlist?.tracks || [],
-          coverUrl: (data as { playlist?: { coverImgUrl?: string } } | undefined)?.playlist?.coverImgUrl || '',
+          tracks: getPreviewTracks(playlist?.tracks),
+          coverUrl: playlist?.coverImgUrl || '',
         }
       })
     )
     return results
   })
 
-  const { playSong } = usePlayerStore()
+  const playSong = usePlayerStore((state) => state.playSong)
 
   if (isLoading) {
     return (
@@ -66,7 +73,7 @@ export function RankingPreview() {
                 </Link>
               </div>
               <div className="space-y-1">
-                {ranking.tracks.map((song, index) => (
+                {getPreviewTracks(ranking.tracks).map((song, index) => (
                   <div
                     key={song.id}
                     className="flex items-center gap-3 p-1.5 -mx-1.5 rounded-lg hover:bg-white/5 cursor-pointer transition-all duration-200 group/song"

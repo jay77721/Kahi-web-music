@@ -271,6 +271,20 @@ describe('NcmApiClient', () => {
       expect(result).toEqual(mockSongUrls)
     })
 
+    test('djhot() uses the supported hot DJ endpoint with limit params', async () => {
+      const mockResponse = { code: 200, djRadios: [] }
+      global.fetch = vi.fn().mockResolvedValue(createMockFetchResponse(mockResponse))
+
+      const result = await ncmApi.djhot(12)
+
+      const calledUrl = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]
+      expect(calledUrl).toContain('/api/dj/hot')
+      expect(calledUrl).toContain('limit=12')
+      expect(calledUrl).not.toContain('/api/djradio/hot')
+      expect(calledUrl).not.toContain('size=')
+      expect(result).toEqual(mockResponse)
+    })
+
     test('mutation methods use POST with JSON body', async () => {
       global.fetch = vi.fn().mockResolvedValue(createMockFetchResponse({ code: 200, data: { ok: true } }))
 

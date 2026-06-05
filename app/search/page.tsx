@@ -125,7 +125,12 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
             transition={{ duration: 0.4, delay: 0.1 }}
           >
             <div className="relative">
-              <SearchSuggestions query={inputValue} onSelect={handleSearch} inputRef={inputRef} />
+              <SearchSuggestions
+                query={inputValue}
+                onSelect={handleSearch}
+                inputRef={inputRef}
+                enabled={isFocused}
+              />
               <motion.div
                 className={cn(
                   'relative flex items-center rounded-full bg-[var(--bg-surface)] border border-white/10',

@@ -1,10 +1,19 @@
 'use client'
 
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentProps,
+  type CSSProperties,
+  type Dispatch,
+  type SetStateAction,
+} from 'react'
 import Image from 'next/image'
 import { Heart, Pause, Play, SkipForward, ThumbsDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { usePlayerStore } from '@/stores/playerStore'
 import { useDominantColor } from '@/hooks/useDominantColor'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
@@ -28,6 +37,14 @@ const FALLBACK_BG = `
   radial-gradient(ellipse at 50% 80%, rgba(30, 150, 215, 0.05) 0%, transparent 55%),
   linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-secondary) 50%, var(--bg-secondary) 100%)
 `
+
+const COVER_SIZE_MOBILE = 280
+const COVER_SIZE_DESKTOP = 360
+const COVER_SIZE_MIN = 160
+const COVER_VIEWPORT_GUTTER = 48
+const COVER_DESKTOP_QUERY = '(min-width: 640px)'
+const COLOR_SAMPLE_SIZE = 96
+const SKELETON_ACTIONS = [0, 1, 2, 3, 4] as const
 
 /**
  * Immersive FM main player.
@@ -54,104 +71,6 @@ export const FMMainPlayer = memo(function FMMainPlayer({
   className,
 }: FMMainPlayerProps) {
   const [likedSongIds, setLikedSongIds] = useState<Set<number>>(() => new Set())
-  const prefersReducedMotion = useReducedMotion()
-  const currentTrackId = usePlayerStore((state) => state.currentTrack?.id ?? null)
-  const isPlaying = usePlayerStore((state) => state.isPlaying)
-  const currentTime = usePlayerStore((state) => state.currentTime)
-  const duration = usePlayerStore((state) => state.duration)
-  const playSong = usePlayerStore((state) => state.playSong)
-  const seek = usePlayerStore((state) => state.seek)
-
-  // Responsive cover size — smaller on phones, larger on desktop. The disc
-  // is the visual anchor of the page so we keep it generous.
-  const COVER_SIZE_MOBILE = 280
-  const COVER_SIZE_DESKTOP = 360
-  const COVER_SIZE_MIN = 160
-  const COVER_VIEWPORT_GUTTER = 48
-  const [coverSize, setCoverSize] = useState(COVER_SIZE_MOBILE)
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 640px)')
-    const apply = () => {
-      const ideal = mq.matches ? COVER_SIZE_DESKTOP : COVER_SIZE_MOBILE
-      const available = Math.max(COVER_SIZE_MIN, window.innerWidth - COVER_VIEWPORT_GUTTER)
-      setCoverSize(Math.min(ideal, available))
-    }
-    apply()
-    mq.addEventListener('change', apply)
-    window.addEventListener('resize', apply)
-    return () => {
-      mq.removeEventListener('change', apply)
-      window.removeEventListener('resize', apply)
-    }
-  }, [])
-
-  const coverUrl = song?.al?.picUrl ? imageUrl(song.al.picUrl, coverSize) : null
-  const { color } = useDominantColor(coverUrl, { timeoutMs: 4000 })
-
-  const backgroundStyle = useMemo<React.CSSProperties>(() => {
-    if (!color) {
-      return { background: FALLBACK_BG, transition: 'background 800ms ease-out' }
-    }
-    return {
-      background: `
-        radial-gradient(ellipse at 20% 50%, ${color.oklch.replace(')', ' / 0.32)')} 0%, transparent 55%),
-        radial-gradient(ellipse at 80% 20%, ${color.oklch.replace(')', ' / 0.20)')} 0%, transparent 55%),
-        radial-gradient(ellipse at 50% 80%, ${color.oklch.replace(')', ' / 0.14)')} 0%, transparent 55%),
-        linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-secondary) 50%, var(--bg-secondary) 100%)
-      `,
-      transition: 'background 800ms ease-out',
-      ['--color-dynamic-bg' as string]: color.oklch,
-    }
-  }, [color])
-
-  const isActive = song ? currentTrackId === song.id : false
-  const isLiked = song ? likedSongIds.has(song.id) : false
-  const showPlaying = isActive && isPlaying
-  const spinClass = prefersReducedMotion
-    ? ''
-    : showPlaying
-      ? 'vinyl-disc--playing'
-      : 'vinyl-disc--paused'
-
-  const handlePlayPause = useCallback(() => {
-    if (!song) return
-    if (isActive) {
-      const ctrl = (window as unknown as Window).__playbackCtrl
-      if (ctrl) {
-        ctrl.togglePlay()
-      } else {
-        usePlayerStore.getState().setIsPlaying(!isPlaying)
-      }
-    } else {
-      playSong(song)
-    }
-  }, [isActive, isPlaying, playSong, song])
-
-  const handleDislike = useCallback(() => {
-    if (!song) return
-    onDislike(song.id)
-  }, [onDislike, song])
-
-  const handleToggleLike = useCallback(() => {
-    if (!song) return
-    setLikedSongIds((current) => {
-      const next = new Set(current)
-      if (next.has(song.id)) {
-        next.delete(song.id)
-      } else {
-        next.add(song.id)
-      }
-      return next
-    })
-  }, [song])
-
-  const handleSeek = useCallback(
-    (value: number | readonly number[]) => {
-      const next = Array.isArray(value) ? (value[0] ?? 0) : value
-      seek(next)
-    },
-    [seek]
-  )
 
   if (hasError) {
     return (
@@ -175,8 +94,110 @@ export const FMMainPlayer = memo(function FMMainPlayer({
   }
 
   if (isLoading || !song) {
-    return <FMMainPlayerSkeleton coverSize={coverSize} className={className} />
+    return <FMMainPlayerSkeleton className={className} />
   }
+
+  return (
+    <FMMainPlayerContent
+      song={song}
+      likedSongIds={likedSongIds}
+      setLikedSongIds={setLikedSongIds}
+      onDislike={onDislike}
+      onNext={onNext}
+      className={className}
+    />
+  )
+})
+
+interface FMMainPlayerContentProps {
+  song: Song
+  likedSongIds: Set<number>
+  setLikedSongIds: Dispatch<SetStateAction<Set<number>>>
+  onDislike: (id: number) => void
+  onNext: () => void
+  className?: string
+}
+
+function FMMainPlayerContent({
+  song,
+  likedSongIds,
+  setLikedSongIds,
+  onDislike,
+  onNext,
+  className,
+}: FMMainPlayerContentProps) {
+  const prefersReducedMotion = useReducedMotion()
+  const currentTrackId = usePlayerStore((state) => state.currentTrack?.id ?? null)
+  const isPlaying = usePlayerStore((state) => state.isPlaying)
+  const currentTime = usePlayerStore((state) => state.currentTime)
+  const duration = usePlayerStore((state) => state.duration)
+  const playSong = usePlayerStore((state) => state.playSong)
+  const seek = usePlayerStore((state) => state.seek)
+  const coverSize = useResponsiveCoverSize()
+  const colorSampleUrl = song.al?.picUrl ? imageUrl(song.al.picUrl, COLOR_SAMPLE_SIZE) : null
+  const { color } = useDominantColor(colorSampleUrl, { timeoutMs: 4000 })
+
+  const backgroundStyle = useMemo<CSSProperties>(() => {
+    if (!color) {
+      return { background: FALLBACK_BG, transition: 'background 800ms ease-out' }
+    }
+    return {
+      background: `
+        radial-gradient(ellipse at 20% 50%, ${color.oklch.replace(')', ' / 0.32)')} 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 20%, ${color.oklch.replace(')', ' / 0.20)')} 0%, transparent 55%),
+        radial-gradient(ellipse at 50% 80%, ${color.oklch.replace(')', ' / 0.14)')} 0%, transparent 55%),
+        linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-secondary) 50%, var(--bg-secondary) 100%)
+      `,
+      transition: 'background 800ms ease-out',
+      ['--color-dynamic-bg' as string]: color.oklch,
+    }
+  }, [color])
+
+  const isActive = currentTrackId === song.id
+  const isLiked = likedSongIds.has(song.id)
+  const showPlaying = isActive && isPlaying
+  const spinClass = prefersReducedMotion
+    ? ''
+    : showPlaying
+      ? 'vinyl-disc--playing'
+      : 'vinyl-disc--paused'
+
+  const handlePlayPause = useCallback(() => {
+    if (isActive) {
+      const ctrl = (window as unknown as Window).__playbackCtrl
+      if (ctrl) {
+        ctrl.togglePlay()
+      } else {
+        usePlayerStore.getState().setIsPlaying(!isPlaying)
+      }
+    } else {
+      playSong(song)
+    }
+  }, [isActive, isPlaying, playSong, song])
+
+  const handleDislike = useCallback(() => {
+    onDislike(song.id)
+  }, [onDislike, song.id])
+
+  const handleToggleLike = useCallback(() => {
+    setLikedSongIds((current) => {
+      const next = new Set(current)
+      if (next.has(song.id)) {
+        next.delete(song.id)
+      } else {
+        next.add(song.id)
+      }
+      return next
+    })
+  }, [setLikedSongIds, song.id])
+
+  const handleSeek = useCallback(
+    (value: number | readonly number[]) => {
+      const next = Array.isArray(value) ? (value[0] ?? 0) : value
+      seek(next)
+    },
+    [seek]
+  )
 
   return (
     <section
@@ -222,7 +243,38 @@ export const FMMainPlayer = memo(function FMMainPlayer({
       />
     </section>
   )
-})
+}
+
+function useResponsiveCoverSize(): number {
+  const [coverSize, setCoverSize] = useState(COVER_SIZE_MOBILE)
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return
+    }
+
+    const mq = window.matchMedia(COVER_DESKTOP_QUERY)
+    const apply = () => {
+      setCoverSize(getCoverSize(mq.matches, window.innerWidth))
+    }
+
+    apply()
+    mq.addEventListener('change', apply)
+    window.addEventListener('resize', apply)
+    return () => {
+      mq.removeEventListener('change', apply)
+      window.removeEventListener('resize', apply)
+    }
+  }, [])
+
+  return coverSize
+}
+
+function getCoverSize(isDesktop: boolean, viewportWidth: number): number {
+  const ideal = isDesktop ? COVER_SIZE_DESKTOP : COVER_SIZE_MOBILE
+  const available = Math.max(COVER_SIZE_MIN, viewportWidth - COVER_VIEWPORT_GUTTER)
+  return Math.min(ideal, available)
+}
 
 // ---------------------------------------------------------------------------
 // Sub-blocks
@@ -236,9 +288,14 @@ interface FMCoverProps {
 }
 
 function FMCover({ song, size, spinClass, showPlaying }: FMCoverProps) {
+  const labelSize = Math.round(size / 3)
   const coverStyle = {
     width: `${size}px`,
     height: `${size}px`,
+  } as const
+  const labelStyle = {
+    width: `${labelSize}px`,
+    height: `${labelSize}px`,
   } as const
   return (
     <div
@@ -256,14 +313,13 @@ function FMCover({ song, size, spinClass, showPlaying }: FMCoverProps) {
         <div className="vinyl-disc__cover-wrap">
           {song.al?.picUrl ? (
             <Image
-              src={imageUrl(song.al.picUrl, size)}
+              src={imageUrl(song.al.picUrl, labelSize)}
               alt={song.name}
-              width={Math.round(size / 3)}
-              height={Math.round(size / 3)}
+              width={labelSize}
+              height={labelSize}
               className="vinyl-disc__cover"
-              style={{ width: `${Math.round(size / 3)}px`, height: `${Math.round(size / 3)}px` }}
+              style={labelStyle}
               unoptimized
-              priority
             />
           ) : null}
           <span
@@ -407,12 +463,10 @@ function FMActions({ isPlaying, isLiked, onDislike, onPlayPause, onNext, onLike 
 }
 
 interface FMMainPlayerSkeletonProps {
-  coverSize: number
   className?: string
 }
 
-function FMMainPlayerSkeleton({ coverSize, className }: FMMainPlayerSkeletonProps) {
-  const coverStyle = { width: `${coverSize}px`, height: `${coverSize}px` } as const
+function FMMainPlayerSkeleton({ className }: FMMainPlayerSkeletonProps) {
   return (
     <div
       className={cn(
@@ -422,15 +476,28 @@ function FMMainPlayerSkeleton({ coverSize, className }: FMMainPlayerSkeletonProp
       data-testid="fm-skeleton"
       aria-busy="true"
     >
-      <Skeleton className="rounded-full" style={coverStyle} data-testid="fm-skeleton-cover" />
-      <Skeleton className="h-7 w-64 mt-8 rounded-md" data-testid="fm-skeleton-title" />
-      <Skeleton className="h-4 w-40 mt-3 rounded-md" data-testid="fm-skeleton-artist" />
-      <Skeleton className="h-2 w-full max-w-md mt-10 rounded-full" data-testid="fm-skeleton-progress" />
+      <FMStaticSkeleton
+        className="aspect-square w-full max-w-[280px] rounded-full sm:max-w-[360px]"
+        data-testid="fm-skeleton-cover"
+      />
+      <FMStaticSkeleton className="h-7 w-64 mt-8 rounded-md" data-testid="fm-skeleton-title" />
+      <FMStaticSkeleton className="h-4 w-40 mt-3 rounded-md" data-testid="fm-skeleton-artist" />
+      <FMStaticSkeleton className="h-2 w-full max-w-md mt-10 rounded-full" data-testid="fm-skeleton-progress" />
       <div className="w-full max-w-md mt-6 flex items-center justify-between">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="w-12 h-12 rounded-full" />
+        {SKELETON_ACTIONS.map((i) => (
+          <FMStaticSkeleton key={i} className="w-12 h-12 rounded-full" />
         ))}
       </div>
     </div>
+  )
+}
+
+function FMStaticSkeleton({ className, ...props }: ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="skeleton"
+      className={cn('bg-muted', className)}
+      {...props}
+    />
   )
 }

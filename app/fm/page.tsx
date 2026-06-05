@@ -4,7 +4,6 @@ import { useCallback } from 'react'
 import useSWR from 'swr'
 import { AppShell } from '@/components/layout/AppShell'
 import { FMMainPlayer } from '@/components/fm/FMMainPlayer'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useRequireSession } from '@/hooks/useRequireSession'
 import { ncmApi } from '@/lib/api'
 import { normalizeSongList } from '@/lib/api-adapters'
@@ -12,15 +11,16 @@ import { Radio } from 'lucide-react'
 import type { Song } from '@/types/song'
 
 /**
- * Personal FM page — renders an immersive single-track experience.
+ * Personal FM page: renders an immersive single-track experience.
  * All heavy lifting (cover, controls, color, progress) lives in
  * `<FMMainPlayer />`; this page is a thin SWR + auth shell.
  */
 export default function FMPage() {
   const { isLoggedIn, isRestoringSession } = useRequireSession()
+  const shouldFetchPersonalFm = isLoggedIn && !isRestoringSession
 
   const { data: fmSongs, mutate, error } = useSWR<Song[]>(
-    isLoggedIn ? 'personal-fm' : null,
+    shouldFetchPersonalFm ? 'personal-fm' : null,
     async (): Promise<Song[]> => {
       return normalizeSongList(await ncmApi.personalFm())
     }
@@ -32,7 +32,7 @@ export default function FMPage() {
         await ncmApi.fmTrash(id)
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'FM advance failed'
-        // Log to the console only — the UI does not block on this.
+        // Log to the console only; the UI does not block on this.
         if (typeof console !== 'undefined') {
           console.error(message)
         }
@@ -57,7 +57,11 @@ export default function FMPage() {
             </h1>
           </header>
           <div className="flex flex-1 items-center justify-center p-6">
-            <Skeleton className="aspect-square w-full max-w-[360px] rounded-full" />
+            <div
+              className="aspect-square w-full max-w-[360px] rounded-full bg-muted"
+              data-slot="skeleton"
+              data-testid="fm-session-loading-cover"
+            />
           </div>
         </div>
       </AppShell>

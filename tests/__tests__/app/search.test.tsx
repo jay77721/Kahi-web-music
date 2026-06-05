@@ -89,8 +89,16 @@ vi.mock('@/components/search/HotSearchTags', () => ({
 }))
 
 vi.mock('@/components/search/SearchSuggestions', () => ({
-  SearchSuggestions: ({ query, onSelect }: { query: string; onSelect: (keyword: string) => void }) => (
-    <div data-testid="search-suggestions" data-query={query}>
+  SearchSuggestions: ({
+    query,
+    onSelect,
+    enabled = true,
+  }: {
+    query: string
+    onSelect: (keyword: string) => void
+    enabled?: boolean
+  }) => (
+    <div data-testid="search-suggestions" data-query={query} data-enabled={String(enabled)}>
       <button type="button" onClick={() => onSelect('建议词')}>
         建议词
       </button>
@@ -186,6 +194,17 @@ describe('SearchPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '建议词' }))
     expect(pushedSearchParams().params.get('q')).toBe('建议词')
+  })
+
+  test('keeps suggestions inactive on URL-loaded result pages until input focus', () => {
+    currentSearchParams = new URLSearchParams('q=jay')
+    render(<SearchPage />)
+
+    expect(screen.getByTestId('search-suggestions')).toHaveAttribute('data-enabled', 'false')
+
+    fireEvent.focus(screen.getByRole('textbox'))
+
+    expect(screen.getByTestId('search-suggestions')).toHaveAttribute('data-enabled', 'true')
   })
 
   test('switches result type without dropping the current query', () => {

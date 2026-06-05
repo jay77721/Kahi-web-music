@@ -368,7 +368,7 @@ class NcmApiClient {
   djprogram = (rid: number, limit = 10) => this.request('/djprogram/detail', { rid, limit })
   djprogramToplist = (rcmdLimit = 20, lasttime?: number, total?: boolean) =>
     this.request('/djprogram/toplist', { rcmdLimit, lasttime, total })
-  djhot = (size = 12) => this.request('/djradio/hot', { size })
+  djhot = (limit = 12) => this.request('/dj/hot', { limit })
 
   // Cloud Disk
   cloudAdd = (songId: number) => this.requestPost('/user/cloud/add', { songId })

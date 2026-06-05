@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import useSWR from 'swr'
@@ -21,6 +21,9 @@ type TabType = 'all' | 'hot' | 'toplist'
 
 const RADIO_GRID_CLASS = 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4'
 const RADIO_CARD_SKELETON_COUNT = 12
+const INITIAL_RADIO_VISIBLE_COUNT = 24
+const RADIO_VISIBLE_INCREMENT = 24
+const HOT_RADIO_SWR_OPTIONS = { shouldRetryOnError: false } as const
 
 const tabs: { key: TabType; label: string; icon: ReactNode }[] = [
   { key: 'all', label: '全部电台', icon: <Radio className="w-4 h-4" /> },
@@ -67,6 +70,7 @@ export default function RadioPage() {
                   key={tab.key}
                   type="button"
                   aria-pressed={activeTab === tab.key}
+                  data-testid={`radio-tab-${tab.key}`}
                   onClick={() => setActiveTab(tab.key)}
                   className={cn(
                     'flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200',
@@ -102,7 +106,7 @@ function HotRadioSection() {
   const { data, error, isLoading } = useSWR<DjRadioHot[]>('djradio-hot', async () => {
     const result = await ncmApi.djhot(12)
     return normalizeDjHotList(result)
-  })
+  }, HOT_RADIO_SWR_OPTIONS)
 
   if (error) {
     return <RadioErrorState />
@@ -208,6 +212,7 @@ function ProgramToplistSection() {
                   height={48}
                   className="w-full h-full object-cover"
                   loading="lazy"
+                  decoding="async"
                 />
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <div className="w-7 h-7 rounded-full bg-[var(--accent)] flex items-center justify-center shadow-lg">
@@ -295,20 +300,47 @@ function RadioSection({ title, badge, action, children }: RadioSectionProps) {
 
 function RadioErrorState() {
   return (
-    <motion.div variants={fadeIn} className="text-center py-16">
+    <motion.div variants={fadeIn} className="text-center py-16" data-testid="radio-error-state">
       <p className="text-[var(--text-tertiary)]">加载失败，请稍后重试</p>
     </motion.div>
   )
 }
 
 function RadioCardGrid({ radios }: { radios: readonly (DjRadio | DjRadioHot)[] }) {
+  const [visibleCount, setVisibleCount] = useState(INITIAL_RADIO_VISIBLE_COUNT)
+  const effectiveVisibleCount = Math.min(visibleCount, radios.length)
+  const visibleRadios = useMemo(
+    () => radios.slice(0, effectiveVisibleCount),
+    [effectiveVisibleCount, radios]
+  )
+  const remainingCount = radios.length - effectiveVisibleCount
+
   return (
-    <div className={RADIO_GRID_CLASS}>
-      {radios.map((radio) => (
-        <motion.div key={radio.id} variants={staggerItem}>
-          <RadioCard radio={radio} />
-        </motion.div>
-      ))}
+    <div className="space-y-6">
+      <div className={RADIO_GRID_CLASS}>
+        {visibleRadios.map((radio) => (
+          <motion.div key={radio.id} variants={staggerItem}>
+            <RadioCard radio={radio} />
+          </motion.div>
+        ))}
+      </div>
+
+      {remainingCount > 0 && (
+        <div className="flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            data-testid="radio-load-more"
+            aria-label={`显示更多电台，已显示 ${effectiveVisibleCount} / ${radios.length}`}
+            onClick={() =>
+              setVisibleCount((count) => Math.min(count + RADIO_VISIBLE_INCREMENT, radios.length))
+            }
+          >
+            显示更多 ({remainingCount})
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
@@ -323,7 +355,7 @@ function RadioCard({ radio }: RadioCardProps) {
   const isHot = 'rank' in radio && typeof radio.rank === 'number'
 
   return (
-    <Link href={`/radio/${radio.id}`} className="group block">
+    <Link href={`/radio/${radio.id}`} className="group block" data-testid={`radio-card-${radio.id}`}>
       <motion.div
         variants={hoverLift}
         initial="rest"
@@ -339,6 +371,7 @@ function RadioCard({ radio }: RadioCardProps) {
             height={300}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
             loading="lazy"
+            decoding="async"
           />
 
           {/* Gradient overlay */}

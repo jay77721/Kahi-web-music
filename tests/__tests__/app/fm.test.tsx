@@ -114,6 +114,20 @@ function mockLoggedOut() {
   )
 }
 
+function mockRestoringSession() {
+  mockUseUserStore.mockImplementation((selector?: (s: Record<string, unknown>) => unknown) =>
+    selector
+      ? selector(makeUserStore({ hasRestoredSession: false }) as unknown as Record<string, unknown>)
+      : makeUserStore({ hasRestoredSession: false })
+  )
+}
+
+function expectPlayerResourcesIdle() {
+  expect(mockUsePlayerStore).not.toHaveBeenCalled()
+  expect(mockUseDominantColor).not.toHaveBeenCalled()
+  expect(mockUseReducedMotion).not.toHaveBeenCalled()
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -158,6 +172,20 @@ describe('FMPage', () => {
     expect(screen.queryByTestId('fm-page')).not.toBeInTheDocument()
   })
 
+  test('keeps the FM request disabled while the session is restoring', async () => {
+    mockRestoringSession()
+    mockUseSWR.mockReturnValue(swrState())
+
+    const { default: FMPage } = await import('@/app/fm/page')
+    render(<FMPage />)
+
+    expect(screen.getByTestId('fm-session-loading')).toBeInTheDocument()
+    expect(screen.getByTestId('fm-session-loading-cover')).not.toHaveClass('animate-pulse')
+    expect(mockUseSWR.mock.calls[0]?.[0]).toBeNull()
+    expect(mockRouterReplace).not.toHaveBeenCalled()
+    expectPlayerResourcesIdle()
+  })
+
   test('renders loading skeleton while songs are pending', async () => {
     mockLoggedIn()
     mockUseSWR.mockReturnValue(swrState({ isLoading: true }))
@@ -168,6 +196,8 @@ describe('FMPage', () => {
     expect(screen.getByTestId('app-shell')).toBeInTheDocument()
     expect(screen.getByTestId('fm-skeleton')).toBeInTheDocument()
     expect(screen.getByTestId('fm-skeleton-cover')).toBeInTheDocument()
+    expect(screen.getByTestId('fm-skeleton-cover')).not.toHaveClass('animate-pulse')
+    expectPlayerResourcesIdle()
   })
 
   test('renders error state with retry when SWR has an error', async () => {
@@ -179,6 +209,19 @@ describe('FMPage', () => {
 
     expect(screen.getByTestId('fm-error')).toBeInTheDocument()
     expect(screen.getByTestId('fm-retry')).toBeInTheDocument()
+    expectPlayerResourcesIdle()
+  })
+
+  test('renders an empty FM placeholder without mounting player resources', async () => {
+    mockLoggedIn()
+    mockUseSWR.mockReturnValue(swrState({ data: [] }))
+
+    const { default: FMPage } = await import('@/app/fm/page')
+    render(<FMPage />)
+
+    expect(screen.getByTestId('fm-skeleton')).toBeInTheDocument()
+    expect(screen.queryByTestId('fm-main-player')).not.toBeInTheDocument()
+    expectPlayerResourcesIdle()
   })
 
   test('renders the immersive main player with controls when a song is present', async () => {
@@ -192,6 +235,13 @@ describe('FMPage', () => {
     expect(screen.getByTestId('fm-main-player')).toBeInTheDocument()
     expect(screen.getByTestId('fm-track-title')).toHaveTextContent('FM Track')
     expect(screen.getByTestId('fm-track-artist')).toHaveTextContent('Artist A / Artist B')
+    expect(mockUseDominantColor).toHaveBeenCalledWith(
+      'https://example.com/fm.jpg?param=96y96',
+      { timeoutMs: 4000 }
+    )
+    const coverImg = screen.getByTestId('fm-cover').querySelector('img') as HTMLImageElement
+    expect(coverImg).toHaveAttribute('src', 'https://example.com/fm.jpg?param=93y93')
+    expect(screen.getByTestId('fm-vinyl')).toHaveClass('vinyl-disc--paused')
 
     // The five controls are keyboard-reachable buttons.
     expect(screen.getByTestId('fm-dislike')).toBeInTheDocument()
@@ -214,6 +264,22 @@ describe('FMPage', () => {
     await waitFor(() => {
       expect(screen.getByTestId('fm-main-player')).toHaveAttribute('data-cover-size', '272')
     })
+  })
+
+  test('adds the vinyl animation class only while the FM song is actively playing', async () => {
+    mockLoggedIn()
+    mockUseSWR.mockReturnValue(swrState({ data: [FM_SONG] }))
+    mockUsePlayerStore.mockImplementation((selector?: (s: Record<string, unknown>) => unknown) =>
+      selector
+        ? selector({ ...makePlayerStore(), currentTrack: FM_SONG, isPlaying: true } as unknown as Record<string, unknown>)
+        : { ...makePlayerStore(), currentTrack: FM_SONG, isPlaying: true }
+    )
+
+    const { default: FMPage } = await import('@/app/fm/page')
+    render(<FMPage />)
+
+    expect(screen.getByTestId('fm-main-player')).toHaveAttribute('data-playing', 'true')
+    expect(screen.getByTestId('fm-vinyl')).toHaveClass('vinyl-disc--playing')
   })
 
   test('dislike control invokes fmTrash and triggers a refresh', async () => {

@@ -21,6 +21,10 @@ interface LyricSearchResultsProps {
 }
 
 const FRAGMENT_CONTEXT_CHARS = 30
+const LYRIC_SEARCH_SWR_OPTIONS = {
+  revalidateOnFocus: false,
+  keepPreviousData: false,
+} as const
 
 export function LyricSearchResults({ query }: LyricSearchResultsProps) {
   const playSong = usePlayerStore((state) => state.playSong)
@@ -29,7 +33,8 @@ export function LyricSearchResults({ query }: LyricSearchResultsProps) {
 
   const { data, isLoading } = useSWR<NormalizedSearchResult>(
     swrKey,
-    async () => normalizeSearchResult(await ncmApi.searchLyric(trimmedQuery, 30))
+    async () => normalizeSearchResult(await ncmApi.searchLyric(trimmedQuery, 30)),
+    LYRIC_SEARCH_SWR_OPTIONS
   )
   const result = useMemo<NormalizedSearchResult>(() => data ?? normalizeSearchResult(null), [data])
 
