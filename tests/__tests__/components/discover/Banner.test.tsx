@@ -1,5 +1,5 @@
-import { describe, expect, test, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, test, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { Banner } from '@/components/discover/Banner'
 
 const mockBanners = vi.hoisted(() => [
@@ -27,7 +27,23 @@ vi.mock('swr', () => ({
   }),
 }))
 
+afterEach(() => {
+  cleanup()
+})
+
 describe('Banner', () => {
+  test('renders only the active banner image to avoid eager carousel image fetches', () => {
+    render(<Banner />)
+
+    expect(screen.getAllByRole('img')).toHaveLength(1)
+    expect(screen.getByRole('img', { name: '推荐' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '切换到第 2 张' }))
+
+    expect(screen.getAllByRole('img')).toHaveLength(1)
+    expect(screen.getByRole('img', { name: '新歌' })).toBeInTheDocument()
+  })
+
   test('toggles pause aria-pressed without parent focus or pointer handlers overriding it', () => {
     render(<Banner />)
 

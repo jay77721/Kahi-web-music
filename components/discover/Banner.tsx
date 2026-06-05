@@ -111,18 +111,15 @@ export function Banner() {
       onFocus={pauseForCarouselInteraction}
       onPointerDown={pauseForCarouselInteraction}
     >
-      {/* Image with smooth crossfade */}
-      {banners.map((b, i) => (
-        <BlurImage
-          key={`${b.targetId}-${b.targetType}-${i}`}
-          src={b.imageUrl + '?param=1080y270'}
-          alt={b.typeTitle}
-          fill
-          className="object-cover transition-opacity duration-700 ease-in-out"
-          style={{ opacity: i === activeIndex ? 1 : 0 }}
-          priority={i === activeIndex}
-        />
-      ))}
+      {/* Only render the visible banner image so the carousel does not fetch every slide up front. */}
+      <BlurImage
+        key={`${banner.targetId}-${banner.targetType}-${activeIndex}`}
+        src={banner.imageUrl + '?param=1080y270'}
+        alt={banner.typeTitle}
+        fill
+        className="object-cover animate-fade-in"
+        priority
+      />
 
       {/* Dramatic gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
