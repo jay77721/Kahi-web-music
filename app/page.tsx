@@ -1,10 +1,16 @@
 'use client'
 
-import { useSyncExternalStore } from 'react'
+import dynamic from 'next/dynamic'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { Banner } from '@/components/discover/Banner'
-import { BentoGrid } from '@/components/discover/BentoGrid'
 import { RecentPlayed } from '@/components/discover/RecentPlayed'
 import { AppShell } from '@/components/layout/AppShell'
+
+const BENTO_VIEWPORT_OPTIONS = { rootMargin: '0px 0px -25% 0px' } as const
+const LazyBentoGrid = dynamic(
+  () => import('@/components/discover/BentoGrid').then((module) => module.BentoGrid),
+  { loading: () => <BentoGridPlaceholder /> }
+)
 
 const DEFAULT_GREETING = '欢迎回来'
 
@@ -19,7 +25,57 @@ function getGreeting(): string {
   return '晚上好'
 }
 
+function BentoGridPlaceholder() {
+  return (
+    <div
+      aria-hidden="true"
+      className="grid min-h-[636px] grid-cols-12 gap-3 md:min-h-[728px] md:gap-4 auto-rows-[150px] md:auto-rows-[170px]"
+    >
+      <div className="col-span-12 md:col-span-4 md:row-span-2 rounded-2xl bg-white/[0.04]" />
+      <div className="col-span-6 md:col-span-4 rounded-2xl bg-white/[0.04]" />
+      <div className="col-span-6 md:col-span-4 rounded-2xl bg-white/[0.04]" />
+      <div className="col-span-12 md:col-span-4 md:row-span-2 rounded-2xl bg-white/[0.04]" />
+      <div className="col-span-12 rounded-2xl bg-white/[0.04]" />
+    </div>
+  )
+}
+
+function useDeferredSection() {
+  const [node, setNode] = useState<HTMLElement | null>(null)
+  const [shouldMount, setShouldMount] = useState(false)
+  const ref = useCallback((element: HTMLElement | null) => {
+    setNode(element)
+  }, [])
+
+  useEffect(() => {
+    if (shouldMount) return
+
+    if (!node) return
+
+    if (!('IntersectionObserver' in window)) {
+      const fallbackTimer = setTimeout(() => setShouldMount(true), 0)
+      return () => clearTimeout(fallbackTimer)
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setShouldMount(true)
+          observer.disconnect()
+        }
+      },
+      BENTO_VIEWPORT_OPTIONS
+    )
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [node, shouldMount])
+
+  return [ref, shouldMount] as const
+}
+
 export default function HomePage() {
+  const [bentoSectionRef, shouldMountBentoGrid] = useDeferredSection()
   const greeting = useSyncExternalStore(
     subscribeToGreeting,
     getGreeting,
@@ -47,8 +103,12 @@ export default function HomePage() {
         </section>
 
         {/* Bento Discover Grid */}
-        <section className="section-enter" style={{ animationDelay: '0.2s' }}>
-          <BentoGrid />
+        <section
+          ref={bentoSectionRef}
+          className="section-enter"
+          style={{ animationDelay: '0.2s' }}
+        >
+          {shouldMountBentoGrid ? <LazyBentoGrid /> : <BentoGridPlaceholder />}
         </section>
       </div>
     </AppShell>
