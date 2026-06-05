@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
 import Image from 'next/image'
-import { motion, type Variants } from 'framer-motion'
 import { MoreHorizontal, Play, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PlayingIndicator } from '@/components/common/PlayingIndicator'
@@ -9,15 +8,6 @@ import { useSongContextMenu } from '@/components/common/SongContextMenu'
 import { formatArtists, formatDuration, imageUrl } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import type { Song } from '@/types/song'
-
-const rowVariants: Variants = {
-  hidden: { opacity: 0, x: -8 },
-  show: {
-    opacity: 1,
-    x: 0,
-    transition: { duration: 0.3, ease: 'easeOut' },
-  },
-}
 
 const ARTWORK_OBSERVER_OPTIONS = { rootMargin: '240px 0px' } as const
 const ROW_ARTWORK_IMAGE_SIZE = 56
@@ -76,7 +66,6 @@ interface SongTableRowProps {
   showArtwork: boolean
   deferArtwork: boolean
   gridClass: string
-  animated: boolean
   onPlaySong: (song: Song) => void
   onAddToQueue: (song: Song) => void
   onToggleSelect?: (id: string) => void
@@ -95,14 +84,12 @@ export const SongTableRow = memo(function SongTableRow({
   showArtwork,
   deferArtwork,
   gridClass,
-  animated,
   onPlaySong,
   onAddToQueue,
   onToggleSelect,
 }: SongTableRowProps) {
   const songId = String(song.id)
   const artists = formatArtists(song.ar || [])
-  const RowItem = animated ? motion.div : 'div'
   const contextMenu = useSongContextMenu()
   const hasArtwork = showArtwork && Boolean(song.al?.picUrl)
   const [rowRef, shouldRenderArtwork] = useDeferredArtwork(deferArtwork && hasArtwork)
@@ -134,7 +121,7 @@ export const SongTableRow = memo(function SongTableRow({
   }
 
   return (
-    <RowItem
+    <div
       ref={rowRef}
       data-song-id={song.id}
       data-song-name={song.name}
@@ -143,7 +130,6 @@ export const SongTableRow = memo(function SongTableRow({
       data-song-pic={song.al?.picUrl || ''}
       data-song-duration={song.dt || 0}
       data-selected={rowSelected ? 'true' : undefined}
-      {...(animated ? { variants: rowVariants } : {})}
       role="listitem"
       className={cn(
         gridClass,
@@ -265,6 +251,6 @@ export const SongTableRow = memo(function SongTableRow({
           </div>
         )}
       </div>
-    </RowItem>
+    </div>
   )
 })

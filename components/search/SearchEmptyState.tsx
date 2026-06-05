@@ -1,7 +1,6 @@
 'use client'
 
 import { Search } from 'lucide-react'
-import { motion } from 'framer-motion'
 
 export type SearchEmptyStateType = 'all' | 'songs' | 'artists' | 'albums' | 'playlists' | 'mvs' | 'lyrics'
 
@@ -22,22 +21,17 @@ export function SearchEmptyState({ query, type = 'all' }: SearchEmptyStateProps)
   }
 
   return (
-    <motion.div
-      className="flex flex-col items-center justify-center py-20 px-4"
+    <div
+      className="flex flex-col items-center justify-center py-20 px-4 animate-slide-up"
       role="status"
       aria-live="polite"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
     >
-      <motion.div
-        className="w-20 h-20 rounded-full bg-[var(--bg-surface)] flex items-center justify-center mb-6"
-        initial={{ scale: 0.8 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
+      <div
+        className="w-20 h-20 rounded-full bg-[var(--bg-surface)] flex items-center justify-center mb-6 animate-scale-in"
+        style={{ animationDelay: '100ms' }}
       >
         <Search className="w-8 h-8 text-[var(--text-tertiary)]" aria-hidden="true" />
-      </motion.div>
+      </div>
       <h3 className="text-lg font-semibold text-[var(--text-secondary)] mb-2">
         未找到相关{typeLabels[type]}
       </h3>
@@ -46,6 +40,6 @@ export function SearchEmptyState({ query, type = 'all' }: SearchEmptyStateProps)
         <br />
         请尝试其他关键词或检查拼写
       </p>
-    </motion.div>
+    </div>
   )
 }

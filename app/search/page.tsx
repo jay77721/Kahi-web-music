@@ -4,7 +4,6 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { Suspense } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
 import { Search, X } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { SearchHistory } from '@/components/search/SearchHistory'
@@ -114,24 +113,16 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
         {/* Centered search hero */}
         <div className="flex flex-col items-center justify-center pt-16 pb-8 px-4">
           {/* Logo / Title */}
-          <motion.h1
-            className="text-3xl md:text-4xl font-bold mb-8 text-center"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          >
+          <h1 className="text-3xl md:text-4xl font-bold mb-8 text-center motion-safe:animate-[slideDown_420ms_ease-out_both] motion-reduce:animate-none">
             <span className="text-[var(--accent-text)]">Kahi</span> Music
-          </motion.h1>
+          </h1>
 
           {/* Search box */}
-          <motion.form
+          <form
             onSubmit={handleSubmit}
-            className="w-full max-w-2xl"
+            className="w-full max-w-2xl motion-safe:animate-[scaleIn_360ms_ease-out_both] motion-reduce:animate-none"
             role="search"
             aria-label="搜索音乐"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
           >
             <div className="relative">
               <SearchSuggestions
@@ -140,123 +131,96 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
                 inputRef={inputRef}
                 enabled={isFocused}
               />
-              <motion.div
+              <div
                 className={cn(
                   'relative flex items-center rounded-full bg-[var(--bg-surface)] border border-white/10',
-                  'shadow-lg shadow-black/20 backdrop-blur-xl',
-                  isFocused && 'border-[var(--accent)]/50 shadow-[0_0_30px_var(--accent-glow)]'
+                  'shadow-lg shadow-black/20 backdrop-blur-xl transition-[padding,border-color,box-shadow] duration-200',
+                  isFocused
+                    ? 'border-[var(--accent)]/50 shadow-[0_0_30px_var(--accent-glow)] py-1 pr-1 pl-5'
+                    : 'py-1.5 pr-1.5 pl-4'
                 )}
-                animate={{
-                  padding: isFocused ? '4px 4px 4px 20px' : '6px 6px 6px 16px',
-                }}
-                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               >
-              <Search className="w-5 h-5 text-[var(--text-tertiary)] flex-shrink-0" aria-hidden="true" />
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                aria-label={type === 'lyric' ? '搜索歌词' : '搜索音乐'}
-                autoComplete="off"
-                placeholder={type === 'lyric' ? '输入歌词片段搜索…' : '搜索歌曲、歌手、专辑...'}
-                className="flex-1 bg-transparent px-3 py-2.5 text-base md:text-lg outline-none placeholder:text-[var(--text-tertiary)] text-[var(--text-primary)]"
-              />
-              <AnimatePresence>
+                <Search className="w-5 h-5 text-[var(--text-tertiary)] flex-shrink-0" aria-hidden="true" />
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
+                  aria-label={type === 'lyric' ? '搜索歌词' : '搜索音乐'}
+                  autoComplete="off"
+                  placeholder={type === 'lyric' ? '输入歌词片段搜索…' : '搜索歌曲、歌手、专辑...'}
+                  className="flex-1 bg-transparent px-3 py-2.5 text-base md:text-lg outline-none placeholder:text-[var(--text-tertiary)] text-[var(--text-primary)]"
+                />
                 {inputValue && (
-                  <motion.button
+                  <button
                     type="button"
                     onClick={handleClear}
-                    className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-white/10 transition-colors"
+                    className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-white/10 transition-colors motion-safe:animate-[scaleIn_150ms_ease-out_both] motion-reduce:animate-none"
                     aria-label="清空搜索关键词"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ duration: 0.15 }}
                   >
                     <X className="w-4 h-4 text-[var(--text-tertiary)]" aria-hidden="true" />
-                  </motion.button>
+                  </button>
                 )}
-              </AnimatePresence>
-              <motion.button
-                type="submit"
-                className={cn(
-                  'flex items-center justify-center rounded-full font-medium text-sm transition-all duration-200',
-                  'bg-[var(--accent)] text-black hover:bg-[var(--accent-hover)]',
-                  isFocused ? 'px-5 py-2' : 'px-4 py-2'
-                )}
-                whileTap={{ scale: 0.97 }}
-              >
-                搜索
-              </motion.button>
-            </motion.div>
-          </div>
-          </motion.form>
+                <button
+                  type="submit"
+                  className={cn(
+                    'flex items-center justify-center rounded-full font-medium text-sm transition-all duration-200',
+                    'bg-[var(--accent)] text-black hover:bg-[var(--accent-hover)] active:scale-[0.97]',
+                    isFocused ? 'px-5 py-2' : 'px-4 py-2'
+                  )}
+                >
+                  搜索
+                </button>
+              </div>
+            </div>
+          </form>
 
           {/* Quick suggestions when not searching */}
-          <AnimatePresence mode="wait">
-            {!query && (
-              <motion.div
-                className="w-full max-w-2xl mt-6"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
-              >
-                <SearchHistory
-                  onSelect={handleSelectHistory}
-                  onClear={handleClearHistory}
-                  maxItems={MAX_HISTORY}
-                />
-                <HotSearchTags onSelect={handleSelectHistory} />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {!query && (
+            <div className="w-full max-w-2xl mt-6 motion-safe:animate-[slideUp_300ms_ease-out_both] motion-reduce:animate-none">
+              <SearchHistory
+                onSelect={handleSelectHistory}
+                onClear={handleClearHistory}
+                maxItems={MAX_HISTORY}
+              />
+              <HotSearchTags onSelect={handleSelectHistory} />
+            </div>
+          )}
         </div>
 
         {/* Search results */}
-        <AnimatePresence mode="wait">
-          {showResults && (
-            <motion.div
-              key={`${query}:${type}`}
-              className="flex-1 px-4 md:px-6 pb-32"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            >
-              {/* Search type tabs */}
-              <div className="flex items-center gap-2 mb-6" role="group" aria-label="搜索类型">
-                <SearchTypePill
-                  label="歌曲"
-                  active={type === 'songs'}
-                  onClick={() => handleTypeChange('songs')}
-                />
-                <SearchTypePill
-                  label="歌词"
-                  active={type === 'lyric'}
-                  onClick={() => handleTypeChange('lyric')}
-                />
-              </div>
+        {showResults && (
+          <div
+            key={`${query}:${type}`}
+            className="flex-1 px-4 md:px-6 pb-32 motion-safe:animate-[slideUp_360ms_ease-out_both] motion-reduce:animate-none"
+          >
+            {/* Search type tabs */}
+            <div className="flex items-center gap-2 mb-6" role="group" aria-label="搜索类型">
+              <SearchTypePill
+                label="歌曲"
+                active={type === 'songs'}
+                onClick={() => handleTypeChange('songs')}
+              />
+              <SearchTypePill
+                label="歌词"
+                active={type === 'lyric'}
+                onClick={() => handleTypeChange('lyric')}
+              />
+            </div>
 
-              {type === 'lyric' ? (
-                <LazyLyricSearchResults query={query} />
-              ) : (
-                <LazySearchResults keywords={query} />
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+            {type === 'lyric' ? (
+              <LazyLyricSearchResults query={query} />
+            ) : (
+              <LazySearchResults keywords={query} />
+            )}
+          </div>
+        )}
 
         {/* Empty state when query exists but no results loaded yet */}
         {showEmptyState && (
-          <motion.div
-            className="flex-1 flex flex-col items-center justify-center px-4 pb-32"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
+          <div className="flex-1 flex flex-col items-center justify-center px-4 pb-32 motion-safe:animate-[fadeIn_240ms_ease-out_both] motion-reduce:animate-none">
             <Search className="w-16 h-16 text-[var(--text-tertiary)] mb-4" aria-hidden="true" />
             <p className="text-lg font-medium text-[var(--text-secondary)] mb-2">
               输入关键词开始搜索
@@ -264,7 +228,7 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
             <p className="text-sm text-[var(--text-tertiary)]">
               搜索你喜欢的歌曲、歌手、专辑或歌单
             </p>
-          </motion.div>
+          </div>
         )}
       </div>
     </AppShell>
@@ -321,19 +285,18 @@ interface SearchTypePillProps {
 
 function SearchTypePill({ label, active, onClick }: SearchTypePillProps) {
   return (
-    <motion.button
+    <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      whileTap={{ scale: 0.96 }}
       className={cn(
-        'px-4 py-1.5 rounded-full text-sm font-medium transition-colors',
+        'px-4 py-1.5 rounded-full text-sm font-medium transition-colors active:scale-[0.96]',
         active
           ? 'bg-[var(--accent)] text-black'
           : 'bg-[var(--bg-surface)]/60 text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-white/5'
       )}
     >
       {label}
-    </motion.button>
+    </button>
   )
 }

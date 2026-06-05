@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo } from 'react'
 import { Play } from 'lucide-react'
-import { motion, type Variants } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { usePlayerStore } from '@/stores/playerStore'
 import type { Song } from '@/types/song'
@@ -47,15 +46,6 @@ interface SongTableProps {
   onClearSelection?: () => void
   onPlayAll?: () => void
   className?: string
-}
-
-const containerVariants: Variants = {
-  hidden: {},
-  show: {
-    transition: {
-      staggerChildren: 0.04,
-    },
-  },
 }
 
 export function SongTable({
@@ -135,7 +125,6 @@ export function SongTable({
     )
   }
 
-  const RowContainer = animated ? motion.div : 'div'
   const gridClass = getSongTableGridClass(selectable)
 
   return (
@@ -178,16 +167,10 @@ export function SongTable({
       </div>
 
       <SongContextMenu>
-        <RowContainer
+        <div
           role="list"
           aria-label="歌曲列表"
-          {...(animated
-            ? {
-                initial: 'hidden' as const,
-                animate: 'show' as const,
-                variants: containerVariants,
-              }
-            : {})}
+          className={cn(animated && 'stagger-children')}
         >
           {songs.map((song, index) => {
             const isCurrent = currentTrackId === song.id
@@ -209,14 +192,13 @@ export function SongTable({
                   initialArtworkCount !== undefined && index >= initialArtworkCount
                 }
                 gridClass={gridClass}
-                animated={animated}
                 onPlaySong={handlePlaySong}
                 onAddToQueue={handleAddToQueue}
                 onToggleSelect={onToggleSelect}
               />
             )
           })}
-        </RowContainer>
+        </div>
       </SongContextMenu>
     </div>
   )

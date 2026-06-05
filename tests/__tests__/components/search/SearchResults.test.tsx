@@ -1,8 +1,12 @@
 'use client'
 
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, test, expect, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { SearchResults } from '@/components/search/SearchResults'
+
+const SEARCH_RESULTS_SOURCE = join(process.cwd(), 'components/search/SearchResults.tsx')
 
 const { mockUseSWR } = vi.hoisted(() => ({
   mockUseSWR: vi.fn(),
@@ -28,17 +32,6 @@ vi.mock('@/components/search/SearchEmptyState', () => ({
     <div data-testid="search-empty">Empty: {type}</div>
   ),
 }))
-
-beforeEach(() => {
-  mockUseSWR.mockReset()
-  mockUseSWR.mockReturnValue({
-    data: undefined,
-    error: undefined,
-    isLoading: false,
-    isValidating: false,
-    mutate: vi.fn(),
-  })
-})
 
 beforeEach(() => {
   mockUseSWR.mockReset()
@@ -102,6 +95,15 @@ describe('SearchResults', () => {
 
   // ---- Component stability ----
   describe('component stability', () => {
+    test('does not depend on framer-motion runtime', () => {
+      const source = readFileSync(SEARCH_RESULTS_SOURCE, 'utf8')
+
+      expect(source).not.toMatch(/from ['"]framer-motion['"]/)
+      expect(source).not.toContain('motion.')
+      expect(source).not.toContain('staggerContainer')
+      expect(source).not.toContain('staggerItem')
+    })
+
     test('does not throw on render', () => {
       expect(() => render(<SearchResults keywords="test" />)).not.toThrow()
     })
@@ -161,6 +163,46 @@ describe('SearchResults', () => {
 
       expect(screen.getByTestId('song-table')).toHaveTextContent('SongTable:1')
       expect(screen.queryByTestId('search-empty')).not.toBeInTheDocument()
+    })
+
+    test('renders playlist results without framer-motion DOM markers', () => {
+      mockUseSWR.mockImplementation((key: string | null) => ({
+        data: key === 'search:test:1000'
+          ? {
+              songs: [],
+              songCount: 0,
+              artists: [],
+              artistCount: 0,
+              albums: [],
+              albumCount: 0,
+              playlists: [{ id: 1, name: 'Plain Playlist', coverImgUrl: '/cover.jpg', playCount: 42 }],
+              playlistCount: 1,
+              mvs: [],
+              mvCount: 0,
+            }
+          : {
+              songs: [],
+              songCount: 0,
+              artists: [],
+              artistCount: 0,
+              albums: [],
+              albumCount: 0,
+              playlists: [],
+              playlistCount: 0,
+              mvs: [],
+              mvCount: 0,
+            },
+        error: undefined,
+        isLoading: false,
+        isValidating: false,
+        mutate: vi.fn(),
+      }))
+
+      const { container } = render(<SearchResults keywords="test" />)
+      fireEvent.click(screen.getAllByRole('tab')[3])
+
+      expect(screen.getByTestId('playlist-card')).toBeInTheDocument()
+      expect(container.querySelector('[data-framer-motion]')).toBeNull()
     })
   })
 })

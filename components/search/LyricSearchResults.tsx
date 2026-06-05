@@ -2,7 +2,6 @@
 
 import { useMemo } from 'react'
 import useSWR from 'swr'
-import { motion } from 'framer-motion'
 import { Disc3, Music } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ncmApi } from '@/lib/api'
@@ -89,13 +88,12 @@ function LyricSearchItem({
   const artistNames = item.artists.map((a) => a.name).join(' / ')
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.03, ease: [0.16, 1, 0.3, 1] }}
+    <div
+      style={{ animationDelay: `${index * 30}ms` }}
       className={cn(
         'group rounded-xl border border-white/5 bg-[var(--bg-surface)]/60 backdrop-blur-sm p-4',
-        'hover:border-[var(--accent)]/30 hover:bg-[var(--bg-surface)]/80 transition-colors'
+        'hover:border-[var(--accent)]/30 hover:bg-[var(--bg-surface)]/80 transition-colors',
+        'animate-slide-up'
       )}
     >
       <div className="flex items-start gap-4">
@@ -142,7 +140,7 @@ function LyricSearchItem({
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 }
 

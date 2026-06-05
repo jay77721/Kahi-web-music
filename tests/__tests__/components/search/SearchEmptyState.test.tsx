@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, test, expect, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import { SearchEmptyState } from '@/components/search/SearchEmptyState'
@@ -38,5 +39,20 @@ describe('SearchEmptyState', () => {
   test('escapes the query in the message body', () => {
     render(<SearchEmptyState query="special&<>chars" />)
     expect(screen.getByText(/special&<>chars/)).toBeInTheDocument()
+  })
+
+  test('uses CSS animation without framer-motion runtime markers', () => {
+    const { container } = render(<SearchEmptyState query="x" />)
+
+    expect(screen.getByRole('status')).toHaveClass('animate-slide-up')
+    expect(container.querySelector('.animate-scale-in')).toBeInTheDocument()
+    expect(container.querySelector('[data-framer-motion]')).toBeNull()
+  })
+
+  test('does not import framer-motion', () => {
+    const source = readFileSync('components/search/SearchEmptyState.tsx', 'utf8')
+
+    expect(source).not.toContain('framer-motion')
+    expect(source).not.toContain('motion.')
   })
 })

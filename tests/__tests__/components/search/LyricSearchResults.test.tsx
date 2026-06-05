@@ -1,5 +1,7 @@
 'use client'
 
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, cleanup } from '@testing-library/react'
 
@@ -106,6 +108,15 @@ afterEach(() => {
 describe('LyricSearchResults', () => {
   // ---- Rendering ----
   describe('rendering', () => {
+    test('does not depend on framer-motion runtime', () => {
+      const source = readFileSync(
+        resolve(process.cwd(), 'components/search/LyricSearchResults.tsx'),
+        'utf8'
+      )
+
+      expect(source).not.toMatch(/framer-motion|motion\./)
+    })
+
     test('does not throw on render', () => {
       expect(() => render(<LyricSearchResults query="月光" />)).not.toThrow()
     })
@@ -116,12 +127,14 @@ describe('LyricSearchResults', () => {
         isLoading: false,
       })
 
-      render(<LyricSearchResults query="月光" />)
+      const { container } = render(<LyricSearchResults query="月光" />)
 
       await waitFor(() => {
         expect(screen.getByText('测试艺人')).toBeInTheDocument()
       })
       expect(screen.getByText('测试专辑')).toBeInTheDocument()
+      expect(container.querySelector('[data-framer-motion]')).not.toBeInTheDocument()
+      expect(container.querySelector('.animate-slide-up')).toHaveStyle('animation-delay: 0ms')
     })
 
     test('does not fetch when query is empty (SWR key is null)', () => {

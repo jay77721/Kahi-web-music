@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import React from 'react'
@@ -15,6 +17,7 @@ const searchState = vi.hoisted(() => ({
 const mockRouterPush = vi.fn()
 const mockRouterReplace = vi.fn()
 let currentSearchParams = new URLSearchParams()
+const SEARCH_PAGE_SOURCE = resolve(process.cwd(), 'app/search/page.tsx')
 
 vi.mock('next/dynamic', async () => {
   const ReactActual = await vi.importActual<typeof import('react')>('react')
@@ -73,31 +76,6 @@ vi.mock('next/navigation', async () => {
     useSearchParams: () => currentSearchParams,
   }
 })
-
-vi.mock('framer-motion', () => ({
-  AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
-  motion: new Proxy(
-    {},
-    {
-      get: (_target, tag: string) => {
-        type MotionProps = React.HTMLAttributes<HTMLElement> & Record<string, unknown>
-        const MotionComponent = React.forwardRef<HTMLElement, MotionProps>(
-          (props, ref) => {
-            const domProps = { ...props } as Record<string, unknown>
-            const children = domProps.children as React.ReactNode
-            delete domProps.children
-            for (const key of ['initial', 'animate', 'exit', 'transition', 'whileTap', 'variants', 'custom']) {
-              delete domProps[key]
-            }
-            return React.createElement(tag, { ...(domProps as React.HTMLAttributes<HTMLElement>), ref }, children)
-          }
-        )
-        MotionComponent.displayName = `MockMotion.${tag}`
-        return MotionComponent
-      },
-    }
-  ),
-}))
 
 vi.mock('@/components/layout/AppShell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) => (
@@ -181,6 +159,14 @@ describe('SearchPage', () => {
 
   afterEach(() => {
     cleanup()
+  })
+
+  test('does not depend on framer-motion in the search shell', () => {
+    const source = readFileSync(SEARCH_PAGE_SOURCE, 'utf8')
+
+    expect(source).not.toMatch(/from ['"]framer-motion['"]/)
+    expect(source).not.toContain('AnimatePresence')
+    expect(source).not.toContain('motion.')
   })
 
   test('renders the empty search landing state with quick search affordances', async () => {

@@ -14,7 +14,6 @@ import { SongTable } from '@/components/common/SongTable'
 import { PlaylistCard } from '@/components/common/PlaylistCard'
 import { imageUrl } from '@/lib/format'
 import { SearchEmptyState } from '@/components/search/SearchEmptyState'
-import { motion } from 'framer-motion'
 import type { Song } from '@/types/api'
 import type { Playlist } from '@/types/playlist'
 import type { Artist } from '@/types/artist'
@@ -131,23 +130,18 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
   if (tabValue === 'playlists') {
     const playlists: Playlist[] = result.playlists || []
     return (
-      <motion.div
-        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
-        variants={staggerContainer}
-        initial="hidden"
-        animate="visible"
-      >
-        {playlists.map((pl, index) => (
-          <motion.div key={pl.id} variants={staggerItem} custom={index}>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {playlists.map((pl) => (
+          <div key={pl.id}>
             <PlaylistCard
               id={pl.id}
               name={pl.name}
               coverUrl={pl.coverImgUrl}
               playCount={pl.playCount}
             />
-          </motion.div>
+          </div>
         ))}
-      </motion.div>
+      </div>
     )
   }
 
@@ -155,14 +149,9 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
   if (tabValue === 'artists') {
     const artists: Artist[] = result.artists || []
     return (
-      <motion.div
-        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4"
-        variants={staggerContainer}
-        initial="hidden"
-        animate="visible"
-      >
-        {artists.map((artist, index) => (
-          <motion.div key={artist.id} variants={staggerItem} custom={index} className="text-center">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        {artists.map((artist) => (
+          <div key={artist.id} className="text-center">
             <Link
               href={`/artist/${artist.id}`}
               className={cn(
@@ -183,9 +172,9 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
               </div>
             </Link>
             <p className="text-sm font-medium truncate">{artist.name}</p>
-          </motion.div>
+          </div>
         ))}
-      </motion.div>
+      </div>
     )
   }
 
@@ -193,14 +182,9 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
   if (tabValue === 'albums') {
     const albums: Album[] = result.albums || []
     return (
-      <motion.div
-        className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
-        variants={staggerContainer}
-        initial="hidden"
-        animate="visible"
-      >
-        {albums.map((album, index) => (
-          <motion.div key={album.id} variants={staggerItem} custom={index}>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {albums.map((album) => (
+          <div key={album.id}>
             <Link
               href={`/album/${album.id}`}
               className={cn('group block hover-lift')}
@@ -223,9 +207,9 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
                 {album.artist?.name}
               </p>
             </Link>
-          </motion.div>
+          </div>
         ))}
-      </motion.div>
+      </div>
     )
   }
 
@@ -233,14 +217,9 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
   if (tabValue === 'mvs') {
     const mvs: MV[] = result.mvs || []
     return (
-      <motion.div
-        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
-        variants={staggerContainer}
-        initial="hidden"
-        animate="visible"
-      >
-        {mvs.map((mv, index) => (
-          <motion.div key={mv.id} variants={staggerItem} custom={index}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {mvs.map((mv) => (
+          <div key={mv.id}>
             <Link
               href={`/mv/${mv.id}`}
               className={cn('group block hover-lift')}
@@ -263,9 +242,9 @@ function SearchTabContent({ keywords, type, tabValue }: { keywords: string; type
                 {mv.artistName}
               </p>
             </Link>
-          </motion.div>
+          </div>
         ))}
-      </motion.div>
+      </div>
     )
   }
 
@@ -346,28 +325,3 @@ function SearchSkeleton({ tabValue }: { tabValue: TabValue }) {
     </div>
   )
 }
-
-// Animation variants
-const staggerContainer = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.04,
-      delayChildren: 0.05,
-    },
-  },
-}
-
-const staggerItem = {
-  hidden: { opacity: 0, y: 16 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.35,
-      delay: i * 0.03,
-      ease: [0.16, 1, 0.3, 1] as [number, number, number, number],
-    },
-  }),
-} as const
