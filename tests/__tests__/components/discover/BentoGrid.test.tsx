@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { cleanup, render } from '@testing-library/react'
+import { act, cleanup, render } from '@testing-library/react'
 import type { HTMLAttributes, ReactNode } from 'react'
 import { BentoGrid } from '@/components/discover/BentoGrid'
 
@@ -11,8 +11,15 @@ type SwrCall = {
   }
 }
 
+type IntersectionObserverCallback = (
+  entries: Array<{ isIntersecting: boolean }>,
+  observer: { disconnect: () => void }
+) => void
+
 const swrState = vi.hoisted(() => ({
   calls: [] as SwrCall[],
+  observerCallback: null as IntersectionObserverCallback | null,
+  observerOptions: null as IntersectionObserverInit | null,
   dataByKey: {
     'bento-radar': {
       id: 101,
@@ -75,7 +82,17 @@ vi.mock('framer-motion', () => ({
 }))
 
 vi.mock('swr', () => ({
-  default: (key: string, _fetcher: unknown, options?: SwrCall['options']) => {
+  default: (key: string | null, _fetcher: unknown, options?: SwrCall['options']) => {
+    if (!key) {
+      return {
+        data: undefined,
+        error: undefined,
+        isLoading: false,
+        isValidating: false,
+        mutate: vi.fn(),
+      }
+    }
+
     swrState.calls.push({ key, options })
     return {
       data: swrState.dataByKey[key],
@@ -90,28 +107,51 @@ vi.mock('swr', () => ({
 describe('BentoGrid', () => {
   beforeEach(() => {
     swrState.calls = []
+    swrState.observerCallback = null
+    class MockIntersectionObserver {
+      constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+        swrState.observerCallback = callback
+        swrState.observerOptions = options ?? null
+      }
+
+      observe = vi.fn()
+      disconnect = vi.fn()
+    }
+
+    vi.stubGlobal('IntersectionObserver', MockIntersectionObserver)
   })
 
   afterEach(() => {
     cleanup()
+    vi.unstubAllGlobals()
   })
 
-  test('registers only the first-screen dynamic bento fetches', () => {
+  test('defers toplist until the bento grid approaches the viewport', () => {
     render(<BentoGrid />)
 
     expect(swrState.calls.map((call) => call.key)).toEqual([
       'bento-radar',
       'bento-newsong',
-      'bento-toplist',
     ])
+    expect(swrState.calls.map((call) => call.key)).not.toContain('bento-toplist')
     expect(swrState.calls.map((call) => call.key)).not.toContain('bento-artists')
     expect(swrState.calls.every((call) => call.options?.revalidateOnFocus === false)).toBe(true)
+    expect(swrState.observerOptions).toEqual({ rootMargin: '0px 0px -25% 0px' })
+
+    act(() => {
+      swrState.observerCallback?.(
+        [{ isIntersecting: true }],
+        { disconnect: vi.fn() }
+      )
+    })
+
+    expect(swrState.calls.map((call) => call.key)).toContain('bento-toplist')
   })
 
   test('renders the static artist shortcut without an extra cover image', () => {
     const { container } = render(<BentoGrid />)
 
-    expect(container.querySelectorAll('img')).toHaveLength(4)
+    expect(container.querySelectorAll('img')).toHaveLength(2)
     expect(container.querySelector('a[href="/search"]')).toBeTruthy()
     expect(container.querySelector('a[href="/playlist/101"]')).toBeTruthy()
     expect(container.querySelector('a[href="/song/202"]')).toBeTruthy()

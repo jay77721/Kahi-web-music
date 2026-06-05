@@ -3,42 +3,7 @@
 import { describe, test, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { Sparkles } from 'lucide-react'
-import type { HTMLAttributes, ReactNode } from 'react'
 import { BentoCard } from '@/components/discover/BentoCard'
-
-// ---------------------------------------------------------------------------
-// Mock framer-motion to plain divs so we can assert on the rendered DOM
-// without dealing with transforms / animation timing.
-// ---------------------------------------------------------------------------
-type MotionDivMockProps = HTMLAttributes<HTMLDivElement> & {
-  children?: ReactNode
-  initial?: unknown
-  animate?: unknown
-  variants?: unknown
-  whileHover?: unknown
-  whileTap?: unknown
-  transition?: unknown
-}
-
-function stripMotionProps(props: MotionDivMockProps) {
-  const domProps = { ...props }
-  delete domProps.initial
-  delete domProps.animate
-  delete domProps.variants
-  delete domProps.whileHover
-  delete domProps.whileTap
-  delete domProps.transition
-  return domProps
-}
-
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: (props: MotionDivMockProps) => {
-      const { children, ...rest } = stripMotionProps(props)
-      return <div {...rest}>{children}</div>
-    },
-  },
-}))
 
 afterEach(() => {
   cleanup()
@@ -133,6 +98,15 @@ describe('BentoCard', () => {
 
   // ---- Interaction ----
   describe('interaction', () => {
+    test('uses CSS hover and pressed transforms instead of framer-motion', () => {
+      const { container } = render(<BentoCard size="md" title="Motion free" href="/motion-free" />)
+      const card = container.querySelector('.group')
+
+      expect(card).toHaveClass('hover:scale-[1.02]')
+      expect(card).toHaveClass('active:scale-[0.99]')
+      expect(container.querySelector('[data-framer-motion]')).toBeNull()
+    })
+
     test('clicking a button card triggers onClick', () => {
       const handleClick = vi.fn()
       const { container } = render(

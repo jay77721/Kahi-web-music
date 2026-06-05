@@ -1,15 +1,20 @@
 'use client'
 
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Sidebar } from './Sidebar'
 import { MobileNav } from './MobileNav'
 import { Header } from './Header'
-import { PlayerBar } from '@/components/player/PlayerBar'
-import { PlayerOverlays } from '@/components/player/PlayerOverlays'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useUIStore } from '@/stores/uiStore'
 import { usePlayerStore } from '@/stores/playerStore'
 import { cn } from '@/lib/utils'
+
+const PlayerBar = lazy(() =>
+  import('@/components/player/PlayerBar').then((module) => ({ default: module.PlayerBar }))
+)
+const PlayerOverlays = lazy(() =>
+  import('@/components/player/PlayerOverlays').then((module) => ({ default: module.PlayerOverlays }))
+)
 
 interface AppShellProps {
   children: React.ReactNode
@@ -18,8 +23,11 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const isMobile = useIsMobile()
   const setIsMobile = useUIStore((state) => state.setIsMobile)
+  const playQueueOpen = useUIStore((state) => state.playQueueOpen)
   const currentTrackId = usePlayerStore((state) => state.currentTrack?.id ?? null)
   const hasCurrentTrack = currentTrackId !== null
+  const shouldMountPlayerBar = hasCurrentTrack && !isMobile
+  const shouldMountPlayerOverlays = hasCurrentTrack || playQueueOpen
 
   useEffect(() => {
     setIsMobile(isMobile)
@@ -51,8 +59,16 @@ export function AppShell({ children }: AppShellProps) {
         </main>
       </div>
 
-      <PlayerBar />
-      <PlayerOverlays />
+      {shouldMountPlayerBar && (
+        <Suspense fallback={null}>
+          <PlayerBar />
+        </Suspense>
+      )}
+      {shouldMountPlayerOverlays && (
+        <Suspense fallback={null}>
+          <PlayerOverlays />
+        </Suspense>
+      )}
 
       {/* Mobile bottom nav */}
       <MobileNav />

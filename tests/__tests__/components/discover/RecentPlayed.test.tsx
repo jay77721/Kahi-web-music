@@ -1,7 +1,7 @@
 'use client'
 
 import { afterEach, describe, test, expect, vi, beforeEach } from 'vitest'
-import { cleanup, fireEvent, render } from '@testing-library/react'
+import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react'
 import { RecentPlayed } from '@/components/discover/RecentPlayed'
 import { useHistoryStore } from '@/stores/historyStore'
@@ -129,6 +129,62 @@ describe('RecentPlayed', () => {
 
       const { getAllByRole } = render(<RecentPlayed />)
       expect(getAllByRole('listitem')).toHaveLength(6)
+    })
+
+    test('defers non-critical mobile cover images until idle', () => {
+      const idleCallbacks: IdleRequestCallback[] = []
+      const originalRequestIdleCallback = window.requestIdleCallback
+      const originalCancelIdleCallback = window.cancelIdleCallback
+
+      Object.defineProperty(window, 'requestIdleCallback', {
+        configurable: true,
+        value: vi.fn((callback: IdleRequestCallback) => {
+          idleCallbacks.push(callback)
+          return idleCallbacks.length
+        }),
+      })
+      Object.defineProperty(window, 'cancelIdleCallback', {
+        configurable: true,
+        value: vi.fn(),
+      })
+
+      try {
+        useHistoryStore.setState({
+          history: Array.from({ length: 6 }, (_, i) =>
+            makeHistoryEntry(i + 1, `Song ${i + 1}`)
+          ),
+        })
+
+        const { container, getAllByRole } = render(<RecentPlayed />)
+        expect(getAllByRole('listitem')).toHaveLength(6)
+        expect(container.querySelectorAll('img')).toHaveLength(2)
+
+        act(() => {
+          idleCallbacks.forEach((callback) => {
+            callback({ didTimeout: false, timeRemaining: () => 50 })
+          })
+        })
+
+        expect(container.querySelectorAll('img')).toHaveLength(6)
+      } finally {
+        if (originalRequestIdleCallback) {
+          Object.defineProperty(window, 'requestIdleCallback', {
+            configurable: true,
+            value: originalRequestIdleCallback,
+          })
+        } else {
+          Reflect.deleteProperty(window, 'requestIdleCallback')
+        }
+
+        if (originalCancelIdleCallback) {
+          Object.defineProperty(window, 'cancelIdleCallback', {
+            configurable: true,
+            value: originalCancelIdleCallback,
+          })
+        } else {
+          Reflect.deleteProperty(window, 'cancelIdleCallback')
+        }
+      }
     })
 
     test('uses accessible aria-label including the song name', () => {

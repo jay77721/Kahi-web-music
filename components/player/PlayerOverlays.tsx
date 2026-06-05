@@ -1,28 +1,68 @@
 'use client'
 
-import { FullScreenPlayer } from '@/components/player/FullScreenPlayer'
-import { MiniPlayer } from '@/components/player/MiniPlayer'
-import { PlayQueue } from '@/components/player/PlayQueue'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import type { ComponentType } from 'react'
+import { usePlayerStore } from '@/stores/playerStore'
+import { useUIStore } from '@/stores/uiStore'
+
+const FullScreenPlayer = lazy(() =>
+  import('@/components/player/FullScreenPlayer').then((module) => ({
+    default: module.FullScreenPlayer as ComponentType,
+  }))
+)
+const MiniPlayer = lazy(() =>
+  import('@/components/player/MiniPlayer').then((module) => ({ default: module.MiniPlayer }))
+)
+const PlayQueue = lazy(() =>
+  import('@/components/player/PlayQueue').then((module) => ({ default: module.PlayQueue }))
+)
+
+function useRememberedMount(shouldMount: boolean) {
+  const [hasMounted, setHasMounted] = useState(shouldMount)
+
+  useEffect(() => {
+    if (!shouldMount || hasMounted) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHasMounted(true)
+  }, [hasMounted, shouldMount])
+
+  return hasMounted || shouldMount
+}
 
 /**
- * Mounts the three overlay-style player components in a fixed order.
- * Drop-in replacement for inlining the three imports at the bottom of
- * every page.
- *
- * Previously these were loaded via `next/dynamic` with `ssr: false`.
- * In Next.js 16 App Router, `ssr: false` inside a client component is
- * not supported and triggers an SSR fallback error
- * ("Switched to client rendering because the server rendering errored").
- * Because every page that consumes `PlayerOverlays` is already a
- * client component, the dynamic boundary provided no benefit — direct
- * imports are the correct replacement.
+ * Defers overlay-style player modules until the state that can show them
+ * becomes active, then keeps each one mounted after its first load.
  */
 export function PlayerOverlays() {
+  const currentTrackId = usePlayerStore((state) => state.currentTrack?.id ?? null)
+  const isMobile = useUIStore((state) => state.isMobile)
+  const fullScreenPlayerOpen = useUIStore((state) => state.fullScreenPlayerOpen)
+  const playQueueOpen = useUIStore((state) => state.playQueueOpen)
+
+  const hasCurrentTrack = currentTrackId !== null
+  const shouldMountFullScreenPlayer = useRememberedMount(
+    hasCurrentTrack && fullScreenPlayerOpen
+  )
+  const shouldMountMiniPlayer = useRememberedMount(hasCurrentTrack && isMobile)
+  const shouldMountPlayQueue = useRememberedMount(playQueueOpen)
+
   return (
     <>
-      <FullScreenPlayer />
-      <MiniPlayer />
-      <PlayQueue />
+      {shouldMountFullScreenPlayer && (
+        <Suspense fallback={null}>
+          <FullScreenPlayer />
+        </Suspense>
+      )}
+      {shouldMountMiniPlayer && (
+        <Suspense fallback={null}>
+          <MiniPlayer />
+        </Suspense>
+      )}
+      {shouldMountPlayQueue && (
+        <Suspense fallback={null}>
+          <PlayQueue />
+        </Suspense>
+      )}
     </>
   )
 }

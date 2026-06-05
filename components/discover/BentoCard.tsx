@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Play, type LucideIcon } from 'lucide-react'
-import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { imageUrl } from '@/lib/format'
 
@@ -89,20 +88,18 @@ export function BentoCard(props: BentoCardProps) {
   const ariaLabel = subtitle ? `${title}: ${subtitle}` : title
 
   const inner = (
-    <motion.div
+    <div
       className={cn(
         'group relative w-full h-full overflow-hidden rounded-2xl',
         'bg-white/5 hover:bg-white/10',
         'border border-white/5 hover:border-white/15',
         'shadow-sm hover:shadow-xl',
         'transition-[background-color,border-color,box-shadow,transform] duration-300 ease-out',
+        'hover:scale-[1.02] active:scale-[0.99]',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]',
         SIZE_TO_CLASS[size]
       )}
       style={{ ['--card-accent' as string]: accent }}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.99 }}
-      transition={{ type: 'spring', stiffness: 320, damping: 24 }}
     >
       {cover ? (
         <>
@@ -185,7 +182,7 @@ export function BentoCard(props: BentoCardProps) {
       >
         <Play className="w-3.5 h-3.5" fill="currentColor" />
       </div>
-    </motion.div>
+    </div>
   )
 
   if ('href' in props && props.href) {

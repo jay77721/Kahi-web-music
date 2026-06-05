@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { Banner } from '@/components/discover/Banner'
 
+const swrCalls = vi.hoisted(() => [] as Array<{ key: string; options?: Record<string, unknown> }>)
 const mockBanners = vi.hoisted(() => [
   {
     imageUrl: 'https://example.com/banner-a.jpg',
@@ -18,18 +19,22 @@ const mockBanners = vi.hoisted(() => [
 ])
 
 vi.mock('swr', () => ({
-  default: () => ({
-    data: mockBanners,
-    error: undefined,
-    isLoading: false,
-    isValidating: false,
-    mutate: vi.fn(),
-  }),
+  default: (key: string, _fetcher: unknown, options?: Record<string, unknown>) => {
+    swrCalls.push({ key, options })
+    return {
+      data: mockBanners,
+      error: undefined,
+      isLoading: false,
+      isValidating: false,
+      mutate: vi.fn(),
+    }
+  },
 }))
 
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
+  swrCalls.length = 0
   Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' })
 })
 
@@ -39,6 +44,11 @@ describe('Banner', () => {
 
     expect(screen.getAllByRole('img')).toHaveLength(1)
     expect(screen.getByRole('img', { name: '推荐' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: '推荐' })).toHaveAttribute('sizes')
+    expect(swrCalls[0]).toMatchObject({
+      key: 'banner',
+      options: { revalidateOnFocus: false, dedupingInterval: 60_000 },
+    })
 
     fireEvent.click(screen.getByRole('button', { name: '切换到第 2 张' }))
 

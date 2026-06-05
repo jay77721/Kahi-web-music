@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { Play, History } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useHistoryStore } from '@/stores/historyStore'
 import { usePlayerStore } from '@/stores/playerStore'
 import { imageUrl } from '@/lib/format'
@@ -25,6 +26,65 @@ const itemVariants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.35 } },
 } as const
 
+const COVER_IMAGE_SIZES =
+  '(max-width: 639px) calc((100vw - 2rem - 0.75rem) / 2), (max-width: 767px) calc((100vw - 2rem - 1.5rem) / 3), (max-width: 1023px) calc((100vw - 3rem - 3rem) / 4), calc((100vw - 3rem - 5rem) / 6)'
+
+const BREAKPOINT_QUERIES = [
+  '(min-width: 640px)',
+  '(min-width: 768px)',
+  '(min-width: 1024px)',
+] as const
+
+function getInitialCoverCount() {
+  if (typeof window === 'undefined') return 2
+  if (window.matchMedia('(min-width: 1024px)').matches) return 6
+  if (window.matchMedia('(min-width: 768px)').matches) return 4
+  if (window.matchMedia('(min-width: 640px)').matches) return 3
+  return 2
+}
+
+function useInitialCoverCount() {
+  const [count, setCount] = useState(getInitialCoverCount)
+
+  useEffect(() => {
+    const mediaQueries = BREAKPOINT_QUERIES.map((query) => window.matchMedia(query))
+    const updateCount = () => setCount(getInitialCoverCount())
+
+    updateCount()
+    mediaQueries.forEach((mediaQuery) => {
+      mediaQuery.addEventListener('change', updateCount)
+    })
+
+    return () => {
+      mediaQueries.forEach((mediaQuery) => {
+        mediaQuery.removeEventListener('change', updateCount)
+      })
+    }
+  }, [])
+
+  return count
+}
+
+function useDeferredCoversReady(enabled: boolean) {
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    if (!enabled || ready || typeof window === 'undefined') return
+
+    if ('requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(() => setReady(true), {
+        timeout: 1200,
+      })
+      return () => window.cancelIdleCallback(idleId)
+    }
+
+    const timeoutId = setTimeout(() => setReady(true), 160)
+    return () => clearTimeout(timeoutId)
+  }, [enabled, ready])
+
+  return ready
+}
+
 /**
  * RecentPlayed — horizontal responsive grid of recently played songs.
  *
@@ -36,8 +96,12 @@ const itemVariants = {
 export function RecentPlayed({ maxItems = 6 }: RecentPlayedProps) {
   const history = useHistoryStore((s) => s.history)
   const playSong = usePlayerStore((s) => s.playSong)
+  const initialCoverCount = useInitialCoverCount()
 
   const items = history.slice(0, maxItems)
+  const deferredCoversReady = useDeferredCoversReady(
+    items.length > initialCoverCount
+  )
 
   if (items.length === 0) {
     return (
@@ -71,9 +135,10 @@ export function RecentPlayed({ maxItems = 6 }: RecentPlayedProps) {
         initial="hidden"
         animate="show"
       >
-        {items.map((entry) => {
+        {items.map((entry, index) => {
           const { song } = entry
           const cover = imageUrl(song.al?.picUrl, 200)
+          const shouldRenderCover = index < initialCoverCount || deferredCoversReady
           return (
             <motion.button
               key={song.id}
@@ -88,15 +153,20 @@ export function RecentPlayed({ maxItems = 6 }: RecentPlayedProps) {
               className="group text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded-xl"
             >
               <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-white/5 shadow-sm transition-shadow duration-300 group-hover:shadow-xl group-hover:shadow-black/40">
-                <Image
-                  src={cover}
-                  alt=""
-                  fill
-                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"
-                  className="object-cover transition-transform duration-500 ease-out group-hover:scale-110"
-                  loading="lazy"
-                  decoding="async"
-                />
+                {shouldRenderCover ? (
+                  <Image
+                    src={cover}
+                    alt=""
+                    fill
+                    sizes={COVER_IMAGE_SIZES}
+                    className="object-cover transition-transform duration-500 ease-out group-hover:scale-110"
+                    loading="lazy"
+                    decoding="async"
+                    fetchPriority={index < initialCoverCount ? 'auto' : 'low'}
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-white/[0.03]" aria-hidden="true" />
+                )}
                 <div
                   className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent"
                   aria-hidden="true"

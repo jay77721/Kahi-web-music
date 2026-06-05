@@ -19,6 +19,11 @@ interface BannerItem {
 
 const PAUSE_TOGGLE_SELECTOR = '[data-banner-pause-toggle="true"]'
 const BANNER_ROTATE_MS = 5000
+const BANNER_SWR_OPTIONS = {
+  revalidateOnFocus: false,
+  dedupingInterval: 60_000,
+} as const
+const BANNER_IMAGE_SIZES = '(max-width: 768px) calc(100vw - 2rem), calc(100vw - 124px)'
 
 function isPauseToggleEvent(event: SyntheticEvent<HTMLElement>): boolean {
   return event.target instanceof Element && event.target.closest(PAUSE_TOGGLE_SELECTOR) !== null
@@ -30,7 +35,8 @@ export function Banner() {
     swrFetcher(async () => {
       const banners = await ncmApi.banner<BannerItem>(0)
       return banners
-    })
+    }),
+    BANNER_SWR_OPTIONS
   )
 
   const [current, setCurrent] = useState(0)
@@ -125,6 +131,7 @@ export function Banner() {
         src={`${banner.imageUrl}?param=1080y270`}
         alt={banner.typeTitle}
         fill
+        sizes={BANNER_IMAGE_SIZES}
         className="object-cover animate-fade-in"
         priority
       />
