@@ -87,7 +87,11 @@ export function ArtistHero({
   const artistName = artist.name?.trim() || UNKNOWN_ARTIST
   const aliases = artist.alias?.map((alias) => alias.trim()).filter(Boolean) ?? []
   const sampledUrl = cover ? imageUrl(cover, 160) : null
-  const { color } = useDominantColor(sampledUrl, { timeoutMs: 5000 })
+  const { color } = useDominantColor(sampledUrl, {
+    timeoutMs: 5000,
+    deferUntilIdle: true,
+    idleTimeoutMs: 1500,
+  })
   const backgroundStyle = useMemo(() => buildBackgroundStyle(color), [color])
 
   const [expanded, setExpanded] = useState<boolean>(false)

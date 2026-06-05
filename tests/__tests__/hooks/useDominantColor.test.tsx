@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, vi, afterEach } from 'vitest'
-import { renderHook, cleanup } from '@testing-library/react'
+import { renderHook, cleanup, act } from '@testing-library/react'
 import { useDominantColor, extractDominantColor } from '@/hooks/useDominantColor'
 import type { ExtractionContext } from '@/hooks/useDominantColor'
 import { rgbToHex, rgbToOklch } from '@/lib/color'
@@ -98,6 +98,30 @@ function makeMixedContext(
     async fetchImage() { return new Blob(['fake'], { type: 'image/png' }) },
     async decodeImage() { return {} as ImageBitmap },
     samplePixels() { return makeFakeImageData(pixels, size) },
+  }
+}
+
+function installPendingFetchMock() {
+  const originalFetch = globalThis.fetch
+  const fetchMock = vi.fn(() => new Promise<Response>(() => undefined))
+  globalThis.fetch = fetchMock as unknown as typeof fetch
+
+  return {
+    fetchMock,
+    restore: () => {
+      globalThis.fetch = originalFetch
+    },
+  }
+}
+
+function restoreWindowProperty(
+  key: 'requestIdleCallback' | 'cancelIdleCallback',
+  descriptor: PropertyDescriptor | undefined
+) {
+  if (descriptor) {
+    Object.defineProperty(window, key, descriptor)
+  } else {
+    Reflect.deleteProperty(window, key)
   }
 }
 
@@ -296,6 +320,119 @@ describe('useDominantColor', () => {
       hex: '#0a141e',
       oklch: 'oklch(0.1 0.05 250)',
     })
+  })
+
+  test('defers extraction until requestIdleCallback when requested', () => {
+    const { fetchMock, restore } = installPendingFetchMock()
+    const requestIdleDescriptor = Object.getOwnPropertyDescriptor(window, 'requestIdleCallback')
+    const cancelIdleDescriptor = Object.getOwnPropertyDescriptor(window, 'cancelIdleCallback')
+    let idleCallback: IdleRequestCallback | null = null
+    const requestIdleCallback = vi.fn((callback: IdleRequestCallback) => {
+      idleCallback = callback
+      return 1
+    })
+    const cancelIdleCallback = vi.fn()
+
+    Object.defineProperty(window, 'requestIdleCallback', {
+      configurable: true,
+      writable: true,
+      value: requestIdleCallback,
+    })
+    Object.defineProperty(window, 'cancelIdleCallback', {
+      configurable: true,
+      writable: true,
+      value: cancelIdleCallback,
+    })
+
+    try {
+      renderHook(() =>
+        useDominantColor('https://idle.example/img.png', {
+          deferUntilIdle: true,
+          idleTimeoutMs: 123,
+        })
+      )
+
+      expect(requestIdleCallback).toHaveBeenCalledWith(expect.any(Function), { timeout: 123 })
+      expect(fetchMock).not.toHaveBeenCalled()
+
+      act(() => {
+        idleCallback?.({
+          didTimeout: false,
+          timeRemaining: () => 50,
+        })
+      })
+
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    } finally {
+      restore()
+      restoreWindowProperty('requestIdleCallback', requestIdleDescriptor)
+      restoreWindowProperty('cancelIdleCallback', cancelIdleDescriptor)
+    }
+  })
+
+  test('falls back to a timeout when requestIdleCallback is unavailable', () => {
+    vi.useFakeTimers()
+    const { fetchMock, restore } = installPendingFetchMock()
+    const requestIdleDescriptor = Object.getOwnPropertyDescriptor(window, 'requestIdleCallback')
+    const cancelIdleDescriptor = Object.getOwnPropertyDescriptor(window, 'cancelIdleCallback')
+    Reflect.deleteProperty(window, 'requestIdleCallback')
+    Reflect.deleteProperty(window, 'cancelIdleCallback')
+
+    try {
+      renderHook(() =>
+        useDominantColor('https://idle-fallback.example/img.png', {
+          deferUntilIdle: true,
+          idleTimeoutMs: 250,
+        })
+      )
+
+      act(() => {
+        vi.advanceTimersByTime(249)
+      })
+      expect(fetchMock).not.toHaveBeenCalled()
+
+      act(() => {
+        vi.advanceTimersByTime(1)
+      })
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+      restore()
+      restoreWindowProperty('requestIdleCallback', requestIdleDescriptor)
+      restoreWindowProperty('cancelIdleCallback', cancelIdleDescriptor)
+    }
+  })
+
+  test('does not schedule idle work when the color is already cached', () => {
+    const { fetchMock, restore } = installPendingFetchMock()
+    const requestIdleDescriptor = Object.getOwnPropertyDescriptor(window, 'requestIdleCallback')
+    const cachedColor = { r: 10, g: 20, b: 30, hex: '#0a141e', oklch: 'oklch(0.1 0.05 250)' }
+    const url = 'https://cached-idle.example/img.png'
+    sharedCache.set(`dominant-color:${url}`, { data: cachedColor })
+    const requestIdleCallback = vi.fn()
+
+    Object.defineProperty(window, 'requestIdleCallback', {
+      configurable: true,
+      writable: true,
+      value: requestIdleCallback,
+    })
+
+    try {
+      const { result } = renderHook(() =>
+        useDominantColor(url, {
+          deferUntilIdle: true,
+          idleTimeoutMs: 250,
+        })
+      )
+
+      expect(result.current.color).toEqual(cachedColor)
+      expect(result.current.isLoading).toBe(false)
+      expect(requestIdleCallback).not.toHaveBeenCalled()
+      expect(fetchMock).not.toHaveBeenCalled()
+    } finally {
+      restore()
+      restoreWindowProperty('requestIdleCallback', requestIdleDescriptor)
+    }
   })
 
   test('clears color when url becomes null', () => {

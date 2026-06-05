@@ -9,6 +9,10 @@ export interface UseDominantColorOptions {
   sampleSize?: number
   /** Hard timeout for the entire extraction pipeline. Default 5000 ms. */
   timeoutMs?: number
+  /** Start extraction in an idle window so hero/LCP assets can load first. */
+  deferUntilIdle?: boolean
+  /** Maximum idle delay before extraction starts. Default 1200 ms. */
+  idleTimeoutMs?: number
   /** Minimum alpha (0-255) for a pixel to be considered opaque. Default 16. */
   minAlpha?: number
 }
@@ -255,6 +259,7 @@ const defaultContext: ExtractionContext = {
 // ---------------------------------------------------------------------------
 
 const SWR_KEY_PREFIX = 'dominant-color:'
+const DEFAULT_IDLE_TIMEOUT_MS = 1200
 
 /** Stable key for SWR. We do not include options in the key — they only
  *  affect precision, not identity. Callers can re-render with different
@@ -309,6 +314,25 @@ export async function dominantColorFetcher(
   })
 }
 
+function scheduleExtractionStart(
+  callback: () => void,
+  deferUntilIdle: boolean,
+  idleTimeoutMs: number
+): () => void {
+  if (!deferUntilIdle || typeof window === 'undefined') {
+    callback()
+    return () => undefined
+  }
+
+  if (typeof window.requestIdleCallback === 'function') {
+    const idleId = window.requestIdleCallback(callback, { timeout: idleTimeoutMs })
+    return () => window.cancelIdleCallback?.(idleId)
+  }
+
+  const timer = window.setTimeout(callback, idleTimeoutMs)
+  return () => window.clearTimeout(timer)
+}
+
 // ---------------------------------------------------------------------------
 // React hook
 // ---------------------------------------------------------------------------
@@ -328,6 +352,8 @@ export function useDominantColor(
 ): UseDominantColorResult {
   const { cache, mutate } = useSWRConfig() as SWRConfigShape<DominantColor>
   const key = useMemo(() => swrKey(imageUrl), [imageUrl])
+  const deferUntilIdle = options.deferUntilIdle ?? false
+  const idleTimeoutMs = options.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS
 
   // Read once on mount/URL change so we don't flash the previous color.
   // The lazy initializer reads from the SWR cache; later, the second
@@ -355,30 +381,39 @@ export function useDominantColor(
     if (cache.get(key)?.data) return
     const myId = ++requestIdRef.current
     let cancelled = false
-    // Flip loading on asynchronously to avoid the synchronous setState trap.
-    Promise.resolve().then(() => {
+    const startExtraction = () => {
       if (cancelled || requestIdRef.current !== myId) return
-      setIsLoading(true)
-      setError(null)
-    })
-    dominantColorFetcher(imageUrl, optionsRef.current)
-      .then(async (result) => {
+      // Flip loading on asynchronously to avoid the synchronous setState trap.
+      Promise.resolve().then(() => {
         if (cancelled || requestIdRef.current !== myId) return
-        await mutate(key, result, false)
-        if (cancelled || requestIdRef.current !== myId) return
-        setColor(result)
-        setIsLoading(false)
+        setIsLoading(true)
+        setError(null)
       })
-      .catch((err: unknown) => {
-        if (cancelled || requestIdRef.current !== myId) return
-        const message = err instanceof Error ? err.message : 'Color extraction failed'
-        setError(message)
-        setIsLoading(false)
-      })
+      dominantColorFetcher(imageUrl, optionsRef.current)
+        .then(async (result) => {
+          if (cancelled || requestIdRef.current !== myId) return
+          await mutate(key, result, false)
+          if (cancelled || requestIdRef.current !== myId) return
+          setColor(result)
+          setIsLoading(false)
+        })
+        .catch((err: unknown) => {
+          if (cancelled || requestIdRef.current !== myId) return
+          const message = err instanceof Error ? err.message : 'Color extraction failed'
+          setError(message)
+          setIsLoading(false)
+        })
+    }
+    const cancelScheduledStart = scheduleExtractionStart(
+      startExtraction,
+      deferUntilIdle,
+      idleTimeoutMs
+    )
     return () => {
       cancelled = true
+      cancelScheduledStart()
     }
-  }, [imageUrl, key, cache, mutate])
+  }, [imageUrl, key, cache, mutate, deferUntilIdle, idleTimeoutMs])
 
   // Derived state for the no-URL case.
   const noUrl = !key || !imageUrl

@@ -1,15 +1,30 @@
 import { describe, test, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
+import type { UseDominantColorOptions } from '@/hooks/useDominantColor'
 
 // Stub useDominantColor so tests don't touch canvas / fetch.
+const mockUseDominantColor = vi.fn((url?: unknown, options?: unknown) => {
+  void url
+  void options
+  return {
+  color: null,
+  isLoading: false,
+  error: null,
+  }
+})
+
 vi.mock('@/hooks/useDominantColor', () => ({
-  useDominantColor: () => ({ color: null, isLoading: false, error: null }),
+  useDominantColor: (
+    imageUrl: string | null | undefined,
+    options?: UseDominantColorOptions
+  ) => mockUseDominantColor(imageUrl, options),
 }))
 
 import { HeroBanner } from '@/components/playlist/HeroBanner'
 
 afterEach(() => {
   cleanup()
+  vi.clearAllMocks()
 })
 
 describe('HeroBanner', () => {
@@ -18,6 +33,21 @@ describe('HeroBanner', () => {
       <HeroBanner cover="https://pics.example.com/playlist/3001.jpg" title="华语经典老歌" />
     )
     expect(screen.getByRole('heading', { name: '华语经典老歌' })).toBeInTheDocument()
+  })
+
+  test('defers dominant color extraction until idle time', () => {
+    render(
+      <HeroBanner cover="https://pics.example.com/playlist/3001.jpg" title="华语经典老歌" />
+    )
+
+    expect(mockUseDominantColor).toHaveBeenCalledWith(
+      expect.stringContaining('param=160y160'),
+      {
+        timeoutMs: 5000,
+        deferUntilIdle: true,
+        idleTimeoutMs: 1500,
+      }
+    )
   })
 
   test('renders the subtitle when provided', () => {

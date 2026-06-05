@@ -80,7 +80,11 @@ export const HeroBanner = memo(function HeroBanner({
 }: HeroBannerProps) {
   const titleText = title?.trim() || '未命名'
   const sampledUrl = cover ? imageUrl(cover, 160) : null
-  const { color } = useDominantColor(sampledUrl, { timeoutMs: 5000 })
+  const { color } = useDominantColor(sampledUrl, {
+    timeoutMs: 5000,
+    deferUntilIdle: true,
+    idleTimeoutMs: 1500,
+  })
   const backgroundStyle = useMemo(() => buildBackgroundStyle(color), [color])
 
   return (

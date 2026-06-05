@@ -49,6 +49,20 @@ describe('ArtistHero', () => {
     expect(screen.getByAltText('周杰伦')).toBeInTheDocument()
   })
 
+  test('defers dominant color extraction until idle time', () => {
+    mockUseDominantColor.mockReturnValue({ color: null, isLoading: false, error: null })
+    render(<ArtistHero artist={FAKE_ARTIST} />)
+
+    expect(mockUseDominantColor).toHaveBeenCalledWith(
+      expect.stringContaining('param=160y160'),
+      {
+        timeoutMs: 5000,
+        deferUntilIdle: true,
+        idleTimeoutMs: 1500,
+      }
+    )
+  })
+
   test('renders the alias when present', () => {
     mockUseDominantColor.mockReturnValue({ color: null, isLoading: false, error: null })
     render(<ArtistHero artist={FAKE_ARTIST} />)
