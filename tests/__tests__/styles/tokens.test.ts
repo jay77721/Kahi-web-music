@@ -91,6 +91,24 @@ const REQUIRED_TOKENS = {
   zIndex: ['--z-base', '--z-sticky', '--z-overlay', '--z-player', '--z-modal', '--z-toast'],
   font: ['--font-sans', '--font-display', '--font-mono'],
   layout: ['--hero-height', '--vinyl-size', '--player-bar-height'],
+  runtimeAliases: [
+    '--background',
+    '--foreground',
+    '--card',
+    '--card-foreground',
+    '--popover',
+    '--popover-foreground',
+    '--primary',
+    '--primary-foreground',
+    '--secondary',
+    '--secondary-foreground',
+    '--muted',
+    '--muted-foreground',
+    '--input',
+    '--ring',
+    '--radius',
+    '--destructive',
+  ],
 } as const satisfies Record<string, readonly string[]>
 
 describe('styles/tokens.css', () => {

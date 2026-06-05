@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ncmApi } from '@/lib/api'
+import { normalizeDjHotList, normalizeDjProgramToplist, normalizeDjRadioList } from '@/lib/api-adapters'
 import { formatCount, imageUrl, formatRelativeTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { fadeIn, staggerContainer, staggerItem, hoverLift } from '@/lib/animations'
@@ -100,7 +101,7 @@ export default function RadioPage() {
 function HotRadioSection() {
   const { data, error, isLoading } = useSWR<DjRadioHot[]>('djradio-hot', async () => {
     const result = await ncmApi.djhot(12)
-    return (result as DjRadioHot[] | undefined) || []
+    return normalizeDjHotList(result)
   })
 
   if (error) {
@@ -136,7 +137,7 @@ function HotRadioSection() {
 function AllRadioSection() {
   const { data, error, isLoading } = useSWR<DjRadio[]>('djradio-all', async () => {
     const result = await ncmApi.djradio()
-    return (result as DjRadio[] | undefined) || []
+    return normalizeDjRadioList(result)
   })
 
   if (error) {
@@ -168,7 +169,7 @@ function AllRadioSection() {
 function ProgramToplistSection() {
   const { data, error, isLoading } = useSWR<DjProgramToplistItem[]>('djprogram-toplist', async () => {
     const result = await ncmApi.djprogramToplist(20)
-    return (result as DjProgramToplistItem[] | undefined) || []
+    return normalizeDjProgramToplist(result)
   })
 
   if (error) {

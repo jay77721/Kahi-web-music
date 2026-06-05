@@ -2,6 +2,10 @@ import { describe, expect, test } from 'vitest'
 import {
   normalizeAlbumDetail,
   normalizeArtistDetail,
+  normalizeDjHotList,
+  normalizeDjProgramList,
+  normalizeDjProgramToplist,
+  normalizeDjRadioList,
   normalizeIdList,
   normalizeLeaderboardDetail,
   normalizeLeaderboardList,
@@ -270,6 +274,37 @@ describe('api adapters', () => {
         coverImgUrl: playlist.coverImgUrl,
         tracks: [song],
       })
+    })
+
+    test('normalizes radio and program payload variants', () => {
+      const radio = {
+        id: 44,
+        name: 'Late Show',
+        picUrl: 'radio.jpg',
+        subCount: 12,
+        programCount: 3,
+        shareCount: 0,
+        likeCount: 0,
+        score: 88,
+        djId: 9,
+        djName: 'Host',
+      }
+      const program = {
+        id: 88,
+        name: 'Episode 1',
+        coverUrl: 'program.jpg',
+        dj: { userId: 9, nickname: 'Host', avatarUrl: 'avatar.jpg' },
+        count: 10,
+        price: 0,
+        fee: 0,
+        duration: 60,
+        createTime: 1000,
+      }
+
+      expect(normalizeDjRadioList({ djRadios: [radio] })).toEqual([radio])
+      expect(normalizeDjHotList({ data: [radio] })[0]).toMatchObject({ id: radio.id, rank: 1 })
+      expect(normalizeDjProgramList({ programs: [program] })).toEqual([program])
+      expect(normalizeDjProgramToplist({ toplist: [program] })).toEqual([program])
     })
   })
 })
