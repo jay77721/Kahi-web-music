@@ -1,7 +1,7 @@
 'use client'
 
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, act, fireEvent } from '@testing-library/react'
+import { render, screen, cleanup, act, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 
 // ---------------------------------------------------------------------------
@@ -10,6 +10,7 @@ import React from 'react'
 
 const mockUseSWR = vi.fn()
 const mockRouterPush = vi.fn()
+const mockRouterReplace = vi.fn()
 const mockUseUserStore = vi.fn()
 const mockUsePlayerStore = vi.fn()
 const mockUseDominantColor = vi.fn()
@@ -22,7 +23,7 @@ vi.mock('next/navigation', async () => {
   const actual = await vi.importActual<typeof import('next/navigation')>('next/navigation')
   return {
     ...actual,
-    useRouter: () => ({ push: mockRouterPush, replace: vi.fn(), back: vi.fn() }),
+    useRouter: () => ({ push: mockRouterPush, replace: mockRouterReplace, back: vi.fn() }),
   }
 })
 
@@ -55,17 +56,6 @@ vi.mock('@/lib/api', () => ({
   },
 }))
 
-vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { alt, src, ...rest } = props
-    return React.createElement('img', {
-      alt: (alt as string) ?? '',
-      src: (src as string) ?? '',
-      ...rest,
-    })
-  },
-}))
-
 vi.mock('@/components/layout/AppShell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) =>
     React.createElement('div', { 'data-testid': 'app-shell' }, children),
@@ -90,8 +80,8 @@ const FM_SONG = {
   mv: 0,
 }
 
-function makeUserStore(overrides: { isLoggedIn?: boolean } = {}) {
-  return { isLoggedIn: true, ...overrides }
+function makeUserStore(overrides: { isLoggedIn?: boolean; hasRestoredSession?: boolean } = {}) {
+  return { isLoggedIn: true, hasRestoredSession: true, ...overrides }
 }
 
 function makePlayerStore() {
@@ -132,6 +122,7 @@ describe('FMPage', () => {
   beforeEach(() => {
     mockUseSWR.mockReset()
     mockRouterPush.mockReset()
+    mockRouterReplace.mockReset()
     mockUseUserStore.mockReset()
     mockUsePlayerStore.mockReset()
     mockUseDominantColor.mockReset()
@@ -163,7 +154,7 @@ describe('FMPage', () => {
       await Promise.resolve()
     })
 
-    expect(mockRouterPush).toHaveBeenCalledWith('/login')
+    expect(mockRouterReplace).toHaveBeenCalledWith('/login')
     expect(screen.queryByTestId('fm-page')).not.toBeInTheDocument()
   })
 
@@ -219,11 +210,9 @@ describe('FMPage', () => {
     const { default: FMPage } = await import('@/app/fm/page')
     render(<FMPage />)
 
-    await act(async () => {
-      await Promise.resolve()
+    await waitFor(() => {
+      expect(screen.getByTestId('fm-main-player')).toHaveAttribute('data-cover-size', '272')
     })
-
-    expect(screen.getByTestId('fm-main-player')).toHaveAttribute('data-cover-size', '272')
   })
 
   test('dislike control invokes fmTrash and triggers a refresh', async () => {

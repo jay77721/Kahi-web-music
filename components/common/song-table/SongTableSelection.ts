@@ -1,4 +1,6 @@
-export type HeaderCheckboxState = 'none' | 'partial' | 'all'
+import type { SelectionState } from '../SelectionCheckbox'
+
+export type HeaderCheckboxState = SelectionState
 
 export const EMPTY_SELECTION: ReadonlySet<string> = new Set<string>()
 

@@ -12,6 +12,8 @@ import type { PlayMode } from '@/types/api'
 const mockUseUIStore = vi.fn()
 const mockUsePlayerStore = vi.fn()
 const mockUseUserStore = vi.fn()
+const mockToastSuccess = vi.fn()
+const mockToastError = vi.fn()
 
 let uiState: Record<string, unknown> = {}
 let playerState: Record<string, unknown> = {}
@@ -42,8 +44,8 @@ vi.mock('@/stores/userStore', () => ({
 
 vi.mock('sonner', () => ({
   toast: {
-    success: vi.fn(),
-    error: vi.fn(),
+    success: mockToastSuccess,
+    error: mockToastError,
   },
 }))
 
@@ -83,13 +85,6 @@ vi.mock('@/components/settings/SettingsSection', () => ({
       React.createElement('h2', null, title),
       children,
     ),
-}))
-
-vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { alt, src, ...rest } = props
-    return React.createElement('img', { alt: (alt as string) ?? '', src: (src as string) ?? '', ...rest })
-  },
 }))
 
 // ---------------------------------------------------------------------------
@@ -252,6 +247,22 @@ describe('SettingsPage', () => {
     expect(setPlayMode).toHaveBeenCalledWith('shuffle')
   })
 
+  test('restores persisted local settings after mount', async () => {
+    window.localStorage.setItem('kahi-web-music:play:quality', JSON.stringify('hires'))
+    window.localStorage.setItem('kahi-web-music:download:dir', JSON.stringify('D:/Music'))
+    window.localStorage.setItem('kahi-web-music:notifications:enabled', JSON.stringify(false))
+
+    const { default: SettingsPage } = await import('@/app/settings/page')
+    render(<SettingsPage />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('settings-quality')).toHaveValue('hires')
+    })
+    expect(screen.getByTestId('settings-download-dir')).toHaveValue('D:/Music')
+    expect(screen.getByTestId('toggle-启用桌面通知')).toHaveAttribute('aria-checked', 'false')
+    expect(window.localStorage.getItem('kahi-web-music:play:quality')).toBe(JSON.stringify('hires'))
+  })
+
   test('reflects the current play mode in the segmented control checked state', async () => {
     setupStores({}, { playMode: 'shuffle' })
 
@@ -278,6 +289,33 @@ describe('SettingsPage', () => {
     await waitFor(() => {
       expect(window.localStorage.getItem('kahi-web-music:play:quality')).toBe(JSON.stringify('exhigh'))
     })
+  })
+
+  test('shows logout action for logged-in users and reports success', async () => {
+    const logout = vi.fn().mockResolvedValue(undefined)
+    setupStores({}, {}, { isLoggedIn: true, logout })
+
+    const { default: SettingsPage } = await import('@/app/settings/page')
+    render(<SettingsPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: /退出登录/ }))
+
+    await waitFor(() => expect(logout).toHaveBeenCalledTimes(1))
+    expect(mockToastSuccess).toHaveBeenCalledWith('已退出登录')
+    expect(mockToastError).not.toHaveBeenCalled()
+  })
+
+  test('shows logout failure toast when server logout fails', async () => {
+    const logout = vi.fn().mockRejectedValue(new Error('服务器退出失败'))
+    setupStores({}, {}, { isLoggedIn: true, logout })
+
+    const { default: SettingsPage } = await import('@/app/settings/page')
+    render(<SettingsPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: /退出登录/ }))
+
+    await waitFor(() => expect(mockToastError).toHaveBeenCalledWith('服务器退出失败'))
+    expect(mockToastSuccess).not.toHaveBeenCalled()
   })
 
   test('renders version + license in the about section', async () => {

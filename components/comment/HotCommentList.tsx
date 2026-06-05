@@ -5,7 +5,7 @@ import { CommentItem } from './CommentItem'
 import type { Comment } from '@/types/comment'
 
 interface HotCommentListProps {
-  comments: Comment[]
+  comments: readonly Comment[]
   currentUserId?: number
   onLike?: (commentId: number, next: boolean) => void
   onDelete?: (commentId: number) => void
@@ -13,17 +13,21 @@ interface HotCommentListProps {
 
 const MAX_HOT_COMMENTS = 5
 
+function getLikedCount(comment: Comment): number {
+  return Math.max(comment.likedCount ?? 0, 0)
+}
+
 export function HotCommentList({
   comments,
   currentUserId,
   onLike,
   onDelete,
 }: HotCommentListProps) {
-  if (comments.length === 0) return null
-
   const sorted = [...comments]
-    .sort((a, b) => b.likedCount - a.likedCount)
+    .sort((a, b) => getLikedCount(b) - getLikedCount(a))
     .slice(0, MAX_HOT_COMMENTS)
+
+  if (sorted.length === 0) return null
 
   return (
     <section
@@ -50,7 +54,7 @@ export function HotCommentList({
             aria-label={`热门评论第 ${idx + 1} 名`}
           >
             <span
-              className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--bg-surface)] text-[var(--accent)] text-xs font-bold flex items-center justify-center"
+              className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--bg-surface)] text-[var(--accent-text)] text-xs font-bold flex items-center justify-center"
               aria-hidden="true"
             >
               {idx + 1}

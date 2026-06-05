@@ -322,7 +322,7 @@ Coverage threshold: **80%** across the four v8 dimensions. The threshold is enfo
 
 | Stage | Command | Output |
 |-------|---------|--------|
-| Dev | `pnpm dev` | `next dev` on port 3000 |
+| Dev | `pnpm dev` | `next dev --port 3001` |
 | Build | `pnpm build` | `.next/` (server + static) |
 | Start | `pnpm start` | `next start` on port 3000 |
 | Lint | `pnpm lint` | ESLint over the repo |
@@ -349,4 +349,4 @@ Coverage threshold: **80%** across the four v8 dimensions. The threshold is enfo
 
 ---
 
-<p align="center"><sub>Last updated: 2026-06-03</sub></p>
+<p align="center"><sub>Last updated: 2026-06-05</sub></p>

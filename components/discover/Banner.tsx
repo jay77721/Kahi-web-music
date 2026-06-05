@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type SyntheticEvent } from 'react'
 import { ChevronLeft, ChevronRight, AlertCircle, RefreshCw, Pause, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -17,6 +17,12 @@ interface BannerItem {
   titleColor?: string
 }
 
+const PAUSE_TOGGLE_SELECTOR = '[data-banner-pause-toggle="true"]'
+
+function isPauseToggleEvent(event: SyntheticEvent<HTMLElement>): boolean {
+  return event.target instanceof Element && event.target.closest(PAUSE_TOGGLE_SELECTOR) !== null
+}
+
 export function Banner() {
   const { data, isLoading, error, mutate } = useSWR(
     'banner',
@@ -30,16 +36,17 @@ export function Banner() {
   const [isPaused, setIsPaused] = useState(false)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const banners = data || []
+  const activeIndex = banners.length > 0 ? Math.min(current, banners.length - 1) : 0
 
   const next = useCallback(() => {
     if (banners.length === 0) return
-    setCurrent((c) => (c + 1) % banners.length)
-  }, [banners.length])
+    setCurrent(() => (activeIndex + 1) % banners.length)
+  }, [activeIndex, banners.length])
 
   const prev = useCallback(() => {
     if (banners.length === 0) return
-    setCurrent((c) => (c - 1 + banners.length) % banners.length)
-  }, [banners.length])
+    setCurrent(() => (activeIndex - 1 + banners.length) % banners.length)
+  }, [activeIndex, banners.length])
 
   useEffect(() => {
     if (!window.matchMedia) return
@@ -51,13 +58,6 @@ export function Banner() {
     mediaQuery.addEventListener('change', updateMotionPreference)
     return () => mediaQuery.removeEventListener('change', updateMotionPreference)
   }, [])
-
-  useEffect(() => {
-    setCurrent((index) => {
-      if (banners.length === 0) return 0
-      return Math.min(index, banners.length - 1)
-    })
-  }, [banners.length])
 
   // Auto-rotate
   useEffect(() => {
@@ -79,7 +79,7 @@ export function Banner() {
           <Button
             variant="ghost"
             size="sm"
-            className="text-[var(--accent)] hover:bg-[var(--accent)]/10 gap-1.5"
+            className="text-[var(--accent-text)] hover:bg-[var(--accent)]/10 gap-1.5"
             onClick={() => mutate()}
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -98,14 +98,18 @@ export function Banner() {
     )
   }
 
-  const activeIndex = Math.min(current, banners.length - 1)
   const banner = banners[activeIndex]
+
+  const pauseForCarouselInteraction = (event: SyntheticEvent<HTMLDivElement>) => {
+    if (isPauseToggleEvent(event)) return
+    setIsPaused(true)
+  }
 
   return (
     <div
       className="relative w-full aspect-[3/1] md:aspect-[4/1] rounded-2xl overflow-hidden group shadow-lg"
-      onFocus={() => setIsPaused(true)}
-      onPointerDown={() => setIsPaused(true)}
+      onFocus={pauseForCarouselInteraction}
+      onPointerDown={pauseForCarouselInteraction}
     >
       {/* Image with smooth crossfade */}
       {banners.map((b, i) => (
@@ -155,9 +159,14 @@ export function Banner() {
       <Button
         variant="ghost"
         size="icon"
-        className="absolute right-3 top-3 w-9 h-9 bg-black/40 hover:bg-black/60 text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all duration-300 rounded-full backdrop-blur-sm"
+        data-banner-pause-toggle="true"
+        className="absolute right-3 top-3 w-9 h-9 bg-black/40 hover:bg-black/60 text-white group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 transition-all duration-300 rounded-full backdrop-blur-sm"
         onPointerDown={(event) => event.stopPropagation()}
-        onClick={() => setIsPaused((paused) => !paused)}
+        onFocus={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.stopPropagation()
+          setIsPaused((paused) => !paused)
+        }}
         aria-label={isPaused ? '恢复自动轮播' : '暂停自动轮播'}
         aria-pressed={isPaused}
       >

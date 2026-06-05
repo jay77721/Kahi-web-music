@@ -63,29 +63,6 @@ vi.mock('@/components/mv/MVInfo', () => ({
 vi.mock('@/components/player/PlayerBar', () => ({ PlayerBar: () => null }))
 vi.mock('@/components/player/PlayerOverlays', () => ({ PlayerOverlays: () => null }))
 
-vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { src, alt, width, height } = props as {
-      src: string
-      alt: string
-      width?: number
-      height?: number
-    }
-    return React.createElement('img', { src, alt, width, height })
-  },
-}))
-
-vi.mock('next/link', () => ({
-  default: ({
-    children,
-    href,
-    ...rest
-  }: {
-    children: React.ReactNode
-    href: string
-  }) => React.createElement('a', { href, ...rest }, children),
-}))
-
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------

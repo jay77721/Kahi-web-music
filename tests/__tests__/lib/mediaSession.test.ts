@@ -136,6 +136,15 @@ describe('lib/mediaSession', () => {
       expect(playCall?.[1]).toBeTypeOf('function')
       expect(pauseCall?.[1]).toBeNull()
     })
+
+    test('does not throw when the browser rejects an action handler', () => {
+      session.setActionHandler.mockImplementation((action) => {
+        if (action === 'seekto') throw new Error('unsupported action')
+      })
+
+      expect(() => setMediaActionHandlers({ seek: vi.fn() })).not.toThrow()
+      expect(session.setActionHandler).toHaveBeenCalledWith('seekto', expect.any(Function))
+    })
   })
 
   // ---------- setMediaPlaybackState ----------
@@ -187,6 +196,41 @@ describe('lib/mediaSession', () => {
         'previoustrack=true',
         'seekto=true',
       ])
+    })
+
+    test('does not throw when clearing unsupported actions', () => {
+      session.setActionHandler.mockImplementation(() => {
+        throw new Error('unsupported action')
+      })
+
+      expect(() => clearMediaSession()).not.toThrow()
+      expect(session.playbackState).toBe('none')
+    })
+  })
+
+  describe('metadata failures', () => {
+    test('clears stale metadata if MediaMetadata construction fails', () => {
+      const original = globalThis.MediaMetadata
+      session.metadata = new FakeMediaMetadata({ title: 'old', artist: 'a', album: 'b' }) as MediaMetadata
+      class ThrowingMediaMetadata {
+        constructor() {
+          throw new Error('bad artwork')
+        }
+      }
+      Object.defineProperty(globalThis, 'MediaMetadata', {
+        value: ThrowingMediaMetadata as unknown as typeof MediaMetadata,
+        configurable: true,
+      })
+
+      try {
+        expect(() => setMediaMetadata({ title: 't', artist: 'a', album: 'b' })).not.toThrow()
+        expect(session.metadata).toBeNull()
+      } finally {
+        Object.defineProperty(globalThis, 'MediaMetadata', {
+          value: original,
+          configurable: true,
+        })
+      }
     })
   })
 

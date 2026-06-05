@@ -3,7 +3,7 @@ import { test, expect, type Page, type Route } from '@playwright/test'
 /**
  * Navigation E2E tests
  *
- * Covers route transitions, sidebar navigation, mobile hamburger menu,
+ * Covers route transitions, sidebar navigation, mobile bottom navigation,
  * and dynamic detail routes (playlist/album). All NCM API calls are
  * stubbed with route mocks so tests do not require a live backend.
  */
@@ -113,18 +113,33 @@ test.describe('Navigation: sidebar interaction', () => {
     const navLinks = page.locator('aside a[href="/leaderboard"]')
     await expect(navLinks.first()).toBeVisible({ timeout: 10000 })
   })
+
+  test('protected sidebar routes replace history when redirecting to login', async ({ page }) => {
+    await page.goto('/')
+    await page.locator('aside a[href="/daily"]').first().click()
+
+    await expect(page).toHaveURL(/\/login/)
+
+    await page.goBack()
+    await expect(page).toHaveURL(/\/$/)
+  })
 })
 
-test.describe('Navigation: mobile hamburger menu', () => {
+test.describe('Navigation: mobile bottom navigation', () => {
   test.beforeEach(async ({ page }) => {
     stubApiRoutes(page)
     await page.setViewportSize({ width: 375, height: 812 })
   })
 
-  test('hamburger menu button is visible on small viewports', async ({ page }) => {
+  test('mobile bottom navigation exposes the search route on small viewports', async ({ page }) => {
     await page.goto('/')
-    const menuButton = page.getByRole('button', { name: '菜单' })
-    await expect(menuButton).toBeVisible({ timeout: 10000 })
+    await page.waitForLoadState('domcontentloaded')
+
+    const searchLink = page.locator('nav.md\\:hidden a[href="/search"]').first()
+    await expect(searchLink).toBeVisible({ timeout: 10000 })
+
+    await searchLink.click()
+    await expect(page).toHaveURL(/\/search/)
   })
 
   test('mobile bottom navigation is rendered on small viewports', async ({ page }) => {

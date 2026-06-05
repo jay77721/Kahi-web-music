@@ -147,6 +147,23 @@ describe('PlaybackController', () => {
     expect((window as unknown as { __playbackCtrl?: unknown }).__playbackCtrl).toBeUndefined()
   })
 
+  test('does not delete a newer global controller during stale cleanup', () => {
+    const { unmount } = render(<PlaybackController />)
+    const replacement = {
+      togglePlay: vi.fn(),
+      next: vi.fn(),
+      prev: vi.fn(),
+      playTrack: vi.fn(),
+      getState: vi.fn(),
+    }
+    ;(window as unknown as { __playbackCtrl: typeof replacement }).__playbackCtrl = replacement
+
+    unmount()
+
+    expect((window as unknown as { __playbackCtrl?: unknown }).__playbackCtrl).toBe(replacement)
+    delete (window as unknown as { __playbackCtrl?: unknown }).__playbackCtrl
+  })
+
   test('calling the exposed togglePlay pauses the audio engine when playing', async () => {
     const audioMod = await import('@/lib/audio')
     const pauseSpy = vi.spyOn(audioMod.audioEngine, 'pause').mockImplementation(() => {})
@@ -555,6 +572,94 @@ describe('PlaybackController', () => {
     // onEnd calls next() which requires a non-empty queue to do anything
     // observable. The state should still be consistent.
     expect(usePlayerStore.getState().currentTrack).toStrictEqual(mockSong)
+  })
+
+  test('audio engine time updates propagate to the store', async () => {
+    const audioMod = await import('@/lib/audio')
+    usePlayerStore.setState({ currentTrack: mockSong, currentTime: 0 })
+    await act(async () => {
+      render(<PlaybackController />)
+    })
+
+    const onTimeUpdate = (audioMod.audioEngine as unknown as {
+      onTimeUpdateCallback: (time: number) => void
+    }).onTimeUpdateCallback
+    act(() => onTimeUpdate?.(37.5))
+
+    expect(usePlayerStore.getState().currentTime).toBe(37.5)
+  })
+
+  test('throttles audio engine time updates before writing to the store', async () => {
+    vi.useFakeTimers({ now: 1_000 })
+    const audioMod = await import('@/lib/audio')
+    usePlayerStore.setState({ currentTrack: mockSong, currentTime: 0 })
+    await act(async () => {
+      render(<PlaybackController />)
+    })
+
+    const onTimeUpdate = (audioMod.audioEngine as unknown as {
+      onTimeUpdateCallback: (time: number) => void
+    }).onTimeUpdateCallback
+
+    act(() => {
+      onTimeUpdate?.(1)
+      onTimeUpdate?.(1.1)
+      onTimeUpdate?.(1.2)
+    })
+    expect(usePlayerStore.getState().currentTime).toBe(1)
+
+    act(() => {
+      vi.advanceTimersByTime(249)
+      onTimeUpdate?.(1.3)
+    })
+    expect(usePlayerStore.getState().currentTime).toBe(1)
+
+    act(() => {
+      vi.advanceTimersByTime(1)
+      onTimeUpdate?.(1.4)
+    })
+    expect(usePlayerStore.getState().currentTime).toBe(1.4)
+  })
+
+  test('flushes the exact engine time when playback pauses inside the throttle window', async () => {
+    vi.useFakeTimers({ now: 2_000 })
+    const audioMod = await import('@/lib/audio')
+    const getCurrentTimeSpy = vi.spyOn(audioMod.audioEngine, 'getCurrentTime').mockReturnValue(9.75)
+    usePlayerStore.setState({ currentTrack: mockSong, currentTime: 0, isPlaying: true })
+    await act(async () => {
+      render(<PlaybackController />)
+    })
+
+    const onTimeUpdate = (audioMod.audioEngine as unknown as {
+      onTimeUpdateCallback: (time: number) => void
+    }).onTimeUpdateCallback
+    const onPause = (audioMod.audioEngine as unknown as {
+      onPauseCallback: () => void
+    }).onPauseCallback
+
+    act(() => {
+      onTimeUpdate?.(9)
+      onTimeUpdate?.(9.2)
+      onPause?.()
+    })
+
+    expect(usePlayerStore.getState().currentTime).toBe(9.75)
+    expect(usePlayerStore.getState().isPlaying).toBe(false)
+    getCurrentTimeSpy.mockRestore()
+  })
+
+  test('unsubscribes audio engine callbacks on unmount', async () => {
+    const audioMod = await import('@/lib/audio')
+    const { unmount } = render(<PlaybackController />)
+
+    unmount()
+
+    expect((audioMod.audioEngine as unknown as { onPlayCallback: unknown }).onPlayCallback).toBeNull()
+    expect((audioMod.audioEngine as unknown as { onPauseCallback: unknown }).onPauseCallback).toBeNull()
+    expect((audioMod.audioEngine as unknown as { onEndCallback: unknown }).onEndCallback).toBeNull()
+    expect((audioMod.audioEngine as unknown as { onErrorCallback: unknown }).onErrorCallback).toBeNull()
+    expect((audioMod.audioEngine as unknown as { onLoadCallback: unknown }).onLoadCallback).toBeNull()
+    expect((audioMod.audioEngine as unknown as { onTimeUpdateCallback: unknown }).onTimeUpdateCallback).toBeNull()
   })
 
   test('onLoad callback reads duration from the engine', async () => {

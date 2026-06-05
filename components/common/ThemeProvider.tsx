@@ -46,9 +46,12 @@ function useThemeAttribute(): void {
       const attr = resolveTheme(nextTheme, media.matches)
       root.setAttribute('data-theme', attr)
     }
+    const onMediaChange = (): void => {
+      apply()
+    }
 
     apply()
-    media.addEventListener('change', apply)
+    media.addEventListener('change', onMediaChange)
 
     const onStorage = (event: StorageEvent): void => {
       if (event.key === THEME_STORAGE_EVENT_KEY) {
@@ -59,7 +62,7 @@ function useThemeAttribute(): void {
     window.addEventListener('storage', onStorage)
 
     return () => {
-      media.removeEventListener('change', apply)
+      media.removeEventListener('change', onMediaChange)
       window.removeEventListener('storage', onStorage)
     }
   }, [theme])

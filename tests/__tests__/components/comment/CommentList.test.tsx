@@ -81,7 +81,7 @@ describe('CommentList', () => {
 
     expect(screen.getByText('共 2 条')).toBeInTheDocument()
     expect(screen.getAllByText('Alice').length).toBeGreaterThan(0)
-    expect(screen.getByText('Hot comment')).toBeInTheDocument()
+    expect(screen.getAllByText('Hot comment').length).toBeGreaterThan(0)
   })
 
   test('normalizes nested data responses in its fetcher', async () => {

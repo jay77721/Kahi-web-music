@@ -31,15 +31,17 @@ vi.mock('framer-motion', () => ({
     {
       get: (_target, tag: string) => {
         type MotionProps = React.HTMLAttributes<HTMLElement> & Record<string, unknown>
-        const MotionComponent = React.forwardRef<HTMLElement, MotionProps>((props, ref) => {
-          const domProps = { ...props } as Record<string, unknown>
-          const children = domProps.children as React.ReactNode
-          delete domProps.children
-          for (const key of ['initial', 'animate', 'exit', 'transition', 'whileTap', 'variants', 'custom']) {
-            delete domProps[key]
+        const MotionComponent = React.forwardRef<HTMLElement, MotionProps>(
+          (props, ref) => {
+            const domProps = { ...props } as Record<string, unknown>
+            const children = domProps.children as React.ReactNode
+            delete domProps.children
+            for (const key of ['initial', 'animate', 'exit', 'transition', 'whileTap', 'variants', 'custom']) {
+              delete domProps[key]
+            }
+            return React.createElement(tag, { ...(domProps as React.HTMLAttributes<HTMLElement>), ref }, children)
           }
-          return React.createElement(tag, { ...(domProps as React.HTMLAttributes<HTMLElement>), ref }, children)
-        })
+        )
         MotionComponent.displayName = `MockMotion.${tag}`
         return MotionComponent
       },
@@ -151,7 +153,7 @@ describe('SearchPage', () => {
     expect(screen.queryByText('输入关键词开始搜索')).not.toBeInTheDocument()
   })
 
-  test('preserves lyric type when submitting and clearing from lyric search', () => {
+  test('preserves lyric type when submitting and clearing from lyric search', async () => {
     currentSearchParams = new URLSearchParams('q=%20%E6%9C%88%E5%85%89%20&type=lyric')
     render(<SearchPage />)
 

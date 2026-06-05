@@ -29,6 +29,7 @@ export interface ArtistHeroProps {
 
 const FALLBACK_OKLCH = 'oklch(0.22 0 0)'
 const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1]
+const UNKNOWN_ARTIST = '未知艺人'
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -83,6 +84,8 @@ export function ArtistHero({
   className,
 }: ArtistHeroProps) {
   const cover = artist.img1v1Url || artist.picUrl || ''
+  const artistName = artist.name?.trim() || UNKNOWN_ARTIST
+  const aliases = artist.alias?.map((alias) => alias.trim()).filter(Boolean) ?? []
   const sampledUrl = cover ? imageUrl(cover, 160) : null
   const { color } = useDominantColor(sampledUrl, { timeoutMs: 5000 })
   const backgroundStyle = useMemo(() => buildBackgroundStyle(color), [color])
@@ -116,7 +119,7 @@ export function ArtistHero({
             {cover ? (
               <Image
                 src={imageUrl(cover, 320)}
-                alt={artist.name}
+                alt={artistName}
                 width={256}
                 height={256}
                 priority
@@ -131,7 +134,7 @@ export function ArtistHero({
         <div className="flex-1 min-w-0 text-center md:text-left flex flex-col gap-3">
           <motion.span
             variants={itemVariants}
-            className="inline-flex self-center md:self-start text-[11px] uppercase tracking-[0.18em] text-[var(--accent)]"
+            className="inline-flex self-center md:self-start text-[11px] uppercase tracking-[0.18em] text-[var(--accent-text)]"
           >
             艺人
           </motion.span>
@@ -140,15 +143,15 @@ export function ArtistHero({
             variants={itemVariants}
             className="text-2xl md:text-4xl font-bold leading-tight text-[var(--text-primary)]"
           >
-            {artist.name}
+            {artistName}
           </motion.h1>
 
-          {artist.alias && artist.alias.length > 0 && (
+          {aliases.length > 0 && (
             <motion.p
               variants={itemVariants}
               className="text-sm text-[var(--text-tertiary)]"
             >
-              {artist.alias.join(' · ')}
+              {aliases.join(' · ')}
             </motion.p>
           )}
 
@@ -177,7 +180,7 @@ export function ArtistHero({
                 type="button"
                 onClick={() => setExpanded((v) => !v)}
                 aria-expanded={expanded}
-                className="inline-flex items-center gap-1 text-xs text-[var(--accent)] hover:underline focus-visible:underline"
+                className="inline-flex items-center gap-1 text-xs text-[var(--accent-text)] hover:underline focus-visible:underline"
               >
                 {expanded ? '收起' : '展开'}
                 <ChevronDown

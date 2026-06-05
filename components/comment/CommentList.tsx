@@ -25,7 +25,6 @@ const EMPTY_COMMENTS: CommentResponse = {
   total: 0,
   hasMore: false,
 }
-
 function normalizeComments(raw: unknown): CommentResponse {
   const source =
     raw && typeof raw === 'object' && 'data' in raw
@@ -185,7 +184,7 @@ function ErrorState({ message, onRetry }: ErrorStateProps) {
       <button
         type="button"
         onClick={onRetry}
-        className="text-sm text-[var(--accent)] hover:underline"
+        className="text-sm text-[var(--accent-text)] hover:underline"
       >
         重试
       </button>

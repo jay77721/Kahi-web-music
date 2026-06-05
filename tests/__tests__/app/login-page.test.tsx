@@ -105,6 +105,28 @@ describe('LoginPage session restoration gate', () => {
     })
     expect(mocks.routerReplace).toHaveBeenCalledWith('/my')
   })
+
+  test('allows a fresh authenticated remount to redirect after a previous StrictMode redirect', async () => {
+    mocks.userStoreState.isLoggedIn = true
+
+    const { unmount } = render(
+      <StrictMode>
+        <LoginPage />
+      </StrictMode>
+    )
+
+    await waitFor(() => {
+      expect(mocks.routerReplace).toHaveBeenCalledTimes(1)
+    })
+
+    unmount()
+    render(<LoginPage />)
+
+    await waitFor(() => {
+      expect(mocks.routerReplace).toHaveBeenCalledTimes(2)
+    })
+    expect(mocks.routerReplace).toHaveBeenLastCalledWith('/my')
+  })
 })
 
 describe('LoginPage theme tokens', () => {

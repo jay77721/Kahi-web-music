@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout'
+
 type HealthStatus = {
   api: boolean
   audioContext: boolean
@@ -15,17 +17,12 @@ type HealthCheckResult = {
  */
 export async function checkApiHealth(timeoutMs = 5000): Promise<boolean> {
   try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-
     // Use a lightweight GET request instead of HEAD to avoid Next.js API route issues
-    const response = await fetch('/api/check/music?ids=1', {
+    const response = await fetchWithTimeout('/api/check/music?ids=1', {
       method: 'GET',
       headers: { Accept: 'application/json' },
-      signal: controller.signal,
-    })
+    }, timeoutMs)
 
-    clearTimeout(timeoutId)
     return response.ok
   } catch {
     return false
@@ -36,11 +33,8 @@ export async function checkApiHealth(timeoutMs = 5000): Promise<boolean> {
  * Check if the browser supports audio playback
  */
 export function checkAudioContext(): boolean {
-  if (typeof window === 'undefined') return false
-  if (!('AudioContext' in window) && !('webkitAudioContext' in window)) {
-    return false
-  }
-  return true
+  return typeof window !== 'undefined'
+    && ('AudioContext' in window || 'webkitAudioContext' in window)
 }
 
 /**

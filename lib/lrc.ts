@@ -1,11 +1,6 @@
-import type { LyricSyllable } from '@/types'
+import type { LyricLine, LyricSyllable } from '@/types'
 
-export interface LyricLine {
-  time: number    // seconds
-  text: string
-  translation?: string
-  syllables?: LyricSyllable[]
-}
+export type { LyricLine } from '@/types'
 
 const TIMESTAMP_PATTERN = /\[(\d{1,3}):(\d{1,2})(?:\.(\d{1,3}))?\]/g
 const SYLLABLE_PATTERN = /<(\d{1,3}):(\d{1,2})(?:\.(\d{1,3}))?>/g

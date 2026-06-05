@@ -4,8 +4,11 @@ import type { Artist } from './artist'
 export interface Album {
   id: number
   name: string
-  picUrl: string
-  publishTime: number
-  artist?: Artist
+  picUrl?: string
+  publishTime?: number
+  artist?: Artist | null
   songs?: Song[]
+  size?: number
+  company?: string
+  description?: string
 }

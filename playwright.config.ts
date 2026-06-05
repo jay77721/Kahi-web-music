@@ -12,6 +12,9 @@ import { defineConfig, devices } from '@playwright/test'
 
 const isCi = !!process.env.CI
 const runAllBrowsers = process.env.PW_ALL_BROWSERS === '1'
+const playwrightPort = process.env.PLAYWRIGHT_PORT ?? '3101'
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${playwrightPort}`
+const shouldStartWebServer = !process.env.PLAYWRIGHT_BASE_URL
 
 const baseProjects = [
   {
@@ -41,7 +44,7 @@ export default defineConfig({
     ? [['dot'], ['html', { open: 'never' }]]
     : [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: 'http://localhost:3001',
+    baseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -53,6 +56,14 @@ export default defineConfig({
     },
   },
   projects: runAllBrowsers ? [...baseProjects, ...extendedProjects] : baseProjects,
-  // Servers are managed externally: backend on :3000, frontend on :3001
-  // No webServer config — run pnpm dev manually before testing
+  ...(shouldStartWebServer
+    ? {
+        webServer: {
+          command: `pnpm exec next dev --hostname 127.0.0.1 --port ${playwrightPort}`,
+          url: baseURL,
+          reuseExistingServer: !isCi,
+          timeout: 120_000,
+        },
+      }
+    : {}),
 })

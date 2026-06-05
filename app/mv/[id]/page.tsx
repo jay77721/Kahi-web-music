@@ -14,9 +14,15 @@ import { normalizeMvBundle, type NormalizedMvDetail } from '@/lib/api-adapters'
 import { imageUrl } from '@/lib/format'
 import type { SimiMvResponse, MVDetailResponse } from '@/types/api'
 
+function getRouteId(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? value[0] ?? '' : value ?? ''
+}
+
+const SIMILAR_MV_LIMIT = 8
+
 export default function MVPage() {
   const params = useParams()
-  const id = (params?.id as string | undefined) ?? ''
+  const id = getRouteId(params?.id as string | string[] | undefined)
 
   const { data, isLoading, error } = useSWR(id ? `mv-${id}` : null, async (): Promise<NormalizedMvDetail> => {
     const [urlRes, detailRes, infoRes, simiRes] = await Promise.all([
@@ -61,7 +67,8 @@ export default function MVPage() {
 
   const mv = data.mv
   const info = data.info
-  const simiMvs = data.simiMvs
+  const simiMvs = data.simiMvs ?? []
+  const similarPreview = simiMvs.slice(0, SIMILAR_MV_LIMIT)
   const tags = extractTags(mv.desc)
 
   return (
@@ -80,7 +87,7 @@ export default function MVPage() {
                   <li
                     key={tag}
                     className="px-3 py-1 text-xs rounded-full
-                               bg-[var(--bg-accent-subtle)] text-[var(--accent)]
+                               bg-[var(--bg-accent-subtle)] text-[var(--accent-text)]
                                border border-[var(--border-accent)]"
                   >
                     #{tag}
@@ -97,7 +104,7 @@ export default function MVPage() {
           />
         </section>
 
-        {simiMvs.length > 0 ? (
+        {similarPreview.length > 0 ? (
           <section data-testid="mv-similar">
             <header className="flex items-baseline justify-between mb-3">
               <h2 className="text-lg md:text-xl font-bold tracking-tight">相似 MV</h2>
@@ -106,30 +113,34 @@ export default function MVPage() {
               </span>
             </header>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {simiMvs.slice(0, 8).map((mvItem) => (
-                <Link
-                  key={mvItem.id}
-                  href={`/mv/${mvItem.id}`}
-                  className="group block rounded-xl overflow-hidden"
-                >
-                  <div className="aspect-video rounded-lg overflow-hidden bg-[var(--bg-surface)] mb-2">
-                    <Image
-                      src={imageUrl(mvItem.cover ?? mvItem.imgurl, 320)}
-                      alt={mvItem.name}
-                      width={320}
-                      height={180}
-                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      loading="lazy"
-                    />
-                  </div>
-                  <p className="text-sm font-medium truncate group-hover:text-[var(--accent)] transition-colors">
-                    {mvItem.name}
-                  </p>
-                  <p className="text-xs text-[var(--text-tertiary)] truncate">
-                    {mvItem.artistName}
-                  </p>
-                </Link>
-              ))}
+              {similarPreview.map((mvItem) => {
+                const title = mvItem.name?.trim() || '未知 MV'
+                const artistName = mvItem.artistName?.trim() || '未知艺人'
+                return (
+                  <Link
+                    key={mvItem.id}
+                    href={`/mv/${mvItem.id}`}
+                    className="group block rounded-xl overflow-hidden"
+                  >
+                    <div className="aspect-video rounded-lg overflow-hidden bg-[var(--bg-surface)] mb-2">
+                      <Image
+                        src={imageUrl(mvItem.cover ?? mvItem.imgurl ?? mvItem.picUrl, 320)}
+                        alt={title}
+                        width={320}
+                        height={180}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    </div>
+                    <p className="text-sm font-medium truncate group-hover:text-[var(--accent-text)] transition-colors">
+                      {title}
+                    </p>
+                    <p className="text-xs text-[var(--text-tertiary)] truncate">
+                      {artistName}
+                    </p>
+                  </Link>
+                )
+              })}
             </div>
           </section>
         ) : null}

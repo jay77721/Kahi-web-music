@@ -25,6 +25,9 @@ export interface SongHeroProps {
 const COVER_SIZE = 240
 const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1]
 const PUBLISH_FALLBACK = '—'
+const UNKNOWN_ALBUM = '未知专辑'
+const UNKNOWN_ARTIST = '未知艺人'
+const UNKNOWN_SONG = '未知歌曲'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -41,21 +44,25 @@ function formatPublishTime(value: number | undefined): string {
 }
 
 function buildArtistNodes(artists: Song['ar']): React.ReactNode {
-  if (!artists || artists.length === 0) {
-    return <span className="text-[var(--text-tertiary)]">未知艺人</span>
+  const validArtists = artists?.filter((artist) => artist.name?.trim()) ?? []
+  if (validArtists.length === 0) {
+    return <span className="text-[var(--text-tertiary)]">{UNKNOWN_ARTIST}</span>
   }
-  const nodes = artists.map((artist, index) => (
-    <span key={artist.id} className="flex items-center gap-2">
-      {index > 0 && <span className="text-[var(--text-quaternary)]">/</span>}
-      <Link
-        href={`/artist/${artist.id}`}
-        className="text-[var(--accent)] hover:underline transition-colors"
-        data-testid="song-hero-artist"
-      >
-        {artist.name}
-      </Link>
-    </span>
-  ))
+  const nodes = validArtists.map((artist, index) => {
+    const name = artist.name.trim()
+    return (
+      <span key={`${artist.id}-${index}`} className="flex items-center gap-2">
+        {index > 0 && <span className="text-[var(--text-quaternary)]">/</span>}
+        <Link
+          href={`/artist/${artist.id}`}
+          className="text-[var(--accent-text)] hover:underline transition-colors"
+          data-testid="song-hero-artist"
+        >
+          {name}
+        </Link>
+      </span>
+    )
+  })
   return <span className="flex flex-wrap items-center gap-x-2 gap-y-1">{nodes}</span>
 }
 
@@ -82,15 +89,16 @@ interface AlbumLinkProps {
 
 function AlbumLink({ album }: AlbumLinkProps) {
   if (!album) {
-    return <span className="text-[var(--text-tertiary)]">未知专辑</span>
+    return <span className="text-[var(--text-tertiary)]">{UNKNOWN_ALBUM}</span>
   }
+  const albumName = album.name?.trim() || UNKNOWN_ALBUM
   return (
     <Link
       href={`/album/${album.id}`}
-      className="text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+      className="text-[var(--text-secondary)] hover:text-[var(--accent-text)] transition-colors"
       data-testid="song-hero-album"
     >
-      {album.name}
+      {albumName}
     </Link>
   )
 }
@@ -105,6 +113,7 @@ function AlbumLink({ album }: AlbumLinkProps) {
  * actions live in <SongActions />.
  */
 function SongHeroImpl({ song, className }: SongHeroProps) {
+  const title = song.name?.trim() || UNKNOWN_SONG
   const cover = imageUrl(song.al?.picUrl, COVER_SIZE)
   const duration = formatDuration(song.dt ?? 0)
   const publishTime = formatPublishTime(song.publishTime)
@@ -129,7 +138,7 @@ function SongHeroImpl({ song, className }: SongHeroProps) {
       >
         <Image
           src={cover}
-          alt={song.name}
+          alt={title}
           width={COVER_SIZE}
           height={COVER_SIZE}
           priority
@@ -142,7 +151,7 @@ function SongHeroImpl({ song, className }: SongHeroProps) {
       </div>
 
       <div className="flex-1 min-w-0 text-center md:text-left flex flex-col gap-2">
-        <span className="inline-flex self-center md:self-start items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-[var(--accent)]">
+        <span className="inline-flex self-center md:self-start items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-[var(--accent-text)]">
           <Disc3 className="w-3.5 h-3.5" aria-hidden="true" />
           歌曲
         </span>
@@ -151,7 +160,7 @@ function SongHeroImpl({ song, className }: SongHeroProps) {
           className="text-2xl md:text-4xl font-bold leading-tight tracking-tight text-[var(--text-primary)] line-clamp-2"
           data-testid="song-hero-title"
         >
-          {song.name}
+          {title}
         </h1>
 
         <AliasRow aliases={song.alia} />

@@ -51,6 +51,12 @@ describe('userStore', () => {
       const stored = storage.get<UserProfile>(STORAGE_KEYS.USER_PROFILE, null as unknown as UserProfile)
       expect(stored).toEqual(mockProfile)
     })
+
+    test('removes any legacy localStorage cookie when profile is set', () => {
+      storage.set(STORAGE_KEYS.USER_COOKIE, 'legacy_cookie')
+      useUserStore.getState().setProfile(mockProfile)
+      expect(storage.get(STORAGE_KEYS.USER_COOKIE, '')).toBe('')
+    })
   })
 
   describe('setCookie', () => {
@@ -102,6 +108,7 @@ describe('userStore', () => {
     })
 
     test('updates state and relies on Set-Cookie instead of persisting login cookies', async () => {
+      storage.set(STORAGE_KEYS.USER_COOKIE, 'legacy_cookie')
       vi.spyOn(ncmApi, 'loginCellphone').mockResolvedValue({
         code: 200,
         profile: mockProfile,
@@ -200,6 +207,34 @@ describe('userStore', () => {
       expect(useUserStore.getState().hasRestoredSession).toBe(true)
       expect(useUserStore.getState().restoreError).toBeNull()
       expect(storage.get(STORAGE_KEYS.USER_COOKIE, '')).toBe('')
+    })
+
+    test('shares an in-flight restoration when restore is called reentrantly during state notification', async () => {
+      localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_PROFILE}`, JSON.stringify(mockProfile))
+      const loginStatusSpy = vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+        code: 200,
+        account: { id: mockProfile.userId },
+        profile: mockProfile,
+      })
+      let reentrantRestorePromise: Promise<void> | null = null
+      const unsubscribe = useUserStore.subscribe((state) => {
+        if (!state.hasRestoredSession && state.profile?.userId === mockProfile.userId && !reentrantRestorePromise) {
+          reentrantRestorePromise = state.restore()
+        }
+      })
+
+      try {
+        const initialRestorePromise = useUserStore.getState().restore()
+        await initialRestorePromise
+        await reentrantRestorePromise
+      } finally {
+        unsubscribe()
+      }
+
+      expect(reentrantRestorePromise).not.toBeNull()
+      expect(loginStatusSpy).toHaveBeenCalledTimes(1)
+      expect(useUserStore.getState().isLoggedIn).toBe(true)
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
     })
 
     test('removes legacy cookie and stays logged out when only cookie exists', async () => {

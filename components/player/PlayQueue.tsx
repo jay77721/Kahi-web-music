@@ -86,7 +86,7 @@ export function PlayQueue() {
                       <span className="flex-1 min-w-0">
                         <span className={cn(
                           'block text-sm truncate transition-colors duration-200',
-                          isCurrent ? 'text-[var(--accent)] font-medium' : 'group-hover:text-[var(--text-primary)]'
+                          isCurrent ? 'text-[var(--accent-text)] font-medium' : 'group-hover:text-[var(--text-primary)]'
                         )}>
                           {song.name}
                         </span>

@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useRef } from 'react'
 
-export interface SpectrumVisualizerProps {
+interface SpectrumVisualizerProps {
   /** AnalyserNode used to read frequency data. */
   analyser: AnalyserNode | null
   /** When false, bars decay to a static baseline. */

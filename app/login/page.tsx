@@ -79,7 +79,7 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 30, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-md rounded-2xl border border-[var(--border)] overflow-hidden bg-[var(--bg-elevated)] backdrop-blur-xl"
+        className="relative w-full max-w-md rounded-2xl border border-[var(--border)] overflow-hidden bg-[var(--bg-elevated)]/80 backdrop-blur-xl"
         style={{
           boxShadow: 'var(--shadow-lg), inset 0 1px 0 var(--border-subtle)',
         }}
@@ -160,12 +160,7 @@ function BackButton({ onClick }: { onClick: () => void }) {
 
 function BrandHeader() {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      className="relative text-center mb-8"
-    >
+    <div className="relative text-center mb-8">
       <div
         className="w-16 h-16 rounded-2xl bg-[var(--accent)] flex items-center justify-center mx-auto mb-4"
         style={{ boxShadow: '0 0 40px var(--accent-glow), var(--shadow-lg)' }}
@@ -176,7 +171,7 @@ function BrandHeader() {
         Kahi Music
       </h1>
       <p className="text-sm text-[var(--text-tertiary)] mt-1.5">登录后享受更多服务</p>
-    </motion.div>
+    </div>
   )
 }
 
@@ -194,13 +189,14 @@ function TabSwitcher({ activeTab, onChange }: TabSwitcherProps) {
           <button
             key={value}
             type="button"
+            id={`login-tab-${value}`}
             role="tab"
             aria-selected={isActive}
             aria-controls={`tab-panel-${value}`}
             onClick={() => onChange(value)}
             className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-medium transition-all duration-300 relative ${
               isActive
-                ? 'text-white'
+                ? 'text-[var(--accent-foreground)]'
                 : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
             }`}
           >
@@ -228,7 +224,7 @@ function LegalFooter() {
         登录即表示同意{' '}
         <button
           type="button"
-          className="text-[var(--text-tertiary)] hover:text-[var(--accent)] cursor-pointer transition-colors bg-transparent border-none p-0 text-[11px]"
+          className="text-[var(--text-tertiary)] hover:text-[var(--accent-text)] cursor-pointer transition-colors bg-transparent border-none p-0 text-[11px]"
           aria-label="查看用户协议"
         >
           用户协议
@@ -236,7 +232,7 @@ function LegalFooter() {
         和{' '}
         <button
           type="button"
-          className="text-[var(--text-tertiary)] hover:text-[var(--accent)] cursor-pointer transition-colors bg-transparent border-none p-0 text-[11px]"
+          className="text-[var(--text-tertiary)] hover:text-[var(--accent-text)] cursor-pointer transition-colors bg-transparent border-none p-0 text-[11px]"
           aria-label="查看隐私政策"
         >
           隐私政策

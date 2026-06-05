@@ -13,5 +13,5 @@
  *   }))
  */
 export function swrFetcher<T>(loader: () => Promise<T>): () => Promise<T> {
-  return async () => loader()
+  return loader
 }

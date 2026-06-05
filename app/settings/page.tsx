@@ -22,12 +22,15 @@ import {
   Gauge,
   HardDrive,
   ShieldCheck,
+  LogOut,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { SettingsRow } from '@/components/settings/SettingsRow'
 import { SettingsSection } from '@/components/settings/SettingsSection'
 import { useUIStore } from '@/stores/uiStore'
 import { usePlayerStore } from '@/stores/playerStore'
+import { useUserStore } from '@/stores/userStore'
 import { storage } from '@/lib/storage'
 import { cn } from '@/lib/utils'
 import type { PlayMode } from '@/types/api'
@@ -67,6 +70,34 @@ const KEYBOARD_SHORTCUTS: ReadonlyArray<{ keys: string; action: string }> = [
 
 const APP_VERSION = '0.1.0'
 const APP_LICENSE = 'MIT'
+const LOGOUT_ERROR_FALLBACK = '退出登录请求失败，服务器会话可能仍然有效'
+const DEFAULT_QUALITY = 'exhigh'
+const DEFAULT_DOWNLOAD_DIR = '~/Downloads/KahiMusic'
+const DEFAULT_NOTIFICATIONS_ENABLED = true
+const QUALITY_VALUES = new Set(QUALITY_OPTIONS.map((option) => option.value))
+
+function getLogoutErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+
+  return LOGOUT_ERROR_FALLBACK
+}
+
+function getStoredQuality(): string {
+  const saved = storage.get<unknown>('play:quality', DEFAULT_QUALITY)
+  return typeof saved === 'string' && QUALITY_VALUES.has(saved) ? saved : DEFAULT_QUALITY
+}
+
+function getStoredDownloadDir(): string {
+  const saved = storage.get<unknown>('download:dir', DEFAULT_DOWNLOAD_DIR)
+  return typeof saved === 'string' && saved.trim().length > 0 ? saved : DEFAULT_DOWNLOAD_DIR
+}
+
+function getStoredNotificationsEnabled(): boolean {
+  const saved = storage.get<unknown>('notifications:enabled', DEFAULT_NOTIFICATIONS_ENABLED)
+  return typeof saved === 'boolean' ? saved : DEFAULT_NOTIFICATIONS_ENABLED
+}
 
 /**
  * SegmentedControl - small primitive for choosing one of N options.
@@ -178,28 +209,47 @@ function SummaryItem({ icon, label, value }: SummaryItemProps) {
 export default function SettingsPage() {
   const { theme, setTheme } = useUIStore()
   const { playMode, setPlayMode } = usePlayerStore()
+  const { isLoggedIn, logout } = useUserStore()
 
-  const [quality, setQuality] = useState<string>(
-    () => storage.get('play:quality', 'exhigh'),
-  )
-  const [downloadDir, setDownloadDir] = useState<string>(
-    () => storage.get('download:dir', '~/Downloads/KahiMusic'),
-  )
+  const [quality, setQuality] = useState<string>(DEFAULT_QUALITY)
+  const [downloadDir, setDownloadDir] = useState<string>(DEFAULT_DOWNLOAD_DIR)
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(
-    () => storage.get('notifications:enabled', true),
+    DEFAULT_NOTIFICATIONS_ENABLED,
   )
+  const [hasLoadedLocalSettings, setHasLoadedLocalSettings] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
+
+    queueMicrotask(() => {
+      if (cancelled) return
+
+      setQuality(getStoredQuality())
+      setDownloadDir(getStoredDownloadDir())
+      setNotificationsEnabled(getStoredNotificationsEnabled())
+      setHasLoadedLocalSettings(true)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!hasLoadedLocalSettings) return
     storage.set('play:quality', quality)
-  }, [quality])
+  }, [hasLoadedLocalSettings, quality])
 
   useEffect(() => {
+    if (!hasLoadedLocalSettings) return
     storage.set('download:dir', downloadDir)
-  }, [downloadDir])
+  }, [downloadDir, hasLoadedLocalSettings])
 
   useEffect(() => {
+    if (!hasLoadedLocalSettings) return
     storage.set('notifications:enabled', notificationsEnabled)
-  }, [notificationsEnabled])
+  }, [hasLoadedLocalSettings, notificationsEnabled])
 
   const handleThemeChange = useCallback(
     (next: Theme) => {
@@ -214,6 +264,19 @@ export default function SettingsPage() {
     },
     [setPlayMode],
   )
+
+  const handleLogout = useCallback(async () => {
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
+    try {
+      await logout()
+      toast.success('已退出登录')
+    } catch (error) {
+      toast.error(getLogoutErrorMessage(error))
+    } finally {
+      setIsLoggingOut(false)
+    }
+  }, [isLoggingOut, logout])
 
   const themeIcon = (t: Theme) => {
     if (t === 'system') return <Monitor className="w-3.5 h-3.5" />
@@ -256,7 +319,7 @@ export default function SettingsPage() {
                     <h2 className="text-sm font-semibold text-[var(--text-primary)]">当前偏好</h2>
                     <p className="mt-0.5 text-xs text-[var(--text-tertiary)]">本机保存，即时生效</p>
                   </div>
-                  <span className="rounded-md border border-[var(--accent)]/20 bg-[var(--accent)]/10 px-2 py-1 text-xs font-medium text-[var(--accent)]">
+                  <span className="rounded-md border border-[var(--accent)]/20 bg-[var(--accent)]/10 px-2 py-1 text-xs font-medium text-[var(--accent-text)]">
                     Live
                   </span>
                 </div>
@@ -450,6 +513,32 @@ export default function SettingsPage() {
                     }
                   />
                 </SettingsSection>
+
+                {isLoggedIn && (
+                  <SettingsSection
+                    title="账号与安全"
+                    description="管理当前登录会话"
+                    icon={<ShieldCheck className="size-4" />}
+                    meta="账号"
+                  >
+                    <SettingsRow
+                      label="退出登录"
+                      description="清除本地登录状态并通知服务器结束会话"
+                      icon={<LogOut className="w-4 h-4" />}
+                      control={
+                        <button
+                          type="button"
+                          onClick={handleLogout}
+                          disabled={isLoggingOut}
+                          className="inline-flex h-9 items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 text-sm font-medium text-red-700 transition-colors hover:bg-red-500/20 dark:text-red-300"
+                        >
+                          <LogOut className="size-4" aria-hidden="true" />
+                          {isLoggingOut ? '退出中...' : '退出登录'}
+                        </button>
+                      }
+                    />
+                  </SettingsSection>
+                )}
 
                 <SettingsSection
                   title="关于"

@@ -111,7 +111,7 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           >
-            <span className="text-[var(--accent)]">Kahi</span> Music
+            <span className="text-[var(--accent-text)]">Kahi</span> Music
           </motion.h1>
 
           {/* Search box */}

@@ -29,19 +29,16 @@ vi.mock('@/components/search/SearchEmptyState', () => ({
   ),
 }))
 
-vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
-}))
-
-vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { ...rest } = props
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img {...rest} alt={(rest.alt as string) ?? ''} />
-  },
-}))
+beforeEach(() => {
+  mockUseSWR.mockReset()
+  mockUseSWR.mockReturnValue({
+    data: undefined,
+    error: undefined,
+    isLoading: false,
+    isValidating: false,
+    mutate: vi.fn(),
+  })
+})
 
 beforeEach(() => {
   mockUseSWR.mockReset()

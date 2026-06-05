@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { GET, OPTIONS } from '@/app/api/[...path]/route'
+import { GET, OPTIONS, POST } from '@/app/api/[...path]/route'
 
 const originalAllowedOrigins = process.env.ALLOWED_ORIGINS
 const originalApiUrl = process.env.API_URL
@@ -67,6 +67,61 @@ describe('API proxy route CORS', () => {
     )
     expect(allowedResponse.headers.get('Access-Control-Allow-Credentials')).toBe('true')
     expect(deniedResponse.headers.get('Access-Control-Allow-Origin')).toBeNull()
+  })
+
+  test('forwards only NCM allowlisted cookies to upstream API', async () => {
+    await GET(
+      createRequest('https://app.example.test/api/login/status', {
+        headers: {
+          Cookie: 'app_session=app; MUSIC_U=user; theme=dark; __csrf=csrf; next-auth.session-token=auth; NMTID=nmtid; MUSIC_A=music-a',
+          'User-Agent': 'KahiTest/1.0',
+        },
+      }),
+      { params: Promise.resolve({ path: ['login', 'status'] }) },
+    )
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.example.test/login/status',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Cookie: 'MUSIC_U=user; __csrf=csrf; NMTID=nmtid; MUSIC_A=music-a',
+          'User-Agent': 'KahiTest/1.0',
+        }),
+      }),
+    )
+  })
+
+  test('does not set upstream Cookie header when no NCM allowlisted cookies exist', async () => {
+    await GET(
+      createRequest('https://app.example.test/api/login/status', {
+        headers: {
+          Cookie: 'app_session=app; theme=dark; next-auth.session-token=auth',
+          'User-Agent': 'KahiTest/1.0',
+        },
+      }),
+      { params: Promise.resolve({ path: ['login', 'status'] }) },
+    )
+
+    const [, init] = vi.mocked(global.fetch).mock.calls[0]
+    expect(init?.headers).toEqual({ 'User-Agent': 'KahiTest/1.0' })
+  })
+
+  test('forwards request body bytes without text-decoding binary payloads', async () => {
+    const payload = new Uint8Array([0, 195, 40, 255])
+
+    await POST(
+      createRequest('https://app.example.test/api/user/cloud/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: payload,
+      }),
+      { params: Promise.resolve({ path: ['user', 'cloud', 'add'] }) },
+    )
+
+    const [, init] = vi.mocked(global.fetch).mock.calls[0]
+    expect(init?.headers).toMatchObject({ 'Content-Type': 'application/octet-stream' })
+    expect(init?.body).toBeInstanceOf(ArrayBuffer)
+    expect(Array.from(new Uint8Array(init?.body as ArrayBuffer))).toEqual(Array.from(payload))
   })
 
   test('rejects GET requests to mutating endpoints', async () => {

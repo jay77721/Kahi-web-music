@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { LyricLine, LyricSyllable } from '@/types'
 
-export interface LyricsPanelProps {
+interface LyricsPanelProps {
   lyrics: LyricLine[]
   currentTime: number
   onSeek?: (time: number) => void

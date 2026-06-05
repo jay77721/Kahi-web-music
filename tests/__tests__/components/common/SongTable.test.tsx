@@ -4,34 +4,18 @@ import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SongTable } from '@/components/common/SongTable'
-import { usePlayerStore } from '@/stores/playerStore'
-import { mockSong } from '@/tests/helpers/mock-data'
+import { makeMockSong as makeSong } from '@/tests/helpers/mock-data'
+import { createMockPlayerStore, resetMockPlayerStore } from '@/tests/helpers/player-store'
 
 vi.mock('@/stores/playerStore', () => ({
   usePlayerStore: vi.fn(),
 }))
 
-function makeSong(overrides: Partial<typeof mockSong> = {}): typeof mockSong {
-  return { ...mockSong, ...overrides } as typeof mockSong
-}
-
 describe('SongTable', () => {
-  const mockStore = {
-    playSong: vi.fn(),
-    playQueue: vi.fn(),
-    addToQueue: vi.fn(),
-    currentTrack: null as typeof mockSong | null,
-    isPlaying: false,
-  }
+  const mockStore = createMockPlayerStore()
 
   beforeEach(() => {
-    vi.clearAllMocks()
-    mockStore.playSong.mockClear()
-    mockStore.playQueue.mockClear()
-    mockStore.addToQueue.mockClear()
-    mockStore.currentTrack = null
-    mockStore.isPlaying = false
-    ;(usePlayerStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockStore)
+    resetMockPlayerStore(mockStore)
   })
 
   describe('empty state', () => {

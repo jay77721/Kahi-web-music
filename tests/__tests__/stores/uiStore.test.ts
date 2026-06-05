@@ -70,6 +70,17 @@ describe('uiStore', () => {
     })
   })
 
+  describe('restoreTheme', () => {
+    it('falls back to dark when persisted theme is invalid', () => {
+      localStorage.setItem('kahi-web-music:ui:theme', '"neon"')
+      useUIStore.setState({ theme: 'light' })
+
+      useUIStore.getState().restoreTheme()
+
+      expect(useUIStore.getState().theme).toBe('dark')
+    })
+  })
+
   describe('setIsMobile', () => {
     it('updates isMobile', () => {
       useUIStore.getState().setIsMobile(true)

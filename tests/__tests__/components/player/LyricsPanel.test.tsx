@@ -4,25 +4,6 @@ import { render, screen, fireEvent } from '@/tests/helpers/test-utils'
 import { LyricsPanel } from '@/components/player/LyricsPanel'
 import type { LyricLine } from '@/types'
 
-// The global SWR mock in tests/helpers/setup.ts only re-exports a default
-// hook; the test-utils wrapper relies on `SWRConfig`. Re-mock here so we
-// get a working provider without dragging in the rest of SWR.
-const sharedCache = new Map<string, { data?: unknown; error?: unknown; isValidating?: boolean; isLoading?: boolean }>()
-vi.mock('swr', async (importOriginal) => {
-  const actual = (await importOriginal()) as Record<string, unknown>
-  const fakeMutate = async (key: string, data: unknown) => {
-    const entry = sharedCache.get(key) ?? {}
-    entry.data = data
-    sharedCache.set(key, entry)
-    return data
-  }
-  return {
-    ...actual,
-    useSWRConfig: () => ({ cache: sharedCache, mutate: fakeMutate }),
-    mutate: fakeMutate,
-  }
-})
-
 const sampleLyrics: LyricLine[] = [
   { time: 0, text: 'First line' },
   { time: 5, text: 'Second line', translation: '第二行' },

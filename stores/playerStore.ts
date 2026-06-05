@@ -66,6 +66,55 @@ interface PlayerState {
 
 const playModeOrder: PlayMode[] = ['sequential', 'shuffle', 'repeat-one', 'repeat-all']
 
+function clampVolume(volume: number): number {
+  if (!Number.isFinite(volume)) return 0.8
+  return Math.min(1, Math.max(0, volume))
+}
+
+function clampNonNegative(value: number): number {
+  if (!Number.isFinite(value)) return 0
+  return Math.max(0, value)
+}
+
+function clampQueueIndex(queue: Song[], index: number): number {
+  if (queue.length === 0 || !Number.isFinite(index)) return 0
+  return Math.min(queue.length - 1, Math.max(0, Math.trunc(index)))
+}
+
+function getQueueNavigationIndex(
+  queueLength: number,
+  queueIndex: number,
+  playMode: PlayMode,
+  direction: 1 | -1
+): number {
+  if (playMode === 'repeat-one') return queueIndex
+  if (playMode === 'shuffle') return Math.floor(Math.random() * queueLength)
+  if (direction === 1) return (queueIndex + 1) % queueLength
+  return queueIndex <= 0 ? queueLength - 1 : queueIndex - 1
+}
+
+function getQueueTrackStartState(song: Song, queueIndex: number) {
+  return {
+    currentTrack: song,
+    queueIndex,
+    isPlaying: true,
+    currentTime: 0,
+    lyrics: [],
+    currentLyricIndex: -1,
+    hasUserInteracted: true,
+  }
+}
+
+function restartRepeatOneTrack(playMode: PlayMode): void {
+  if (playMode !== 'repeat-one') return
+  audioEngine.seek(0)
+  audioEngine.play()
+}
+
+function isPlayMode(value: unknown): value is PlayMode {
+  return playModeOrder.includes(value as PlayMode)
+}
+
 export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentTrack: null,
   isPlaying: false,
@@ -87,12 +136,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   setCurrentTrack: (song) => set({ currentTrack: song }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),
-  setCurrentTime: (time) => set({ currentTime: time }),
-  setDuration: (duration) => set({ duration }),
+  setCurrentTime: (time) => set({ currentTime: clampNonNegative(time) }),
+  setDuration: (duration) => set({ duration: clampNonNegative(duration) }),
   setVolume: (volume) => {
-    set({ volume, isMuted: volume === 0 })
-    storage.set(STORAGE_KEYS.VOLUME, volume)
-    audioEngine.setVolume(volume)
+    const nextVolume = clampVolume(volume)
+    set({ volume: nextVolume, isMuted: nextVolume === 0 })
+    storage.set(STORAGE_KEYS.VOLUME, nextVolume)
+    audioEngine.setVolume(nextVolume)
   },
   toggleMute: () => {
     const { isMuted, volume } = get()
@@ -135,10 +185,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   playQueue: (songs, startIndex = 0) => {
-    const song = songs[startIndex]
+    const safeQueue = Array.isArray(songs) ? songs : []
+    const safeIndex = clampQueueIndex(safeQueue, startIndex)
+    const song = safeQueue[safeIndex]
     set({
-      queue: songs,
-      queueIndex: startIndex,
+      queue: safeQueue,
+      queueIndex: safeIndex,
       currentTrack: song || null,
       isPlaying: !!song,
       currentTime: 0,
@@ -146,8 +198,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       currentLyricIndex: -1,
       hasUserInteracted: true,
     })
-    storage.set(STORAGE_KEYS.PLAY_QUEUE, songs)
-    storage.set(STORAGE_KEYS.PLAY_INDEX, startIndex)
+    storage.set(STORAGE_KEYS.PLAY_QUEUE, safeQueue)
+    storage.set(STORAGE_KEYS.PLAY_INDEX, safeIndex)
   },
 
   pause: () => set({ isPlaying: false }),
@@ -170,71 +222,34 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const { queue, queueIndex, playMode } = get()
     if (queue.length === 0) return
 
-    let nextIndex: number
-    if (playMode === 'repeat-one') {
-      nextIndex = queueIndex
-    } else if (playMode === 'shuffle') {
-      nextIndex = Math.floor(Math.random() * queue.length)
-    } else {
-      nextIndex = (queueIndex + 1) % queue.length
-    }
-
+    const nextIndex = getQueueNavigationIndex(queue.length, queueIndex, playMode, 1)
     const nextSong = queue[nextIndex]
-    set({
-      currentTrack: nextSong,
-      queueIndex: nextIndex,
-      isPlaying: true,
-      currentTime: 0,
-      lyrics: [],
-      currentLyricIndex: -1,
-      hasUserInteracted: true,
-    })
+    set(getQueueTrackStartState(nextSong, nextIndex))
     storage.set(STORAGE_KEYS.PLAY_INDEX, nextIndex)
 
     // In repeat-one mode the track id does not change, so the PlaybackController
     // effect (which keys on currentTrack.id) won't re-trigger. Restart manually.
-    if (playMode === 'repeat-one') {
-      audioEngine.seek(0)
-      audioEngine.play()
-    }
+    restartRepeatOneTrack(playMode)
   },
 
   prev: () => {
     const { queue, queueIndex, playMode } = get()
     if (queue.length === 0) return
 
-    let prevIndex: number
-    if (playMode === 'repeat-one') {
-      prevIndex = queueIndex
-    } else if (playMode === 'shuffle') {
-      prevIndex = Math.floor(Math.random() * queue.length)
-    } else {
-      prevIndex = queueIndex <= 0 ? queue.length - 1 : queueIndex - 1
-    }
-
+    const prevIndex = getQueueNavigationIndex(queue.length, queueIndex, playMode, -1)
     const prevSong = queue[prevIndex]
-    set({
-      currentTrack: prevSong,
-      queueIndex: prevIndex,
-      isPlaying: true,
-      currentTime: 0,
-      lyrics: [],
-      currentLyricIndex: -1,
-      hasUserInteracted: true,
-    })
+    set(getQueueTrackStartState(prevSong, prevIndex))
     storage.set(STORAGE_KEYS.PLAY_INDEX, prevIndex)
 
     // In repeat-one mode the track id does not change, so the PlaybackController
     // effect (which keys on currentTrack.id) won't re-trigger. Restart manually.
-    if (playMode === 'repeat-one') {
-      audioEngine.seek(0)
-      audioEngine.play()
-    }
+    restartRepeatOneTrack(playMode)
   },
 
   seek: (time) => {
-    set({ currentTime: time })
-    audioEngine.seek(time)
+    const nextTime = clampNonNegative(time)
+    set({ currentTime: nextTime })
+    audioEngine.seek(nextTime)
   },
 
   setPlaybackError: (error) => set({ playbackError: error }),
@@ -311,7 +326,18 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   clearQueue: () => {
-    set({ queue: [], queueIndex: 0, currentTrack: null, isPlaying: false })
+    audioEngine.stop()
+    set({
+      queue: [],
+      queueIndex: 0,
+      currentTrack: null,
+      isPlaying: false,
+      currentTime: 0,
+      duration: 0,
+      lyrics: [],
+      currentLyricIndex: -1,
+      playbackError: null,
+    })
     storage.set(STORAGE_KEYS.PLAY_QUEUE, [])
     storage.set(STORAGE_KEYS.PLAY_INDEX, 0)
   },
@@ -322,10 +348,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   restorePlayerState: () => {
     if (typeof window === 'undefined') return
-    const volume = storage.get(STORAGE_KEYS.VOLUME, 0.8) as number
-    const queue = storage.get(STORAGE_KEYS.PLAY_QUEUE, []) as Song[]
-    const queueIndex = storage.get(STORAGE_KEYS.PLAY_INDEX, 0) as number
-    const playMode = storage.get(STORAGE_KEYS.PLAY_MODE, 'sequential') as PlayMode
+    const storedVolume = storage.get(STORAGE_KEYS.VOLUME, 0.8)
+    const storedQueue = storage.get(STORAGE_KEYS.PLAY_QUEUE, [])
+    const storedIndex = storage.get(STORAGE_KEYS.PLAY_INDEX, 0)
+    const storedPlayMode = storage.get(STORAGE_KEYS.PLAY_MODE, 'sequential')
+    const volume = clampVolume(typeof storedVolume === 'number' ? storedVolume : 0.8)
+    const queue = Array.isArray(storedQueue) ? storedQueue as Song[] : []
+    const queueIndex = clampQueueIndex(queue, typeof storedIndex === 'number' ? storedIndex : 0)
+    const playMode = isPlayMode(storedPlayMode) ? storedPlayMode : 'sequential'
     set({ volume, queue, queueIndex, playMode })
   },
 }))

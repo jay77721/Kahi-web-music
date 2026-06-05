@@ -18,8 +18,7 @@ export function ServiceWorkerRegistrar() {
   const updatePromptedRef = useRef(false)
 
   useEffect(() => {
-    // Register after hydration so we never block the first paint.
-    const handle = window.setTimeout(() => {
+    const register = () => {
       void registerServiceWorker({
         onNeedRefresh: () => {
           if (updatePromptedRef.current) return
@@ -27,10 +26,21 @@ export function ServiceWorkerRegistrar() {
           offerUpdate()
         },
       })
-    }, 0)
+    }
+
+    // Register after hydration and preferably during idle time so the
+    // shell's first paint and keyboard-ready controls are not delayed.
+    if ('requestIdleCallback' in window) {
+      const handle = window.requestIdleCallback(register, { timeout: 3000 })
+      return () => {
+        window.cancelIdleCallback(handle)
+      }
+    }
+
+    const handle = globalThis.setTimeout(register, 0)
 
     return () => {
-      window.clearTimeout(handle)
+      globalThis.clearTimeout(handle)
     }
   }, [])
 

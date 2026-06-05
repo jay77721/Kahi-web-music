@@ -52,29 +52,6 @@ vi.mock('@/stores/userStore', () => ({
   useUserStore: () => ({ isLoggedIn: true }),
 }))
 
-vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { src, alt, width, height } = props as {
-      src: string
-      alt: string
-      width?: number
-      height?: number
-    }
-    return React.createElement('img', { src, alt, width, height })
-  },
-}))
-
-vi.mock('next/link', () => ({
-  default: ({
-    children,
-    href,
-    ...rest
-  }: {
-    children: React.ReactNode
-    href: string
-  }) => React.createElement('a', { href, ...rest }, children),
-}))
-
 vi.mock('@/components/layout/AppShell', () => ({
   AppShell: ({ children }: { children: React.ReactNode }) =>
     React.createElement('div', { 'data-testid': 'app-shell' }, children),

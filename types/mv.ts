@@ -1,7 +1,7 @@
 export interface MV {
   id: number
   name: string
-  picUrl: string
+  picUrl?: string
   cover?: string
   imgurl?: string
   artistId?: number

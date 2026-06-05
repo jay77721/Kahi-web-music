@@ -103,6 +103,28 @@ function SessionPlaceholder({ backgroundStyle }: { backgroundStyle: CSSPropertie
   )
 }
 
+function SongListTab({
+  songs,
+  isLoading,
+  emptyMessage,
+  onPlayAll,
+}: {
+  songs: Song[] | undefined
+  isLoading: boolean
+  emptyMessage: string
+  onPlayAll: (songs: Song[]) => void
+}) {
+  if (isLoading) {
+    return <Skeleton className={LOADING_SKELETON_CLASS} />
+  }
+
+  if (songs && songs.length > 0) {
+    return <SongTable songs={songs} onPlayAll={() => onPlayAll(songs)} />
+  }
+
+  return <p className={EMPTY_STATE_CLASS}>{emptyMessage}</p>
+}
+
 function MyPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -111,13 +133,14 @@ function MyPageContent() {
     useUserStore() as UserStoreSnapshot
   const { playQueue } = usePlayerStore()
   const { history, clear: clearHistory } = useHistoryStore()
+  const historySongs = useMemo(() => history.map((item) => item.song), [history])
 
   const sampledAvatar = profile ? imageUrl(profile.avatarUrl, 120) : null
   const { color } = useDominantColor(sampledAvatar, { timeoutMs: 4000 })
   const backgroundStyle = useMemo(() => buildBgStyle(color), [color])
 
   useEffect(() => {
-    if (hasRestoredSession && !isLoggedIn) router.push('/login')
+    if (hasRestoredSession && !isLoggedIn) router.replace('/login')
   }, [hasRestoredSession, isLoggedIn, router])
 
   const { data: likedSongs, isLoading: likedLoading } = useSWR<Song[]>(
@@ -204,53 +227,51 @@ function MyPageContent() {
         </div>
 
         <TabsContent value="liked" className={TAB_PANEL_CLASS}>
-          {likedLoading ? (
-            <Skeleton className={LOADING_SKELETON_CLASS} />
-          ) : likedSongs && likedSongs.length > 0 ? (
-            <SongTable songs={likedSongs} onPlayAll={() => playQueue(likedSongs, 0)} />
+          <SongListTab
+            songs={likedSongs}
+            isLoading={likedLoading}
+            emptyMessage="暂无喜欢的音乐"
+            onPlayAll={(songs) => playQueue(songs, 0)}
+          />
+        </TabsContent>
+
+        <TabsContent value="local-history" className={TAB_PANEL_CLASS}>
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs text-[var(--text-tertiary)]">
+              本地记录最近播放的 {historySongs.length} 首歌曲
+            </span>
+            {historySongs.length > 0 && (
+              <button
+                onClick={() => {
+                  if (confirm('确定清空播放历史？')) clearHistory()
+                }}
+                className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent-text)] transition-colors"
+              >
+                清空历史
+              </button>
+            )}
+          </div>
+          {historySongs.length === 0 ? (
+            <p className={EMPTY_STATE_CLASS}>
+              暂无播放历史<br />
+              <span className="text-xs">播放歌曲后将自动记录</span>
+            </p>
           ) : (
-            <p className={EMPTY_STATE_CLASS}>暂无喜欢的音乐</p>
+            <SongTable
+              songs={historySongs}
+              onPlayAll={() => playQueue(historySongs, 0)}
+            />
           )}
         </TabsContent>
 
-          <TabsContent value="local-history" className={TAB_PANEL_CLASS}>
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs text-[var(--text-tertiary)]">
-                本地记录最近播放的 {history.length} 首歌曲
-              </span>
-              {history.length > 0 && (
-                <button
-                  onClick={() => {
-                    if (confirm('确定清空播放历史？')) clearHistory()
-                  }}
-                  className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
-                >
-                  清空历史
-                </button>
-              )}
-            </div>
-            {history.length === 0 ? (
-              <p className={EMPTY_STATE_CLASS}>
-                暂无播放历史<br />
-                <span className="text-xs">播放歌曲后将自动记录</span>
-              </p>
-            ) : (
-              <SongTable
-                songs={history.map((h) => h.song)}
-                onPlayAll={() => playQueue(history.map((h) => h.song), 0)}
-              />
-            )}
-          </TabsContent>
-
-          <TabsContent value="recent" className={TAB_PANEL_CLASS}>
-            {recentLoading ? (
-              <Skeleton className={LOADING_SKELETON_CLASS} />
-            ) : recentSongs && recentSongs.length > 0 ? (
-              <SongTable songs={recentSongs} onPlayAll={() => playQueue(recentSongs, 0)} />
-            ) : (
-              <p className={EMPTY_STATE_CLASS}>暂无最近播放</p>
-            )}
-          </TabsContent>
+        <TabsContent value="recent" className={TAB_PANEL_CLASS}>
+          <SongListTab
+            songs={recentSongs}
+            isLoading={recentLoading}
+            emptyMessage="暂无最近播放"
+            onPlayAll={(songs) => playQueue(songs, 0)}
+          />
+        </TabsContent>
 
           <TabsContent value="playlists" className={TAB_PANEL_CLASS}>
             <div className="mb-4 flex items-center justify-between gap-2">
@@ -261,7 +282,7 @@ function MyPageContent() {
                 <button
                   type="button"
                   onClick={handleRefreshPlaylists}
-                  className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
+                  className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent-text)] transition-colors"
                 >
                   刷新
                 </button>
@@ -285,13 +306,12 @@ function MyPageContent() {
           </TabsContent>
 
           <TabsContent value="cloud" className={TAB_PANEL_CLASS}>
-            {cloudLoading ? (
-              <Skeleton className={LOADING_SKELETON_CLASS} />
-            ) : cloudSongs && cloudSongs.length > 0 ? (
-              <SongTable songs={cloudSongs} onPlayAll={() => playQueue(cloudSongs, 0)} />
-            ) : (
-              <p className={EMPTY_STATE_CLASS}>暂无云盘音乐</p>
-            )}
+            <SongListTab
+              songs={cloudSongs}
+              isLoading={cloudLoading}
+              emptyMessage="暂无云盘音乐"
+              onPlayAll={(songs) => playQueue(songs, 0)}
+            />
           </TabsContent>
         </Tabs>
     </MyPageFrame>

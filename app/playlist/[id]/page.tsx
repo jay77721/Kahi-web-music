@@ -32,11 +32,24 @@ import {
   Trash2,
   HeartPlus,
 } from 'lucide-react'
-import type { Song } from '@/types/api'
+import type { Song } from '@/types/song'
+
+function getRouteId(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? value[0] ?? '' : value ?? ''
+}
+
+function safeFormatDate(value: number | undefined): string {
+  if (!value) return '未知'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '未知'
+  return formatDate(value)
+}
+
+const EMPTY_TRACKS: Song[] = []
 
 export default function PlaylistDetailPage() {
   const params = useParams()
-  const id = params.id as string
+  const id = getRouteId(params?.id as string | string[] | undefined)
   const { playQueue } = usePlayerStore()
   const [batchMode, setBatchMode] = useState<boolean>(false)
 
@@ -44,14 +57,14 @@ export default function PlaylistDetailPage() {
     id ? `playlist-detail-${id}` : null,
     async () => {
       const [detail, tracks] = await Promise.all([
-        ncmApi.playlistDetail(id),
-        ncmApi.playlistTrackAll(id, 100),
+        ncmApi.playlistDetail(id).catch(() => null),
+        ncmApi.playlistTrackAll(id, 100).catch(() => null),
       ])
       return normalizePlaylistDetail(detail, tracks)
     }
   )
 
-  const tracks: Song[] = useMemo(() => data?.tracks || [], [data?.tracks])
+  const tracks = data?.tracks ?? EMPTY_TRACKS
   const trackIds = useMemo(() => tracks.map((t) => String(t.id)), [tracks])
 
   const selection = useMultiSelect({
@@ -88,6 +101,12 @@ export default function PlaylistDetailPage() {
     )
   }
 
+  const playlistTitle = playlist.name?.trim() || '未命名歌单'
+  const playCount = playlist.playCount ?? 0
+  const trackCount = tracks.length || playlist.trackCount || 0
+  const createDate = safeFormatDate(playlist.createTime)
+  const creatorName = playlist.creator?.nickname?.trim() || 'Unknown'
+
   const handleToggleBatchMode = () => {
     const next = !batchMode
     setBatchMode(next)
@@ -117,14 +136,14 @@ export default function PlaylistDetailPage() {
     {
       icon: <Play />,
       label: 'PLAYS',
-      value: formatCount(playlist.playCount),
+      value: formatCount(playCount),
       size: 'lg',
       color: 'var(--accent)',
     },
     {
       icon: <ListMusic />,
       label: 'TRACKS',
-      value: `${playlist.trackCount}`,
+      value: `${trackCount}`,
       size: 'md',
       color: '#7dd3fc',
     },
@@ -138,14 +157,14 @@ export default function PlaylistDetailPage() {
     {
       icon: <User />,
       label: 'CREATOR',
-      value: playlist.creator?.nickname ?? 'Unknown',
+      value: creatorName,
       size: 'sm',
       color: '#a78bfa',
     },
     {
       icon: <Clock />,
       label: 'CREATED',
-      value: formatDate(playlist.createTime),
+      value: createDate,
       size: 'sm',
       color: '#fbbf24',
     },
@@ -156,25 +175,25 @@ export default function PlaylistDetailPage() {
       <div className="p-4 md:p-6">
         {/* Hero Banner */}
         <HeroBanner
-          cover={playlist.coverImgUrl}
-          title={playlist.name}
+          cover={playlist.coverImgUrl ?? ''}
+          title={playlistTitle}
           subtitle={playlist.description}
           badge="歌单"
           meta={{
-            plays: formatCount(playlist.playCount),
-            count: playlist.trackCount,
+            plays: formatCount(playCount),
+            count: trackCount,
             creator: playlist.creator ? (
               <span className="flex items-center gap-1.5">
                 <Image
                   src={imageUrl(playlist.creator.avatarUrl, 24)}
-                  alt={playlist.creator.nickname}
+                  alt={creatorName}
                   width={20}
                   height={20}
                   className="w-5 h-5 rounded-full"
                 />
-                <span>{playlist.creator.nickname}</span>
+                <span>{creatorName}</span>
                 <span className="text-xs text-[var(--text-quaternary)]">
-                  {formatDate(playlist.createTime)}
+                  {createDate}
                 </span>
               </span>
             ) : null,
@@ -184,6 +203,7 @@ export default function PlaylistDetailPage() {
               <Button
                 className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--text-inverse)]"
                 onClick={() => tracks.length > 0 && playQueue(tracks, 0)}
+                disabled={tracks.length === 0}
               >
                 <Play className="w-4 h-4 mr-1" />
                 播放全部
@@ -192,7 +212,7 @@ export default function PlaylistDetailPage() {
                 <Heart className="w-4 h-4 mr-1" />
                 收藏
               </Button>
-              <ShareMenu type="playlist" id={playlist.id} title={playlist.name} />
+              <ShareMenu type="playlist" id={playlist.id} title={playlistTitle} />
             </>
           }
         />
@@ -215,6 +235,7 @@ export default function PlaylistDetailPage() {
             variant={batchMode ? 'default' : 'outline'}
             size="sm"
             onClick={handleToggleBatchMode}
+            disabled={tracks.length === 0}
             className={
               batchMode
                 ? 'bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-black'

@@ -156,7 +156,7 @@ function HighlightedText({ text, query }: { text: string; query: string }) {
         part.toLocaleLowerCase() === lowerQuery ? (
           <mark
             key={i}
-            className="bg-[var(--accent)]/25 text-[var(--accent)] rounded px-0.5"
+            className="bg-[var(--accent)]/25 text-[var(--accent-text)] rounded px-0.5"
           >
             {part}
           </mark>
