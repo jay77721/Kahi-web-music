@@ -1,94 +1,97 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
-import React from 'react'
+import { act, cleanup, render, screen } from '@testing-library/react'
 import { QRLoginPanel } from '@/app/login/_components/QRLoginPanel'
 
-const mockRouterPush = vi.fn()
-const mockSetProfile = vi.fn()
-const mockLoginQrKey = vi.fn()
-const mockLoginQrCreate = vi.fn()
-const mockRequestFlexible = vi.fn()
-const mockUserAccount = vi.fn()
-const mockToastSuccess = vi.fn()
-const mockToastError = vi.fn()
+const mocks = vi.hoisted(() => ({
+  routerPush: vi.fn(),
+  setProfile: vi.fn(),
+  loginQrKey: vi.fn(),
+  loginQrCreate: vi.fn(),
+  requestFlexible: vi.fn(),
+  userAccount: vi.fn(),
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockRouterPush }),
+  useRouter: () => ({ push: mocks.routerPush }),
 }))
 
 vi.mock('@/stores/userStore', () => ({
-  useUserStore: (selector: (state: { setProfile: typeof mockSetProfile }) => unknown) =>
-    selector({ setProfile: mockSetProfile }),
+  useUserStore: (selector: (state: { setProfile: typeof mocks.setProfile }) => unknown) =>
+    selector({ setProfile: mocks.setProfile }),
 }))
 
 vi.mock('@/lib/api', () => ({
   ncmApi: {
-    loginQrKey: (...args: unknown[]) => mockLoginQrKey(...args),
-    loginQrCreate: (...args: unknown[]) => mockLoginQrCreate(...args),
-    requestFlexible: (...args: unknown[]) => mockRequestFlexible(...args),
-    userAccount: (...args: unknown[]) => mockUserAccount(...args),
+    loginQrKey: (...args: unknown[]) => mocks.loginQrKey(...args),
+    loginQrCreate: (...args: unknown[]) => mocks.loginQrCreate(...args),
+    requestFlexible: (...args: unknown[]) => mocks.requestFlexible(...args),
+    userAccount: (...args: unknown[]) => mocks.userAccount(...args),
   },
 }))
 
 vi.mock('sonner', () => ({
-  toast: {
-    success: mockToastSuccess,
-    error: mockToastError,
-  },
+  toast: mocks.toast,
 }))
 
 vi.mock('next/image', () => ({
-  default: (props: Record<string, unknown>) => {
-    const { alt, src, ...rest } = props
-    return React.createElement('img', { alt: (alt as string) ?? '', src: (src as string) ?? '', ...rest })
-  },
+  default: 'img',
 }))
 
 describe('QRLoginPanel', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    mockRouterPush.mockReset()
-    mockSetProfile.mockReset()
-    mockLoginQrKey.mockReset()
-    mockLoginQrCreate.mockReset()
-    mockRequestFlexible.mockReset()
-    mockUserAccount.mockReset()
-    mockToastSuccess.mockReset()
-    mockToastError.mockReset()
+    mocks.routerPush.mockReset()
+    mocks.setProfile.mockReset()
+    mocks.loginQrKey.mockReset()
+    mocks.loginQrCreate.mockReset()
+    mocks.requestFlexible.mockReset()
+    mocks.userAccount.mockReset()
+    mocks.toast.success.mockReset()
+    mocks.toast.error.mockReset()
 
-    mockLoginQrKey.mockResolvedValue({ unikey: 'qr-key' })
-    mockLoginQrCreate.mockResolvedValue({ qrimg: 'data:image/png;base64,abc' })
+    mocks.loginQrKey.mockResolvedValue({ unikey: 'qr-key' })
+    mocks.loginQrCreate.mockResolvedValue({ qrimg: 'data:image/png;base64,abc' })
   })
 
   afterEach(() => {
     cleanup()
-    vi.runOnlyPendingTimers()
+    vi.clearAllTimers()
     vi.useRealTimers()
     vi.clearAllMocks()
   })
 
   test('does not authenticate or redirect when confirmed QR login has no profile', async () => {
-    mockRequestFlexible.mockResolvedValue({ code: 803 })
-    mockUserAccount.mockResolvedValue({})
+    mocks.requestFlexible.mockResolvedValue({ code: 803 })
+    mocks.userAccount.mockResolvedValue({})
 
     render(<QRLoginPanel />)
 
-    await waitFor(() => {
-      expect(mockLoginQrCreate).toHaveBeenCalledWith('qr-key')
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
     })
+
+    expect(mocks.loginQrCreate).toHaveBeenCalledWith('qr-key')
 
     await act(async () => {
-      vi.advanceTimersByTime(2000)
-      await Promise.resolve()
+      await vi.advanceTimersByTimeAsync(2000)
+    })
+
+    expect(mocks.toast.error).toHaveBeenCalledWith('登录状态确认失败，请重试')
+
+    await act(async () => {
       await Promise.resolve()
     })
 
-    await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith('登录状态确认失败，请重试')
-    })
-    expect(mockSetProfile).not.toHaveBeenCalled()
-    expect(mockToastSuccess).not.toHaveBeenCalled()
-    expect(mockRouterPush).not.toHaveBeenCalled()
-    expect(screen.getByText('二维码已过期，请重新生成')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('二维码已过期，请重新生成')
+    expect(screen.getByRole('button', { name: '重新生成二维码' })).toBeInTheDocument()
+    expect(mocks.setProfile).not.toHaveBeenCalled()
+    expect(mocks.toast.success).not.toHaveBeenCalled()
+    expect(mocks.routerPush).not.toHaveBeenCalled()
   })
 })

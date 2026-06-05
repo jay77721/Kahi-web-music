@@ -1,12 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import { Banner } from '@/components/discover/Banner'
 import { BentoGrid } from '@/components/discover/BentoGrid'
 import { RecentPlayed } from '@/components/discover/RecentPlayed'
 import { AppShell } from '@/components/layout/AppShell'
 
 const DEFAULT_GREETING = '欢迎回来'
+
+function subscribeToGreeting() {
+  return () => undefined
+}
 
 function getGreeting(): string {
   const hour = new Date().getHours()
@@ -16,11 +20,11 @@ function getGreeting(): string {
 }
 
 export default function HomePage() {
-  const [greeting, setGreeting] = useState(DEFAULT_GREETING)
-
-  useEffect(() => {
-    setGreeting(getGreeting())
-  }, [])
+  const greeting = useSyncExternalStore(
+    subscribeToGreeting,
+    getGreeting,
+    () => DEFAULT_GREETING
+  )
 
   return (
     <AppShell>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Play, Pause, Volume2, VolumeX, AlertCircle, Loader2 } from 'lucide-react'
 import { Slider } from '@/components/ui/slider'
 import { cn } from '@/lib/utils'
@@ -26,7 +26,9 @@ export function MVPlayer({
   autoPlay = false,
   onError,
 }: MVPlayerProps) {
+  const sourceKey = src ?? null
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const [stateSource, setStateSource] = useState<string | null>(sourceKey)
   const [hasErrored, setHasErrored] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string>(src ? '' : NO_SOURCE_MESSAGE)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -36,65 +38,84 @@ export function MVPlayer({
   const [isMuted, setIsMuted] = useState(false)
   const [isReady, setIsReady] = useState(false)
 
-  useEffect(() => {
-    setHasErrored(false)
-    setIsReady(false)
-    setIsPlaying(false)
-    setCurrentTime(0)
-    setDuration(0)
-    setErrorMessage(src ? '' : NO_SOURCE_MESSAGE)
-  }, [src])
+  const stateMatchesSource = stateSource === sourceKey
+  const sourceHasErrored = stateMatchesSource && hasErrored
+  const sourceIsReady = stateMatchesSource && isReady
+  const sourceIsPlaying = stateMatchesSource && isPlaying
+  const sourceCurrentTime = stateMatchesSource ? currentTime : 0
+  const sourceDuration = stateMatchesSource ? duration : 0
+  const sourceErrorMessage = stateMatchesSource
+    ? errorMessage
+    : src
+      ? LOAD_ERROR_MESSAGE
+      : NO_SOURCE_MESSAGE
 
   const status: MVPlayerStatus = !src
     ? 'error'
-    : hasErrored
+    : sourceHasErrored
       ? 'error'
-      : isReady
+      : sourceIsReady
         ? 'ready'
         : 'loading'
 
   const handleLoadedMetadata = useCallback(() => {
     const video = videoRef.current
     if (!video) return
+    setStateSource(sourceKey)
+    setHasErrored(false)
+    setErrorMessage('')
+    setCurrentTime(Number.isFinite(video.currentTime) ? video.currentTime : 0)
     setDuration(Number.isFinite(video.duration) ? video.duration : 0)
     setIsReady(true)
-  }, [])
+  }, [sourceKey])
 
   const handleTimeUpdate = useCallback(() => {
     const video = videoRef.current
     if (!video) return
+    setStateSource(sourceKey)
     setCurrentTime(video.currentTime)
-  }, [])
+  }, [sourceKey])
 
-  const handlePlay = useCallback(() => setIsPlaying(true), [])
-  const handlePause = useCallback(() => setIsPlaying(false), [])
+  const handlePlay = useCallback(() => {
+    setStateSource(sourceKey)
+    setIsPlaying(true)
+  }, [sourceKey])
+  const handlePause = useCallback(() => {
+    setStateSource(sourceKey)
+    setIsPlaying(false)
+  }, [sourceKey])
 
   const handleError = useCallback(() => {
+    setStateSource(sourceKey)
     setHasErrored(true)
+    setIsReady(false)
     setErrorMessage(LOAD_ERROR_MESSAGE)
     onError?.(LOAD_ERROR_MESSAGE)
-  }, [onError])
+  }, [onError, sourceKey])
 
   const togglePlay = useCallback(() => {
     const video = videoRef.current
     if (!video) return
     if (video.paused) {
       void video.play().catch(() => {
+        setStateSource(sourceKey)
         setHasErrored(true)
+        setIsReady(false)
         setErrorMessage(PLAY_ERROR_MESSAGE)
       })
     } else {
       video.pause()
     }
-  }, [])
+  }, [sourceKey])
 
   const handleSeek = useCallback((value: number | readonly number[]) => {
     const video = videoRef.current
     if (!video) return
     const next = Array.isArray(value) ? (value[0] ?? 0) : value
+    setStateSource(sourceKey)
     video.currentTime = next
     setCurrentTime(next)
-  }, [])
+  }, [sourceKey])
 
   const handleVolumeChange = useCallback(
     (value: number | readonly number[]) => {
@@ -125,14 +146,14 @@ export function MVPlayer({
         event.preventDefault()
         togglePlay()
       } else if (event.key === 'ArrowRight') {
-        handleSeek(Math.min(currentTime + 5, duration))
+        handleSeek(Math.min(sourceCurrentTime + 5, sourceDuration))
       } else if (event.key === 'ArrowLeft') {
-        handleSeek(Math.max(currentTime - 5, 0))
+        handleSeek(Math.max(sourceCurrentTime - 5, 0))
       } else if (event.key === 'm') {
         toggleMute()
       }
     },
-    [currentTime, duration, handleSeek, toggleMute, togglePlay]
+    [sourceCurrentTime, sourceDuration, handleSeek, toggleMute, togglePlay]
   )
 
   return (
@@ -180,7 +201,7 @@ export function MVPlayer({
         >
           <AlertCircle className="w-10 h-10 text-[var(--text-tertiary)]" aria-hidden="true" />
           <p className="text-sm text-[var(--text-tertiary)]">
-            {errorMessage || (src ? LOAD_ERROR_MESSAGE : NO_SOURCE_MESSAGE)}
+            {sourceErrorMessage || (src ? LOAD_ERROR_MESSAGE : NO_SOURCE_MESSAGE)}
           </p>
         </div>
       ) : null}
@@ -194,9 +215,9 @@ export function MVPlayer({
           data-testid="mv-player-controls"
         >
           <Slider
-            value={[currentTime]}
+            value={[sourceCurrentTime]}
             min={0}
-            max={Math.max(duration, 0.001)}
+            max={Math.max(sourceDuration, 0.001)}
             step={0.1}
             onValueChange={handleSeek}
             aria-label="播放进度"
@@ -206,16 +227,16 @@ export function MVPlayer({
             <button
               type="button"
               onClick={togglePlay}
-              aria-label={isPlaying ? '暂停' : '播放'}
+              aria-label={sourceIsPlaying ? '暂停' : '播放'}
               className="flex items-center justify-center w-9 h-9 rounded-full
                          bg-[var(--accent)] text-black
                          hover:scale-105 active:scale-95 transition-transform
                          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
-              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 translate-x-[1px]" />}
+              {sourceIsPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 translate-x-[1px]" />}
             </button>
             <span className="text-xs tabular-nums text-[var(--text-secondary)] font-mono">
-              {formatTime(currentTime)} / {formatTime(duration)}
+              {formatTime(sourceCurrentTime)} / {formatTime(sourceDuration)}
             </span>
             <div className="flex items-center gap-2 ml-auto w-32">
               <button

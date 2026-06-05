@@ -1,8 +1,12 @@
-import { describe, test, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { afterEach, describe, test, expect } from 'vitest'
+import { cleanup, render, screen } from '@testing-library/react'
 import { AppShell } from '@/components/layout/AppShell'
 
 describe('AppShell', () => {
+  afterEach(() => {
+    cleanup()
+  })
+
   test('renders children inside main content', () => {
     render(
       <AppShell>

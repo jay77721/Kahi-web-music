@@ -133,7 +133,7 @@ describe('styles/tokens.css', () => {
   })
 
   it('light theme overrides every color token used by the login page', () => {
-    const lightThemeBlock = source.match(/\[data-theme="light"\]\s*\{(?<body>[\s\S]*?)\n\}/)?.groups?.body ?? ''
+    const lightThemeBlock = source.match(/\[data-theme="light"\]\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
 
     for (const token of LOGIN_PAGE_COLOR_TOKENS) {
       const declaration = new RegExp(`${token}\\s*:`)

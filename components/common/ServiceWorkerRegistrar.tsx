@@ -37,10 +37,10 @@ export function ServiceWorkerRegistrar() {
       }
     }
 
-    const handle = window.setTimeout(register, 0)
+    const handle = globalThis.setTimeout(register, 0)
 
     return () => {
-      window.clearTimeout(handle)
+      globalThis.clearTimeout(handle)
     }
   }, [])
 

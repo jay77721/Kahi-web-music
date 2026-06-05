@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next"
+import Script from "next/script"
 import { Toaster } from "@/components/ui/sonner"
 import { PlaybackController } from "@/components/player/PlaybackController"
 import { PageTransitionShell } from "@/components/layout/PageTransitionShell"
@@ -56,11 +57,10 @@ export default function RootLayout({
     // the html attribute is intentionally absent on the first server-rendered
     // paint so we don't ship a wrong theme to the user.
     <html lang="zh-CN" suppressHydrationWarning>
-      <head>
-        <link rel="manifest" href="/manifest.json" />
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-      </head>
       <body>
+        <Script id="theme-init" strategy="beforeInteractive">
+          {themeInitScript}
+        </Script>
         <SkipNav />
         <UserSessionRestorer />
         <ThemeProvider>

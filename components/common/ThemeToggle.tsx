@@ -88,7 +88,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
         className
       )}
     >
-      {OPTIONS.map((option) => {
+      {OPTIONS.map((option, index) => {
         const { Icon } = option
         const selected = theme === option.value
         return (

@@ -29,7 +29,10 @@ export function CommentItem({
   const avatarAlt = nickname === '匿名用户' ? '用户头像' : `${nickname}的头像`
   const avatarFallback = nickname === '匿名用户' ? '?' : nickname[0]
   const content = comment.content?.trim() || '暂无评论内容'
-  const timestamp = Number.isFinite(comment.time) ? comment.time : Date.now()
+  const timestamp =
+    typeof comment.time === 'number' && Number.isFinite(comment.time)
+      ? comment.time
+      : null
 
   const handleLike = useCallback(() => {
     const nextLiked = !liked
@@ -63,9 +66,9 @@ export function CommentItem({
           </span>
           <time
             className="text-xs text-[var(--text-tertiary)]"
-            dateTime={new Date(timestamp).toISOString()}
+            dateTime={timestamp ? new Date(timestamp).toISOString() : undefined}
           >
-            {formatRelativeTime(timestamp)}
+            {timestamp ? formatRelativeTime(timestamp) : '未知时间'}
           </time>
         </div>
         <p className="text-sm text-[var(--text-secondary)] mb-2 break-words whitespace-pre-wrap">
