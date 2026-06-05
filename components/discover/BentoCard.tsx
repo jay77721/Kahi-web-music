@@ -129,9 +129,6 @@ export function BentoCard(props: BentoCardProps) {
         />
       )}
 
-      {/* Hover blur veil */}
-      <div className="absolute inset-0 backdrop-blur-0 group-hover:backdrop-blur-[2px] transition-[backdrop-filter] duration-500 pointer-events-none" />
-
       {/* Content */}
       <div className="relative h-full w-full p-4 flex flex-col justify-end">
         {Icon && (

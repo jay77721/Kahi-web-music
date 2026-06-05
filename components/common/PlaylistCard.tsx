@@ -30,7 +30,7 @@ export function PlaylistCard({ id, name, coverUrl, playCount, className }: Playl
             {formatCount(playCount)}
           </span>
         )}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-[2px]">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
           <div className="w-11 h-11 rounded-full bg-[var(--accent)] flex items-center justify-center shadow-[0_0_24px_var(--accent-glow)] transition-transform duration-300 group-hover:scale-110">
             <Play className="w-5 h-5 text-[var(--text-inverse)] ml-0.5" />
           </div>
