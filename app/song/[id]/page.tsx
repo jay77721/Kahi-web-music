@@ -46,7 +46,10 @@ function getRouteId(value: string | string[] | undefined): string {
 export default function SongDetailPage() {
   const params = useParams()
   const id = getRouteId(params?.id as string | string[] | undefined)
-  const { playQueue, seek, currentTrack, currentTime } = usePlayerStore()
+  const playQueue = usePlayerStore((state) => state.playQueue)
+  const seek = usePlayerStore((state) => state.seek)
+  const currentTrackId = usePlayerStore((state) => state.currentTrack?.id ?? null)
+  const currentTime = usePlayerStore((state) => state.currentTime)
 
   const { data, isLoading } = useSWR<SongBundle | undefined>(
     id ? `song-detail-${id}` : null,
@@ -79,7 +82,7 @@ export default function SongDetailPage() {
   const lyrics = useMemo(() => data?.lyrics ?? [], [data?.lyrics])
   const simiSongs = useMemo(() => data?.simiSongs ?? [], [data?.simiSongs])
 
-  const isCurrent = currentTrack?.id === song?.id
+  const isCurrent = currentTrackId === song?.id
   const lyricCurrentTime = isCurrent ? currentTime : 0
 
   const handleLyricSeek = useCallback(

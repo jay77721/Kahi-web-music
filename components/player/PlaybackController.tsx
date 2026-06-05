@@ -16,17 +16,23 @@ import {
 } from '@/lib/mediaSession'
 import type { Song } from '@/types/api'
 
+const STORE_TIME_UPDATE_INTERVAL_MS = 250
+
 /**
  * PlaybackController - 独立于 UI 的播放逻辑
  * 始终挂载在 app 根布局中，不依赖 PlayerBar 渲染
  */
 export function PlaybackController() {
-  const {
-    currentTrack, isPlaying,
-    setIsPlaying, setLyrics,
-    setPlaybackError, clearPlaybackError,
-    setHasUserInteracted, next, prev, seek,
-  } = usePlayerStore()
+  const currentTrack = usePlayerStore((state) => state.currentTrack)
+  const isPlaying = usePlayerStore((state) => state.isPlaying)
+  const setIsPlaying = usePlayerStore((state) => state.setIsPlaying)
+  const setLyrics = usePlayerStore((state) => state.setLyrics)
+  const setPlaybackError = usePlayerStore((state) => state.setPlaybackError)
+  const clearPlaybackError = usePlayerStore((state) => state.clearPlaybackError)
+  const setHasUserInteracted = usePlayerStore((state) => state.setHasUserInteracted)
+  const next = usePlayerStore((state) => state.next)
+  const prev = usePlayerStore((state) => state.prev)
+  const seek = usePlayerStore((state) => state.seek)
 
   const currentTrackIdRef = useRef<number | null>(null)
   const streamRetryRef = useRef<{ trackId: number | null; retried: boolean }>({
@@ -107,9 +113,17 @@ export function PlaybackController() {
 
   // AudioEngine events → store
   useEffect(() => {
+    let lastStoreTimeUpdateAt: number | null = null
+    const syncCurrentTime = (time: number) => {
+      usePlayerStore.getState().setCurrentTime(time)
+      lastStoreTimeUpdateAt = Date.now()
+    }
+    const flushCurrentTime = () => {
+      syncCurrentTime(audioEngine.getCurrentTime())
+    }
     const onPlay = () => { clearPlaybackError(); setIsPlaying(true) }
-    const onPause = () => setIsPlaying(false)
-    const onEnd = () => { setIsPlaying(false); next() }
+    const onPause = () => { flushCurrentTime(); setIsPlaying(false) }
+    const onEnd = () => { flushCurrentTime(); setIsPlaying(false); next() }
     const retryLowerBitrate = (): boolean => {
       const { currentTrack, hasUserInteracted, isPlaying, volume, isMuted } = usePlayerStore.getState()
       const retry = streamRetryRef.current
@@ -135,7 +149,13 @@ export function PlaybackController() {
       if (dur > 0) usePlayerStore.getState().setDuration(dur)
     }
     const onTimeUpdate = (time: number) => {
-      usePlayerStore.getState().setCurrentTime(time)
+      const now = Date.now()
+      if (
+        lastStoreTimeUpdateAt === null ||
+        now - lastStoreTimeUpdateAt >= STORE_TIME_UPDATE_INTERVAL_MS
+      ) {
+        syncCurrentTime(time)
+      }
     }
 
     const unsubscribe = [

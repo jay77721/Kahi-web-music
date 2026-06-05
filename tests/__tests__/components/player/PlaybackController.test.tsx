@@ -589,6 +589,65 @@ describe('PlaybackController', () => {
     expect(usePlayerStore.getState().currentTime).toBe(37.5)
   })
 
+  test('throttles audio engine time updates before writing to the store', async () => {
+    vi.useFakeTimers({ now: 1_000 })
+    const audioMod = await import('@/lib/audio')
+    usePlayerStore.setState({ currentTrack: mockSong, currentTime: 0 })
+    await act(async () => {
+      render(<PlaybackController />)
+    })
+
+    const onTimeUpdate = (audioMod.audioEngine as unknown as {
+      onTimeUpdateCallback: (time: number) => void
+    }).onTimeUpdateCallback
+
+    act(() => {
+      onTimeUpdate?.(1)
+      onTimeUpdate?.(1.1)
+      onTimeUpdate?.(1.2)
+    })
+    expect(usePlayerStore.getState().currentTime).toBe(1)
+
+    act(() => {
+      vi.advanceTimersByTime(249)
+      onTimeUpdate?.(1.3)
+    })
+    expect(usePlayerStore.getState().currentTime).toBe(1)
+
+    act(() => {
+      vi.advanceTimersByTime(1)
+      onTimeUpdate?.(1.4)
+    })
+    expect(usePlayerStore.getState().currentTime).toBe(1.4)
+  })
+
+  test('flushes the exact engine time when playback pauses inside the throttle window', async () => {
+    vi.useFakeTimers({ now: 2_000 })
+    const audioMod = await import('@/lib/audio')
+    const getCurrentTimeSpy = vi.spyOn(audioMod.audioEngine, 'getCurrentTime').mockReturnValue(9.75)
+    usePlayerStore.setState({ currentTrack: mockSong, currentTime: 0, isPlaying: true })
+    await act(async () => {
+      render(<PlaybackController />)
+    })
+
+    const onTimeUpdate = (audioMod.audioEngine as unknown as {
+      onTimeUpdateCallback: (time: number) => void
+    }).onTimeUpdateCallback
+    const onPause = (audioMod.audioEngine as unknown as {
+      onPauseCallback: () => void
+    }).onPauseCallback
+
+    act(() => {
+      onTimeUpdate?.(9)
+      onTimeUpdate?.(9.2)
+      onPause?.()
+    })
+
+    expect(usePlayerStore.getState().currentTime).toBe(9.75)
+    expect(usePlayerStore.getState().isPlaying).toBe(false)
+    getCurrentTimeSpy.mockRestore()
+  })
+
   test('unsubscribes audio engine callbacks on unmount', async () => {
     const audioMod = await import('@/lib/audio')
     const { unmount } = render(<PlaybackController />)

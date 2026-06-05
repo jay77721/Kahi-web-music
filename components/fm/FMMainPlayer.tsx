@@ -52,8 +52,12 @@ export const FMMainPlayer = memo(function FMMainPlayer({
   className,
 }: FMMainPlayerProps) {
   const prefersReducedMotion = useReducedMotion()
-  const { currentTrack, isPlaying, currentTime, duration, playSong, seek } =
-    usePlayerStore()
+  const currentTrack = usePlayerStore((state) => state.currentTrack)
+  const isPlaying = usePlayerStore((state) => state.isPlaying)
+  const currentTime = usePlayerStore((state) => state.currentTime)
+  const duration = usePlayerStore((state) => state.duration)
+  const playSong = usePlayerStore((state) => state.playSong)
+  const seek = usePlayerStore((state) => state.seek)
 
   // Responsive cover size — smaller on phones, larger on desktop. The disc
   // is the visual anchor of the page so we keep it generous.
