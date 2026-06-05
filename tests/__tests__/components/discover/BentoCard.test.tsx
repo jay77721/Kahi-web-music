@@ -107,6 +107,12 @@ describe('BentoCard', () => {
       expect(container.querySelector('[data-framer-motion]')).toBeNull()
     })
 
+    test('does not render a backdrop-filter hover veil', () => {
+      const { container } = render(<BentoCard size="md" title="No hover veil" href="/no-veil" />)
+      expect(container.querySelector('[class*="backdrop-blur-[2px]"]')).toBeNull()
+      expect(container.querySelector('[class*="transition-[backdrop-filter]"]')).toBeNull()
+    })
+
     test('clicking a button card triggers onClick', () => {
       const handleClick = vi.fn()
       const { container } = render(

@@ -382,17 +382,18 @@ describe('SongTable', () => {
     })
 
     test('uses one shared context menu that updates between row triggers', async () => {
+      const user = userEvent.setup()
       const songs = [
         makeSong({ id: 1, name: 'Menu Song A' }),
         makeSong({ id: 2, name: 'Menu Song B' }),
       ]
       render(<SongTable songs={songs} />)
 
-      fireEvent.click(screen.getByRole('button', { name: '打开歌曲 Menu Song A 的更多操作菜单' }))
+      await user.click(screen.getByRole('button', { name: '打开歌曲 Menu Song A 的更多操作菜单' }))
       expect(await screen.findByRole('menu', { name: 'Menu Song A 的操作菜单' })).toBeInTheDocument()
       expect(screen.getAllByRole('menu')).toHaveLength(1)
 
-      fireEvent.click(screen.getByRole('button', { name: '打开歌曲 Menu Song B 的更多操作菜单' }))
+      await user.click(screen.getByRole('button', { name: '打开歌曲 Menu Song B 的更多操作菜单' }))
       expect(await screen.findByRole('menu', { name: 'Menu Song B 的操作菜单' })).toBeInTheDocument()
       expect(screen.queryByRole('menu', { name: 'Menu Song A 的操作菜单' })).not.toBeInTheDocument()
       expect(screen.getAllByRole('menu')).toHaveLength(1)

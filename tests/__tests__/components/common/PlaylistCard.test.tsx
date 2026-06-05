@@ -31,4 +31,9 @@ describe('PlaylistCard', () => {
     const { container } = render(<PlaylistCard id={1} name="Test" coverUrl="https://example.com/img.jpg" className="my-class" />)
     expect(container.firstChild).toHaveClass('my-class')
   })
+
+  test('keeps hover overlay free of backdrop filters', () => {
+    const { container } = render(<PlaylistCard id={1} name="Test" coverUrl="https://example.com/img.jpg" />)
+    expect(container.querySelector('[class*="backdrop-blur-[2px]"]')).toBeNull()
+  })
 })
