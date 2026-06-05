@@ -193,7 +193,7 @@ describe('userStore', () => {
     test('restores verified server session and removes legacy cookie when both exist', async () => {
       localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_COOKIE}`, JSON.stringify('restored_cookie'))
       localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_PROFILE}`, JSON.stringify(mockProfile))
-      vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+      vi.spyOn(ncmApi, 'requestFlexible').mockResolvedValue({
         code: 200,
         account: { id: mockProfile.userId },
         profile: mockProfile,
@@ -209,9 +209,40 @@ describe('userStore', () => {
       expect(storage.get(STORAGE_KEYS.USER_COOKIE, '')).toBe('')
     })
 
+    test('restores unauthenticated proxy data wrapper without retrying login status', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            data: {
+              code: 200,
+              account: { id: 1000, anonimousUser: true },
+              profile: null,
+            },
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }
+        )
+      )
+
+      await useUserStore.getState().restore()
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining('/api/login/status'),
+        expect.objectContaining({ credentials: 'include' })
+      )
+      expect(useUserStore.getState().cookie).toBeNull()
+      expect(useUserStore.getState().profile).toBeNull()
+      expect(useUserStore.getState().isLoggedIn).toBe(false)
+      expect(useUserStore.getState().hasRestoredSession).toBe(true)
+      expect(useUserStore.getState().restoreError).toBeNull()
+    })
+
     test('shares an in-flight restoration when restore is called reentrantly during state notification', async () => {
       localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_PROFILE}`, JSON.stringify(mockProfile))
-      const loginStatusSpy = vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+      const requestFlexibleSpy = vi.spyOn(ncmApi, 'requestFlexible').mockResolvedValue({
         code: 200,
         account: { id: mockProfile.userId },
         profile: mockProfile,
@@ -232,14 +263,14 @@ describe('userStore', () => {
       }
 
       expect(reentrantRestorePromise).not.toBeNull()
-      expect(loginStatusSpy).toHaveBeenCalledTimes(1)
+      expect(requestFlexibleSpy).toHaveBeenCalledTimes(1)
       expect(useUserStore.getState().isLoggedIn).toBe(true)
       expect(useUserStore.getState().hasRestoredSession).toBe(true)
     })
 
     test('removes legacy cookie and stays logged out when only cookie exists', async () => {
       localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_COOKIE}`, JSON.stringify('cookie_only'))
-      vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+      vi.spyOn(ncmApi, 'requestFlexible').mockResolvedValue({
         code: 301,
         account: null,
         profile: null,
@@ -256,7 +287,7 @@ describe('userStore', () => {
 
     test('restores cached profile for display but stays logged out when login status is unauthenticated', async () => {
       localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_PROFILE}`, JSON.stringify(mockProfile))
-      vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+      vi.spyOn(ncmApi, 'requestFlexible').mockResolvedValue({
         code: 301,
         account: null,
         profile: null,
@@ -272,7 +303,7 @@ describe('userStore', () => {
 
     test('does not authenticate account-only status with a cached profile', async () => {
       localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_PROFILE}`, JSON.stringify(mockProfile))
-      vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+      vi.spyOn(ncmApi, 'requestFlexible').mockResolvedValue({
         code: 200,
         account: { id: mockProfile.userId },
         profile: null,
@@ -291,7 +322,7 @@ describe('userStore', () => {
         ...mockProfile,
         nickname: 'crafted_profile',
       }))
-      vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+      vi.spyOn(ncmApi, 'requestFlexible').mockResolvedValue({
         code: 301,
         account: null,
         profile: null,
@@ -313,7 +344,7 @@ describe('userStore', () => {
         cookie: 'old',
       })
       localStorage.clear()
-      vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+      vi.spyOn(ncmApi, 'requestFlexible').mockResolvedValue({
         code: 301,
         account: null,
         profile: null,
@@ -330,7 +361,7 @@ describe('userStore', () => {
     test('handles corrupted JSON in localStorage gracefully', async () => {
       localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_PROFILE}`, 'not-valid-json{')
       localStorage.setItem(`kahi-web-music:${STORAGE_KEYS.USER_COOKIE}`, JSON.stringify('valid_cookie'))
-      vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+      vi.spyOn(ncmApi, 'requestFlexible').mockResolvedValue({
         code: 301,
         account: null,
         profile: null,
@@ -352,7 +383,7 @@ describe('userStore', () => {
         profile: mockProfile,
         cookie: 'old_cookie',
       })
-      const loginStatusSpy = vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+      const requestFlexibleSpy = vi.spyOn(ncmApi, 'requestFlexible').mockResolvedValue({
         code: 200,
         account: { id: mockProfile.userId },
         profile: mockProfile,
@@ -363,7 +394,7 @@ describe('userStore', () => {
 
       await expect(useUserStore.getState().restore()).resolves.toBeUndefined()
 
-      expect(loginStatusSpy).not.toHaveBeenCalled()
+      expect(requestFlexibleSpy).not.toHaveBeenCalled()
       expect(useUserStore.getState().profile).toBeNull()
       expect(useUserStore.getState().cookie).toBeNull()
       expect(useUserStore.getState().isLoggedIn).toBe(false)
@@ -377,7 +408,7 @@ describe('userStore', () => {
         profile: mockProfile,
         cookie: 'old_cookie',
       })
-      const loginStatusSpy = vi.spyOn(ncmApi, 'loginStatus').mockResolvedValue({
+      const requestFlexibleSpy = vi.spyOn(ncmApi, 'requestFlexible').mockResolvedValue({
         code: 200,
         account: { id: mockProfile.userId },
         profile: mockProfile,
@@ -388,7 +419,7 @@ describe('userStore', () => {
 
       await expect(useUserStore.getState().restore()).resolves.toBeUndefined()
 
-      expect(loginStatusSpy).not.toHaveBeenCalled()
+      expect(requestFlexibleSpy).not.toHaveBeenCalled()
       expect(useUserStore.getState().profile).toBeNull()
       expect(useUserStore.getState().cookie).toBeNull()
       expect(useUserStore.getState().isLoggedIn).toBe(false)

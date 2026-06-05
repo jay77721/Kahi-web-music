@@ -124,7 +124,7 @@ export const useUserStore = create<UserState>((set) => ({
             restoreError: null,
           })
 
-          const status = (await ncmApi.loginStatus()) as unknown as LoginStatusResult
+          const status = (await ncmApi.requestFlexible('/login/status')) as unknown as LoginStatusResult
           const isVerifiedSession = hasVerifiedSession(status)
           const verifiedProfile = isVerifiedSession ? status.profile ?? null : null
 
