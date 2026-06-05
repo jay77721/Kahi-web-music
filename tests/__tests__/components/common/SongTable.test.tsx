@@ -1,7 +1,7 @@
 'use client'
 
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SongTable } from '@/components/common/SongTable'
 import { makeMockSong as makeSong } from '@/tests/helpers/mock-data'
@@ -10,6 +10,41 @@ import { createMockPlayerStore, resetMockPlayerStore } from '@/tests/helpers/pla
 vi.mock('@/stores/playerStore', () => ({
   usePlayerStore: vi.fn(),
 }))
+
+type ObserverRecord = {
+  callback: IntersectionObserverCallback
+  instance: IntersectionObserver
+  options?: IntersectionObserverInit
+}
+
+function installIntersectionObserverMock() {
+  const records: ObserverRecord[] = []
+  const originalIntersectionObserver = globalThis.IntersectionObserver
+
+  class MockIntersectionObserver implements IntersectionObserver {
+    readonly root: Element | Document | null = null
+    readonly rootMargin: string
+    readonly thresholds: ReadonlyArray<number> = []
+    readonly observe = vi.fn()
+    readonly unobserve = vi.fn()
+    readonly disconnect = vi.fn()
+    readonly takeRecords = vi.fn(() => [])
+
+    constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+      this.rootMargin = options?.rootMargin ?? ''
+      records.push({ callback, instance: this, options })
+    }
+  }
+
+  globalThis.IntersectionObserver = MockIntersectionObserver
+
+  return {
+    records,
+    restore: () => {
+      globalThis.IntersectionObserver = originalIntersectionObserver
+    },
+  }
+}
 
 describe('SongTable', () => {
   const mockStore = createMockPlayerStore()
@@ -96,6 +131,35 @@ describe('SongTable', () => {
       expect(within(container).queryByAltText('叶惠美 封面')).not.toBeInTheDocument()
       const rows = container.querySelectorAll('[data-song-id]')
       expect(rows[0]).toHaveAttribute('data-song-pic', 'https://pics.example.com/album/201.jpg')
+    })
+
+    test('defers artwork after the initial row budget until the row approaches the viewport', () => {
+      const observerMock = installIntersectionObserverMock()
+      try {
+        const { container } = render(
+          <SongTable songs={songs} initialArtworkCount={1} animated={false} />
+        )
+        const rows = container.querySelectorAll('[data-song-id]')
+
+        expect(within(rows[0] as HTMLElement).getByAltText('叶惠美 封面')).toBeInTheDocument()
+        expect(within(rows[1] as HTMLElement).queryByAltText('叶惠美 封面')).not.toBeInTheDocument()
+        expect(within(rows[1] as HTMLElement).getByTestId('song-row-artwork-placeholder-2')).toBeInTheDocument()
+        expect(observerMock.records).toHaveLength(1)
+        expect(observerMock.records[0].options).toEqual({ rootMargin: '240px 0px' })
+
+        const secondRow = rows[1] as HTMLElement
+        act(() => {
+          observerMock.records[0].callback(
+            [{ isIntersecting: true, target: secondRow } as unknown as IntersectionObserverEntry],
+            observerMock.records[0].instance
+          )
+        })
+
+        expect(within(secondRow).queryByTestId('song-row-artwork-placeholder-2')).not.toBeInTheDocument()
+        expect(within(secondRow).getByAltText('叶惠美 封面')).toBeInTheDocument()
+      } finally {
+        observerMock.restore()
+      }
     })
   })
 

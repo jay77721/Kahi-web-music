@@ -1,4 +1,4 @@
-import { memo, type MouseEvent } from 'react'
+import { memo, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
 import Image from 'next/image'
 import { motion, type Variants } from 'framer-motion'
 import { MoreHorizontal, Play, Plus } from 'lucide-react'
@@ -19,6 +19,49 @@ const rowVariants: Variants = {
   },
 }
 
+const ARTWORK_OBSERVER_OPTIONS = { rootMargin: '240px 0px' } as const
+
+function useDeferredArtwork(enabled: boolean) {
+  const [shouldRender, setShouldRender] = useState(!enabled)
+  const cleanupRef = useRef<(() => void) | null>(null)
+
+  const cleanup = useCallback(() => {
+    cleanupRef.current?.()
+    cleanupRef.current = null
+  }, [])
+
+  useEffect(() => {
+    return cleanup
+  }, [cleanup])
+
+  const ref = useCallback((element: HTMLElement | null) => {
+    cleanup()
+
+    if (!enabled || shouldRender || !element) return
+
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) {
+      const fallbackTimer = setTimeout(() => setShouldRender(true), 0)
+      cleanupRef.current = () => clearTimeout(fallbackTimer)
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setShouldRender(true)
+          observer.disconnect()
+        }
+      },
+      ARTWORK_OBSERVER_OPTIONS
+    )
+
+    observer.observe(element)
+    cleanupRef.current = () => observer.disconnect()
+  }, [cleanup, enabled, shouldRender])
+
+  return [ref, shouldRender || !enabled] as const
+}
+
 interface SongTableRowProps {
   song: Song
   index: number
@@ -30,6 +73,7 @@ interface SongTableRowProps {
   showActions: boolean
   showAlbum: boolean
   showArtwork: boolean
+  deferArtwork: boolean
   gridClass: string
   animated: boolean
   onPlaySong: (song: Song) => void
@@ -48,6 +92,7 @@ export const SongTableRow = memo(function SongTableRow({
   showActions,
   showAlbum,
   showArtwork,
+  deferArtwork,
   gridClass,
   animated,
   onPlaySong,
@@ -58,6 +103,8 @@ export const SongTableRow = memo(function SongTableRow({
   const artists = formatArtists(song.ar || [])
   const RowItem = animated ? motion.div : 'div'
   const contextMenu = useSongContextMenu()
+  const hasArtwork = showArtwork && Boolean(song.al?.picUrl)
+  const [rowRef, shouldRenderArtwork] = useDeferredArtwork(deferArtwork && hasArtwork)
 
   const handlePlayClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
@@ -87,6 +134,7 @@ export const SongTableRow = memo(function SongTableRow({
 
   return (
     <RowItem
+      ref={rowRef}
       data-song-id={song.id}
       data-song-name={song.name}
       data-song-artist={artists}
@@ -142,14 +190,22 @@ export const SongTableRow = memo(function SongTableRow({
       <div className="flex items-center gap-3 min-w-0">
         {showArtwork && song.al?.picUrl && (
           <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 shadow-md">
-            <Image
-              src={imageUrl(song.al.picUrl, 80)}
-              alt={song.al?.name ? `${song.al.name} 封面` : `${song.name} 专辑封面`}
-              width={80}
-              height={80}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
+            {shouldRenderArtwork ? (
+              <Image
+                src={imageUrl(song.al.picUrl, 80)}
+                alt={song.al?.name ? `${song.al.name} 封面` : `${song.name} 专辑封面`}
+                width={80}
+                height={80}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div
+                aria-hidden="true"
+                className="h-full w-full bg-white/[0.04]"
+                data-testid={`song-row-artwork-placeholder-${song.id}`}
+              />
+            )}
           </div>
         )}
         <div className="min-w-0">

@@ -23,6 +23,7 @@ interface SongTableProps {
   showIndex?: boolean
   showAlbum?: boolean
   showArtwork?: boolean
+  initialArtworkCount?: number
   showActions?: boolean
   isLoading?: boolean
   /**
@@ -62,6 +63,7 @@ export function SongTable({
   showIndex = true,
   showAlbum = true,
   showArtwork = true,
+  initialArtworkCount,
   showActions = true,
   isLoading = false,
   animated = true,
@@ -203,6 +205,9 @@ export function SongTable({
                 showActions={showActions}
                 showAlbum={showAlbum}
                 showArtwork={showArtwork}
+                deferArtwork={
+                  initialArtworkCount !== undefined && index >= initialArtworkCount
+                }
                 gridClass={gridClass}
                 animated={animated}
                 onPlaySong={handlePlaySong}

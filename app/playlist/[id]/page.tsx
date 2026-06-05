@@ -47,6 +47,7 @@ function safeFormatDate(value: number | undefined): string {
 
 const EMPTY_TRACKS: Song[] = []
 const INITIAL_TRACK_LIMIT = 30
+const INITIAL_ARTWORK_COUNT = 8
 const FULL_TRACK_LIMIT = 100
 
 async function fetchPlaylistDetailSlice(
@@ -334,6 +335,7 @@ export default function PlaylistDetailPage() {
         <SongTable
           songs={tracks}
           animated={false}
+          initialArtworkCount={INITIAL_ARTWORK_COUNT}
           selectable={batchMode}
           selectedIds={selection.selectedIds}
           onToggleSelect={selection.toggle}

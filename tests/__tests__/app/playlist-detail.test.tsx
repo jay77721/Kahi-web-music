@@ -10,6 +10,7 @@ import type { Song } from '@/types/song'
 type SongTableMockProps = {
   songs: Song[]
   animated?: boolean
+  initialArtworkCount?: number
   selectable?: boolean
   selectedIds?: ReadonlySet<string>
   onPlayAll?: () => void | Promise<void>
@@ -246,6 +247,7 @@ describe('PlaylistDetailPage', () => {
     const table = screen.getByTestId('song-table')
     expect(table).toHaveTextContent('songs:30')
     expect(table).toHaveAttribute('data-animated', 'false')
+    expect(latestSongTableProps()?.initialArtworkCount).toBe(8)
     expect(screen.getByTestId('playlist-track-summary')).toHaveTextContent('已显示 30 / 100 首')
     expect(screen.getByTestId('playlist-load-full')).toHaveTextContent('加载完整前 100')
     expect(screen.getByTestId('hero-track-count')).toHaveTextContent('100')
