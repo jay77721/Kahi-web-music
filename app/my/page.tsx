@@ -74,7 +74,7 @@ const AuthenticatedMyPage = dynamic<AuthenticatedMyPageProps>(
       import('@/stores/historyStore'),
       import('@/hooks/useDominantColor'),
       import('@/lib/format'),
-      import('lucide-react'),
+      import('@/components/icons/ProtectedPageIcons'),
     ])
 
     const { useRouter, useSearchParams } = navigationModule

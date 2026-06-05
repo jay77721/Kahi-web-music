@@ -21,7 +21,7 @@ const AuthenticatedDailyPage = dynamic(
       playerStoreModule,
     ] = await Promise.all([
       import('swr'),
-      import('lucide-react'),
+      import('@/components/icons/ProtectedPageIcons'),
       import('@/components/layout/AppShell'),
       import('@/components/common/SongTable'),
       import('@/components/ui/skeleton'),

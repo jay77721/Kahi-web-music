@@ -51,7 +51,7 @@ const AuthenticatedCloudPage = dynamic<AuthenticatedCloudPageProps>(
       import('@/stores/playerStore'),
       import('@/hooks/useDominantColor'),
       import('@/lib/format'),
-      import('lucide-react'),
+      import('@/components/icons/ProtectedPageIcons'),
     ])
 
     const useSWR = swrModule.default

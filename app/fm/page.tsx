@@ -35,7 +35,7 @@ const AuthenticatedFMPage = dynamic(
       import('@/components/ui/button'),
       import('@/lib/api'),
       import('@/lib/api-adapters'),
-      import('lucide-react'),
+      import('@/components/icons/ProtectedPageIcons'),
     ])
 
     const useSWR = swrModule.default
