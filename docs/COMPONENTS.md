@@ -214,7 +214,7 @@
 
 ### Transition utilities — `DrawerTransition`, `ModalTransition`, `ListTransition`, `GridTransition`
 
-- Thin Framer Motion wrappers used to unify exit/enter timing for drawers, modals, lists, and grids.
+- CSS-only enter transition helpers used to unify drawers, modals, lists, and grids.
 
 ### `<SelectionCheckbox />`
 
@@ -245,7 +245,7 @@
 
 - Two modes: expanded (`w-[280px]`) and collapsed (`w-[76px]`).
 - Main nav (发现音乐, 排行榜, 每日推荐, 私人FM, 电台) · My nav (我喜欢的, 最近播放, 云盘) · user link.
-- Active item uses a `motion.span` with `layoutId="sidebarActive"` for smooth shared transitions.
+- Active item uses CSS background/indicator states for lightweight navigation feedback.
 
 ### `<Header />`
 
@@ -285,7 +285,7 @@
   - 2× medium (4×1) — 热门歌单
   - 1× large (4×2) — 新歌速递
   - 4× small (3×1) — 艺人推荐
-- Stagger entrance via Framer Motion.
+- Stagger entrance via CSS utilities.
 - SWR-cached data, with built-in fallbacks when the API is slow.
 
 ### `<BentoCard />`

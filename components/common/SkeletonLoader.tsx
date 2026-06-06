@@ -1,25 +1,6 @@
 'use client'
 
-import { motion, type Variants } from 'framer-motion'
 import { cn } from '@/lib/utils'
-
-// ── variants ──────────────────────────────────────────────────────────────────
-
-const shimmerVariants: Variants = {
-  idle: {
-    backgroundPosition: '200% 0',
-  },
-  animate: {
-    backgroundPosition: '-200% 0',
-    transition: {
-      duration: 1.8,
-      ease: 'linear',
-      repeat: Infinity,
-    },
-  },
-}
-
-// ── props ─────────────────────────────────────────────────────────────────────
 
 interface SkeletonLoaderProps {
   /** Number of skeleton rows/bars to render */
@@ -36,13 +17,11 @@ interface SkeletonLoaderProps {
   gap?: string
 }
 
-// ── component ─────────────────────────────────────────────────────────────────
-
 /**
  * Shimmer skeleton loader for loading states.
  *
  * Supports horizontal layout (rows) and circular (avatars) modes.
- * The shimmer gradient moves continuously for a polished loading effect.
+ * The shimmer gradient moves continuously using CSS animation.
  *
  * @example
  * ```tsx
@@ -61,39 +40,26 @@ export function SkeletonLoader({
   className,
   gap = 'gap-3',
 }: SkeletonLoaderProps) {
+  const skeletonClassName = cn(
+    'rounded-md',
+    'bg-gradient-to-r from-[var(--bg-surface)] via-[var(--bg-elevated)] to-[var(--bg-surface)]',
+    'bg-[length:200%_100%]',
+    'animate-shimmer',
+    circle ? 'rounded-full' : 'rounded-md',
+    width,
+    height
+  )
+
   if (count === 1) {
-    return (
-      <motion.div
-        variants={shimmerVariants}
-        animate="animate"
-        className={cn(
-          'rounded-md',
-          'bg-gradient-to-r from-[var(--bg-surface)] via-[var(--bg-elevated)] to-[var(--bg-surface)]',
-          'bg-[length:200%_100%]',
-          circle ? 'rounded-full' : 'rounded-md',
-          width,
-          height,
-          className
-        )}
-      />
-    )
+    return <div className={cn(skeletonClassName, className)} />
   }
 
   return (
     <div className={cn('flex flex-col', gap, className)}>
       {Array.from({ length: count }).map((_, i) => (
-        <motion.div
+        <div
           key={i}
-          variants={shimmerVariants}
-          animate="animate"
-          className={cn(
-            'rounded-md',
-            'bg-gradient-to-r from-[var(--bg-surface)] via-[var(--bg-elevated)] to-[var(--bg-surface)]',
-            'bg-[length:200%_100%]',
-            circle ? 'rounded-full' : 'rounded-md',
-            width,
-            height
-          )}
+          className={skeletonClassName}
           style={{ animationDelay: `${i * 100}ms` }}
         />
       ))}

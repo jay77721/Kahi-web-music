@@ -229,7 +229,7 @@ describe('service worker cache strategies', () => {
 
   test('returns cached offline page for failed navigation', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
-    const staticCache = await cachesMock.open('kahi-static-v2')
+    const staticCache = await cachesMock.open('kahi-static-v3')
     await staticCache.put('/offline', new Response('offline page'))
     const request = new Request('https://kahi.test/library')
     Object.defineProperty(request, 'mode', { value: 'navigate' })

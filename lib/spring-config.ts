@@ -1,4 +1,18 @@
-import { type Transition, type Easing } from 'framer-motion'
+export type Easing = string | readonly [number, number, number, number]
+
+export type Transition = {
+  type?: 'spring' | 'tween' | string
+  stiffness?: number
+  damping?: number
+  mass?: number
+  duration?: number
+  ease?: Easing
+  repeat?: number
+  repeatType?: 'loop' | 'reverse' | 'mirror' | string
+  staggerChildren?: number
+  staggerDirection?: number
+  delayChildren?: number
+}
 
 /**
  * Consistent spring physics presets for natural-feeling animations.

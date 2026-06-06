@@ -1,47 +1,7 @@
 'use client'
 
 import { type ReactNode } from 'react'
-import { motion, type Variants } from 'framer-motion'
 import { cn } from '@/lib/utils'
-
-// ── variants ──────────────────────────────────────────────────────────────────
-
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.05,
-      delayChildren: 0.05,
-    },
-  },
-  exit: {
-    opacity: 0,
-    transition: {
-      staggerChildren: 0.03,
-      staggerDirection: -1,
-    },
-  },
-}
-
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 12 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 300,
-      ease: [0.16, 1, 0.3, 1],
-    },
-  },
-  exit: {
-    opacity: 0,
-    y: -8,
-    transition: { duration: 150, ease: 'easeIn' },
-  },
-}
-
-// ── props ─────────────────────────────────────────────────────────────────────
 
 interface ListTransitionProps {
   /** Array of items to render */
@@ -58,12 +18,10 @@ interface ListTransitionProps {
   animateChanges?: boolean
 }
 
-// ── component ─────────────────────────────────────────────────────────────────
-
 /**
- * Renders a list with staggered entrance animations.
+ * Renders a list with CSS-only staggered entrance animations.
  *
- * Each item fades in and slides up with a slight delay based on its index.
+ * Each item remains a normal list item under a stagger container.
  *
  * @example
  * ```tsx
@@ -87,23 +45,12 @@ export function ListTransition({
   const keyExtractor = getKey ?? ((_: unknown, index: number) => index)
 
   return (
-    <motion.ul
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      className={cn('space-y-3', className)}
-    >
+    <ul className={cn('space-y-3 section-enter', animateChanges && 'stagger-children', className)}>
       {items.map((item, index) => (
-        <motion.li
-          key={keyExtractor(item, index)}
-          variants={animateChanges ? itemVariants : {}}
-          className={cn(itemClassName)}
-          layout
-        >
+        <li key={keyExtractor(item, index)} className={cn(itemClassName)}>
           {renderItem(item, index)}
-        </motion.li>
+        </li>
       ))}
-    </motion.ul>
+    </ul>
   )
 }

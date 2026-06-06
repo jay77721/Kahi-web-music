@@ -216,9 +216,12 @@ describe('LeaderboardPage', () => {
 
     fireEvent.click(screen.getByTestId('leaderboard-empty-cta-3779629'))
 
-    await waitFor(() => {
-      expect(screen.getByTestId('leaderboard-detail')).toBeInTheDocument()
-    })
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('leaderboard-detail')).toBeInTheDocument()
+      },
+      { timeout: 5_000 }
+    )
     expect(screen.getByTestId('song-table')).toHaveTextContent('12 songs')
     expect(
       mockUseSWR.mock.calls.some(

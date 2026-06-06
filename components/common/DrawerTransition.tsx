@@ -1,38 +1,7 @@
 'use client'
 
 import { type ReactNode, useCallback, useEffect, useRef } from 'react'
-import { motion, type Variants, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-
-// ── variants ──────────────────────────────────────────────────────────────────
-
-const drawerVariants: Variants = {
-  hidden: { x: '100%' },
-  visible: {
-    x: 0,
-    transition: {
-      type: 'spring',
-      stiffness: 300,
-      damping: 30,
-    },
-  },
-  exit: {
-    x: '100%',
-    transition: { duration: 200, ease: 'easeIn' },
-  },
-}
-
-const drawerOverlayVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { duration: 200 },
-  },
-  exit: {
-    opacity: 0,
-    transition: { duration: 150 },
-  },
-}
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -48,8 +17,6 @@ function getFocusableElements(container: HTMLElement): HTMLElement[] {
     (element) => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true'
   )
 }
-
-// ── props ─────────────────────────────────────────────────────────────────────
 
 interface DrawerTransitionBaseProps {
   /** Whether the drawer is open */
@@ -80,10 +47,8 @@ type DrawerTransitionLabelProps =
 
 type DrawerTransitionProps = DrawerTransitionBaseProps & DrawerTransitionLabelProps
 
-// ── component ─────────────────────────────────────────────────────────────────
-
 /**
- * Animated side drawer (slides in from the right).
+ * CSS-only side drawer (slides in from the right).
  *
  * @example
  * ```tsx
@@ -169,39 +134,33 @@ export function DrawerTransition({
     }
   }, [handleClose, open])
 
-  return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          variants={drawerOverlayVariants}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          className="fixed inset-0 z-50"
-          onClick={closeOnOverlay ? handleClose : undefined}
-        >
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+  if (!open) return null
 
-          {/* Drawer panel */}
-          <motion.div
-            variants={drawerVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            ref={drawerRef}
-            tabIndex={-1}
-            onClick={(e) => e.stopPropagation()}
-            className={cn('absolute right-0 top-0 h-full outline-none', width, className)}
-            role="dialog"
-            aria-modal="true"
-            aria-label={ariaLabel}
-            aria-labelledby={ariaLabelledby}
-          >
-            {children}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+  return (
+    <div
+      className="drawer-transition-overlay fixed inset-0 z-50"
+      onClick={closeOnOverlay ? handleClose : undefined}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+      {/* Drawer panel */}
+      <div
+        ref={drawerRef}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+        className={cn(
+          'drawer-transition-panel absolute right-0 top-0 h-full outline-none',
+          width,
+          className
+        )}
+        role="dialog"
+        aria-modal="true"
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledby}
+      >
+        {children}
+      </div>
+    </div>
   )
 }

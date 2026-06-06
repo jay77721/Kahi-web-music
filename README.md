@@ -22,8 +22,8 @@
 - **Bento Discover Grid** — 12-column mosaic layout with feature cards (Radar, New Songs, Hot Playlists, Artists) on the home page.
 - **BentoCard & BentoGrid** — Reusable mosaic tile primitive with hover scale, accent-tinted glow, and cover-driven gradients.
 - **Hero Banner** — Playlist / album detail pages with cover-color-tinted gradient, animated meta row, and a play CTA.
-- **Page Transitions** — Fade + slide route changes via Framer Motion + the `PageTransition` shell.
-- **Stagger Animations** — SongTable rows enter with `staggerChildren` for a polished first-paint.
+- **Page Transitions** — CSS-only fade + slide route changes via the `PageTransition` shell.
+- **Stagger Animations** — SongTable rows enter with CSS stagger utilities for a polished first-paint.
 - **prefers-reduced-motion** — All motion is disabled when the user prefers reduced motion, with deterministic fallbacks.
 
 ### Audio
@@ -67,7 +67,7 @@
 | Components | shadcn/ui + Radix | latest |
 | State | Zustand | 5.x |
 | Audio | Howler.js | 2.2 |
-| Animation | Framer Motion | 12.x |
+| Animation | CSS keyframes + reduced-motion utilities | native |
 | Data Fetching | SWR | 2.x |
 | Unit Testing | Vitest | 4.x |
 | E2E Testing | Playwright | 1.60+ |
@@ -203,7 +203,7 @@ kahi-web-music/
 │   └── useWindowSize.ts
 │
 ├── lib/                          # Pure libraries (no React)
-│   ├── animations.ts             # Framer Motion presets
+│   ├── animations.ts             # CSS-compatible animation presets
 │   ├── animations/               # index re-exports
 │   ├── api.ts                    # NcmApiClient (REST + cache + retry)
 │   ├── audio.ts                  # AudioEngine (Howler singleton)
@@ -340,7 +340,7 @@ pnpm start    # serves on http://localhost:3000
 - [Binaryify/NeteaseCloudMusicApi](https://github.com/Binaryify/NeteaseCloudMusicApi) for the canonical NCM API server.
 - [shadcn/ui](https://ui.shadcn.com) for the headless component primitives.
 - [lucide-icons](https://lucide.dev) for the icon set.
-- [Tailwind CSS](https://tailwindcss.com) and [Framer Motion](https://www.framer.com/motion/).
+- [Tailwind CSS](https://tailwindcss.com) and native CSS animation utilities.
 - Inspired by the design directions of **Spotify**, **Apple Music**, and **YouTube Music 2026**.
 
 ---

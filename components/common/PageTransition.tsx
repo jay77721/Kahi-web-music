@@ -1,22 +1,34 @@
 'use client'
 
-import { useMemo, type ReactNode } from 'react'
-import { motion, AnimatePresence, type Variants } from 'framer-motion'
+import type { CSSProperties, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
-import { useReducedMotion } from '@/hooks/useReducedMotion'
 
-// ── page transition variants ──────────────────────────────────────────────────
+type TransitionValue = number | string
+
+interface TransitionState {
+  opacity?: TransitionValue
+  x?: TransitionValue
+  y?: TransitionValue
+  scale?: TransitionValue
+  transition?: {
+    duration?: number
+    ease?: string
+  }
+}
+
+export interface PageTransitionVariants {
+  initial?: TransitionState
+  animate?: TransitionState
+  exit?: TransitionState
+  [state: string]: TransitionState | undefined
+}
 
 /**
- * Default fade + slight slideY transition variants.
- * Tuned for whole-page route changes: gentle, fast, non-distracting.
- *
- * Kept as a top-level export for back-compat (consumers and tests import
- * it directly). The component itself resolves the right variants at
- * render time via `buildDefaultPageVariants` so that the reduced-motion
- * path is honoured automatically.
+ * Legacy transition shape kept for consumers that import it directly.
+ * The component itself is CSS-only and does not pass these values to a
+ * runtime animation library.
  */
-export const defaultPageVariants: Variants = {
+export const defaultPageVariants: PageTransitionVariants = {
   initial: {
     opacity: 0,
     y: 8,
@@ -33,94 +45,81 @@ export const defaultPageVariants: Variants = {
   },
 }
 
-/**
- * Build a variants object adapted to the user's reduced-motion preference.
- * When the user prefers reduced motion the variants collapse to a
- * motionless end-state so the page swap is instantaneous.
- */
-function buildDefaultPageVariants(prefersReducedMotion: boolean): Variants {
-  if (prefersReducedMotion) {
-    return {
-      initial: { opacity: 1, y: 0 },
-      animate: { opacity: 1, y: 0, transition: { duration: 0 } },
-      exit: { opacity: 1, y: 0, transition: { duration: 0 } },
-    }
-  }
-  return defaultPageVariants
-}
-
-// ── props ─────────────────────────────────────────────────────────────────────
-
 interface PageTransitionProps {
   /** Content to wrap with the transition. */
   children: ReactNode
-  /** Additional CSS classes for the inner motion wrapper. */
+  /** Additional CSS classes for the wrapper. */
   className?: string
   /**
-   * Override the default variants. Use this to customize the motion
-   * for specific surfaces (e.g. modal-style pages, full-bleed hero pages).
+   * @deprecated Prefer CSS classes. Common `initial` and `animate`
+   * opacity/transform values are mapped to CSS variables for compatibility.
    */
-  variants?: Variants
+  variants?: PageTransitionVariants
 }
 
-// ── component ─────────────────────────────────────────────────────────────────
+const baseClassName = 'page-transition page-transition-enter w-full'
+
+function toCssLength(value: TransitionValue | undefined, fallback: string) {
+  if (typeof value === 'number') return `${value}px`
+  return value ?? fallback
+}
+
+function toCssValue(value: TransitionValue | undefined, fallback: string) {
+  return value === undefined ? fallback : String(value)
+}
+
+function toDuration(value: number | undefined) {
+  return value === undefined ? undefined : `${value}s`
+}
+
+function resolveVariantStyle(variants?: PageTransitionVariants): CSSProperties | undefined {
+  if (!variants) return undefined
+
+  const initial = variants.initial
+  const animate = variants.animate
+  const duration = toDuration(animate?.transition?.duration)
+
+  return {
+    '--page-transition-from-opacity': toCssValue(initial?.opacity, '0'),
+    '--page-transition-from-x': toCssLength(initial?.x, '0px'),
+    '--page-transition-from-y': toCssLength(initial?.y, '8px'),
+    '--page-transition-from-scale': toCssValue(initial?.scale, '1'),
+    '--page-transition-to-opacity': toCssValue(animate?.opacity, '1'),
+    '--page-transition-to-x': toCssLength(animate?.x, '0px'),
+    '--page-transition-to-y': toCssLength(animate?.y, '0px'),
+    '--page-transition-to-scale': toCssValue(animate?.scale, '1'),
+    ...(duration ? { '--page-transition-duration': duration } : {}),
+  } as CSSProperties
+}
 
 /**
- * Inner transition wrapper. Pair with `PageTransitionRoute` (or an
- * `AnimatePresence` + `key`) to get enter/exit transitions on
- * route changes.
- *
- * @example
- * ```tsx
- * <AnimatePresence mode="wait" initial={false}>
- *   <PageTransition key={pathname}>
- *     {children}
- *   </PageTransition>
- * </AnimatePresence>
- * ```
+ * Lightweight legacy page transition wrapper backed by global CSS utilities.
  */
 export function PageTransition({
   children,
   className,
   variants,
 }: PageTransitionProps) {
-  const prefersReducedMotion = useReducedMotion()
-  const defaultVariants = useMemo(
-    () => buildDefaultPageVariants(prefersReducedMotion),
-    [prefersReducedMotion]
-  )
-  const resolvedVariants = variants ?? defaultVariants
   return (
-    <motion.div
-      variants={resolvedVariants}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      className={cn('w-full', className)}
-    >
+    <div className={cn(baseClassName, className)} style={resolveVariantStyle(variants)}>
       {children}
-    </motion.div>
+    </div>
   )
 }
 
-// ── route wrapper ─────────────────────────────────────────────────────────────
-
 interface PageTransitionRouteProps {
   /**
-   * A unique key per route (typically `usePathname()`). The wrapper
-   * uses it to remount the inner transition on route change so
-   * `AnimatePresence` can play the exit → enter sequence.
+   * A unique key per route, normally from `usePathname()`.
+   * Changing it remounts the wrapper so the CSS enter animation replays.
    */
   routeKey: string
   children: ReactNode
   className?: string
-  variants?: Variants
+  variants?: PageTransitionVariants
 }
 
 /**
- * Convenience wrapper that combines `AnimatePresence mode="wait"`
- * with the `PageTransition` motion wrapper. Use this in the root
- * layout to apply a uniform transition to every route.
+ * Convenience wrapper that remounts the CSS transition on route changes.
  */
 export function PageTransitionRoute({
   routeKey,
@@ -129,10 +128,8 @@ export function PageTransitionRoute({
   variants,
 }: PageTransitionRouteProps) {
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <PageTransition key={routeKey} className={className} variants={variants}>
-        {children}
-      </PageTransition>
-    </AnimatePresence>
+    <PageTransition key={routeKey} className={className} variants={variants}>
+      {children}
+    </PageTransition>
   )
 }

@@ -1,4 +1,6 @@
 import { describe, test, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   springPresets,
   easingPresets,
@@ -9,6 +11,13 @@ import {
 } from '@/lib/spring-config'
 
 describe('lib/spring-config', () => {
+  test('defines lightweight local animation types without external imports', () => {
+    const source = readFileSync(join(process.cwd(), 'lib/spring-config.ts'), 'utf8')
+    expect(source).not.toContain('framer-motion')
+    expect(source).toContain('export type Transition')
+    expect(source).toContain('export type Easing')
+  })
+
   describe('springPresets', () => {
     test('contains all named presets', () => {
       expect(Object.keys(springPresets)).toEqual(

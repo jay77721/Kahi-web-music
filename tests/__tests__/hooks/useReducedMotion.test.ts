@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { renderHook, act, cleanup } from '@testing-library/react'
 import {
   useReducedMotion,
@@ -8,6 +10,7 @@ import {
 } from '@/hooks/useReducedMotion'
 
 type Listener = (event: MediaQueryListEvent) => void
+const source = readFileSync(join(process.cwd(), 'hooks/useReducedMotion.ts'), 'utf8')
 
 function createMedia(matches: boolean, query: string = REDUCED_MOTION_QUERY) {
   const listeners: Set<Listener> = new Set()
@@ -81,6 +84,10 @@ describe('useReducedMotion', () => {
     window.matchMedia = matchMedia
     renderHook(() => useReducedMotion())
     expect(matchMedia).toHaveBeenCalledWith(REDUCED_MOTION_QUERY)
+  })
+
+  it('keeps the hook source independent from removed animation dependencies', () => {
+    expect(source).not.toContain('framer-motion')
   })
 })
 

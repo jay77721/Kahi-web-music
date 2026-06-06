@@ -14,7 +14,7 @@
  *   - fetch: dispatch to the right strategy by request shape
  */
 
-const CACHE_VERSION = 'v2'
+const CACHE_VERSION = 'v3'
 const STATIC_CACHE = `kahi-static-${CACHE_VERSION}`
 const IMAGE_CACHE = `img-cache-${CACHE_VERSION}`
 const API_CACHE = `kahi-api-public-${CACHE_VERSION}`

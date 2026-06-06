@@ -1,14 +1,14 @@
 /**
- * Reusable Framer Motion animation presets.
+ * Reusable animation presets.
  *
  * All presets respect `prefers-reduced-motion` when combined with `useReducedMotion`.
  * Uses spring physics for natural feel and GPU-accelerated properties (transform, opacity).
  */
 
-import {
-  type Variants,
-} from 'framer-motion'
 import { springPresets, easingPresets } from '@/lib/spring-config'
+
+export type VariantState = Record<string, unknown>
+export type Variants = Record<string, VariantState>
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 

@@ -21,9 +21,9 @@ function mergeClassName(className?: string) {
 /**
  * Root-layout route transition backed by global CSS utilities.
  *
- * This intentionally stays separate from `components/common/PageTransition`,
- * which uses framer-motion for richer local transitions. The root layout only
- * needs a lightweight fade/slide so it should not force motion into the shared
+ * This intentionally stays separate from `components/common/PageTransition`.
+ * The root layout only needs a lightweight fade/slide, so it uses CSS-only
+ * transition utilities instead of adding animation runtime work to the shared
  * client bundle.
  */
 export function PageTransitionRoute({

@@ -1,7 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { Transition, Variants } from 'framer-motion'
+
+type Transition = {
+  type?: string
+  duration?: number
+  [key: string]: unknown
+}
+
+type VariantState = Record<string, unknown>
+type Variants = Record<string, VariantState>
 
 /** Canonical media query string for the user's reduced-motion preference. */
 export const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)'
@@ -19,10 +27,8 @@ export const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)'
  * @example
  * ```tsx
  * const prefersReducedMotion = useReducedMotion()
- * <motion.div
- *   animate={prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }}
- *   transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.3 }}
- * />
+ * const animate = prefersReducedMotion ? { opacity: 1 } : { opacity: 1, y: 0 }
+ * const transition = prefersReducedMotion ? { duration: 0 } : { duration: 0.3 }
  * ```
  */
 export function useReducedMotion(): boolean {
@@ -53,7 +59,7 @@ export function useReducedMotion(): boolean {
 }
 
 /**
- * Returns a Framer Motion `Transition` that becomes instant (`duration: 0`)
+ * Returns an animation transition that becomes instant (`duration: 0`)
  * when the user prefers reduced motion. Otherwise the original transition
  * is returned unchanged.
  */
@@ -63,7 +69,7 @@ export function useReducedMotionTransition(transition: Transition): Transition {
 }
 
 /**
- * Returns a Framer Motion `Variants` object with all `transition.duration`
+ * Returns an animation variants object with all `transition.duration`
  * values forced to `0` when the user prefers reduced motion. The returned
  * variants preserve the *shape* of the animation, so the element still
  * appears at its final keyframe — it just does so instantaneously.

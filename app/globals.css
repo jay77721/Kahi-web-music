@@ -178,7 +178,24 @@ body::before {
 @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes slideDown { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes scaleIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
-@keyframes pageIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pageIn {
+  from {
+    opacity: var(--page-transition-from-opacity, 0);
+    transform: translate3d(
+      var(--page-transition-from-x, 0px),
+      var(--page-transition-from-y, 8px),
+      0
+    ) scale(var(--page-transition-from-scale, 1));
+  }
+  to {
+    opacity: var(--page-transition-to-opacity, 1);
+    transform: translate3d(
+      var(--page-transition-to-x, 0px),
+      var(--page-transition-to-y, 0px),
+      0
+    ) scale(var(--page-transition-to-scale, 1));
+  }
+}
 @keyframes spinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 @keyframes equalizerBounce { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(0.35); } }
@@ -456,10 +473,10 @@ body::before {
 }
 
 /* ── Page transition utility classes (CSS-only fallback) ──
-   Mirrors the framer-motion `defaultPageVariants` in
+   Mirrors the legacy `defaultPageVariants` values in
    `components/common/PageTransition.tsx`. Use these for surfaces
-   that opt out of framer-motion but still want a consistent
-   fade + slide. The classes set the starting/end state; the keyframe
+   that want a consistent fade + slide without runtime animation
+   work. The classes set the starting/end state; the keyframe
    provides the motion. Pair with `.page-transition` on the parent
    to enable GPU compositing hints. */
 .page-transition {
@@ -468,12 +485,24 @@ body::before {
 .page-transition-enter {
   opacity: 0;
   transform: translateY(8px);
-  animation: pageIn 0.25s ease-out forwards;
+  animation: pageIn var(--page-transition-duration, 0.25s) ease-out forwards;
 }
 .page-transition-exit {
   opacity: 0;
   transform: translateY(-8px);
   transition: opacity 0.2s ease-in, transform 0.2s ease-in;
+}
+
+/* ── Dialog/drawer transition utility classes ── */
+.modal-transition-overlay,
+.drawer-transition-overlay {
+  animation: fadeIn 0.2s ease-out both;
+}
+.modal-transition-content {
+  animation: scaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.drawer-transition-panel {
+  animation: slideInRight 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* ── Hover / active utilities ── */
@@ -691,8 +720,24 @@ input[type="range"]:focus-visible::-moz-range-thumb { opacity: 1; transform: sca
   .section-enter,
   .stagger-children > *,
   .page-enter,
-  .page-transition-enter {
+  .page-transition-enter,
+  .modal-transition-overlay,
+  .modal-transition-content,
+  .drawer-transition-overlay,
+  .drawer-transition-panel {
     animation: none !important;
+  }
+
+  .section-enter,
+  .stagger-children > *,
+  .page-enter,
+  .page-transition-enter,
+  .modal-transition-overlay,
+  .modal-transition-content,
+  .drawer-transition-overlay,
+  .drawer-transition-panel {
+    opacity: 1 !important;
+    transform: none !important;
   }
 
   /* Stop all hover-driven scale/translate effects. Color, shadow and

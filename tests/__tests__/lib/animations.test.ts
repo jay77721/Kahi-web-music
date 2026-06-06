@@ -1,4 +1,6 @@
 import { describe, test, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   fadeOutVariant,
   fadeIn,
@@ -28,6 +30,28 @@ import {
 import { springPresets, easingPresets } from '@/lib/spring-config'
 
 describe('lib/animations', () => {
+  test('source files do not import the removed animation dependency', () => {
+    const files = [
+      'lib/animations.ts',
+      'lib/spring-config.ts',
+      'lib/animations/index.ts',
+      'components/common/animations/index.ts',
+    ]
+
+    for (const file of files) {
+      const source = readFileSync(join(process.cwd(), file), 'utf8')
+      expect(source).not.toContain('framer-motion')
+    }
+  })
+
+  test('barrel exports keep key animation configs available', async () => {
+    const exports = await import('@/lib/animations/index')
+    expect(exports.fadeIn).toBe(fadeIn)
+    expect(exports.pageTransition).toBe(pageTransition)
+    expect(exports.springPresets.default).toBe(springPresets.default)
+    expect(exports.layoutTransition).toEqual(springPresets.default)
+  })
+
   describe('fadeOutVariant', () => {
     test('exposes hidden/visible/exit opacity values', () => {
       expect(fadeOutVariant.hidden).toEqual({ opacity: 0 })

@@ -1,13 +1,7 @@
 'use client'
 
 import { type ReactNode } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { modalOverlay, modalContent } from '@/lib/animations'
-
-// ── variants (inline to avoid circular imports) ───────────────────────────────
-
-// ── props ─────────────────────────────────────────────────────────────────────
 
 interface ModalTransitionProps {
   /** Whether the modal is open */
@@ -22,13 +16,10 @@ interface ModalTransitionProps {
   closeOnOverlay?: boolean
 }
 
-// ── component ─────────────────────────────────────────────────────────────────
-
 /**
- * Provides animated overlay + content for modal dialogs.
+ * Provides CSS-only overlay + content for modal dialogs.
  *
- * Wraps content with Framer Motion AnimatePresence for smooth enter/exit.
- * Pressing Escape or clicking the backdrop triggers `onClose`.
+ * Clicking the backdrop triggers `onClose`.
  *
  * @example
  * ```tsx
@@ -47,38 +38,28 @@ export function ModalTransition({
   className,
   closeOnOverlay = true,
 }: ModalTransitionProps) {
-  return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          variants={modalOverlay}
-          initial="hidden"
-          animate="visible"
-          exit="exit"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          onClick={closeOnOverlay ? onClose : undefined}
-        >
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+  if (!open) return null
 
-          {/* Content */}
-          <motion.div
-            variants={modalContent}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            onClick={(e) => e.stopPropagation()}
-            className={cn(
-              'relative z-10 w-full max-w-lg max-h-[85vh] overflow-y-auto',
-              className
-            )}
-            role="dialog"
-            aria-modal="true"
-          >
-            {children}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+  return (
+    <div
+      className="modal-transition-overlay fixed inset-0 z-50 flex items-center justify-center p-4"
+      onClick={closeOnOverlay ? onClose : undefined}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+      {/* Content */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className={cn(
+          'modal-transition-content relative z-10 w-full max-w-lg max-h-[85vh] overflow-y-auto',
+          className
+        )}
+        role="dialog"
+        aria-modal="true"
+      >
+        {children}
+      </div>
+    </div>
   )
 }

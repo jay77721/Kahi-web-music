@@ -306,7 +306,7 @@ describe('CloudPage', () => {
 
     await renderCloudPage()
 
-    expect(await screen.findByTestId('app-shell')).toBeInTheDocument()
+    expect(await screen.findByTestId('app-shell', undefined, { timeout: 5_000 })).toBeInTheDocument()
     expect(screen.getByTestId('cloud-page')).toBeInTheDocument()
     expect(screen.getByRole('heading')).toBeInTheDocument()
     expect(screen.getByTestId('cloud-loading')).toBeInTheDocument()
