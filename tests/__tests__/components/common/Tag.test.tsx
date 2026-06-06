@@ -1,6 +1,9 @@
+import { readFileSync } from 'node:fs'
 import { describe, test, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { Tag } from '@/components/common/Tag'
+
+const TAG_SOURCE = 'components/common/Tag.tsx'
 
 describe('Tag', () => {
   test('renders the label text', () => {
@@ -17,11 +20,10 @@ describe('Tag', () => {
 
   test('clicking the tag triggers onClick', () => {
     const handleClick = vi.fn()
-    const { container } = render(<Tag label="Clickable" onClick={handleClick} />)
-    // The framer-motion mock renders motion.button as a <div>, so we
-    // query by the aria-label that the component sets on the wrapper.
-    const btn = container.querySelector('[aria-label="Clickable"]') as HTMLElement
-    expect(btn).toBeInTheDocument()
+    render(<Tag label="Clickable" onClick={handleClick} />)
+    const btn = screen.getByRole('button', { name: 'Clickable' })
+
+    expect(btn.tagName).toBe('BUTTON')
     fireEvent.click(btn)
     expect(handleClick).toHaveBeenCalledTimes(1)
   })
@@ -59,19 +61,33 @@ describe('Tag', () => {
   })
 
   test('sets aria-pressed to reflect active state', () => {
-    const { container } = render(<Tag label="A" active onClick={() => {}} />)
-    const btn = container.querySelector('[aria-label="A"]')
-    expect(btn?.getAttribute('aria-pressed')).toBe('true')
+    render(<Tag label="A" active onClick={() => {}} />)
+    expect(screen.getByRole('button', { name: 'A' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   test('default aria-pressed is false', () => {
-    const { container } = render(<Tag label="B" onClick={() => {}} />)
-    const btn = container.querySelector('[aria-label="B"]')
-    expect(btn?.getAttribute('aria-pressed')).toBe('false')
+    render(<Tag label="B" onClick={() => {}} />)
+    expect(screen.getByRole('button', { name: 'B' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   test('renders the tag-gradient-border class for hover styling', () => {
     const { container } = render(<Tag label="X" onClick={() => {}} />)
     expect(container.querySelector('.tag-gradient-border')).toBeTruthy()
+  })
+
+  test('uses CSS hover and active transforms without framer-motion markers', () => {
+    const { container } = render(<Tag label="CSS Motion" onClick={() => {}} />)
+    const button = screen.getByRole('button', { name: 'CSS Motion' })
+
+    expect(button).toHaveClass('hover-scale')
+    expect(button).toHaveClass('active-scale')
+    expect(container.querySelector('[data-framer-motion]')).toBeNull()
+  })
+
+  test('does not import framer-motion', () => {
+    const source = readFileSync(TAG_SOURCE, 'utf8')
+
+    expect(source).not.toContain('framer-motion')
+    expect(source).not.toContain('motion.')
   })
 })

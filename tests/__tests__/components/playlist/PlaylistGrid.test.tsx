@@ -1,7 +1,11 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, test, expect, afterEach } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { PlaylistGrid } from '@/components/playlist/PlaylistGrid'
 import type { Playlist } from '@/types/playlist'
+
+const PLAYLIST_GRID_SOURCE = resolve(process.cwd(), 'components/playlist/PlaylistGrid.tsx')
 
 function makePlaylist(overrides: Partial<Playlist> = {}): Playlist {
   return {
@@ -92,16 +96,46 @@ describe('PlaylistGrid', () => {
       expect(hrefs).toContain('/playlist/42')
       expect(hrefs).toContain('/playlist/99')
     })
+
+    test('renders cover images with playlist names as alt text', () => {
+      render(
+        <PlaylistGrid
+          playlists={[
+            makePlaylist({
+              id: 7,
+              name: 'Cover One',
+              coverImgUrl: 'https://pics.example.com/p/cover-one.jpg',
+            }),
+          ]}
+        />
+      )
+
+      const image = screen.getByRole('img', { name: 'Cover One' })
+      expect(image).toHaveAttribute(
+        'src',
+        'https://pics.example.com/p/cover-one.jpg?param=200y200'
+      )
+    })
   })
 
-  describe('stagger animation', () => {
-    test('container is rendered as a framer-motion element', () => {
-      const { container } = render(<PlaylistGrid playlists={[makePlaylist()]} />)
-      const list = container.querySelector('[role="list"]') as HTMLElement
-      expect(list.getAttribute('data-framer-motion')).toBe('true')
+  describe('CSS stagger animation', () => {
+    test('does not import framer-motion in the playlist grid runtime', () => {
+      const source = readFileSync(PLAYLIST_GRID_SOURCE, 'utf8')
+
+      expect(source).not.toContain('framer-motion')
+      expect(source).not.toContain('motion.')
     })
 
-    test('each playlist item is rendered as a framer-motion element', () => {
+    test('parent list container uses CSS stagger animation', () => {
+      const { container } = render(<PlaylistGrid playlists={[makePlaylist()]} />)
+      const list = container.querySelector('[role="list"]') as HTMLElement
+
+      expect(list.tagName).toBe('UL')
+      expect(list).toHaveClass('stagger-children')
+      expect(container.querySelector('[data-framer-motion]')).toBeNull()
+    })
+
+    test('each playlist item remains a normal list item', () => {
       const playlists = [
         makePlaylist({ id: 1 }),
         makePlaylist({ id: 2 }),
@@ -111,7 +145,8 @@ describe('PlaylistGrid', () => {
       const items = container.querySelectorAll('[data-playlist-id]')
       expect(items.length).toBe(3)
       items.forEach((item) => {
-        expect(item.getAttribute('data-framer-motion')).toBe('true')
+        expect(item.tagName).toBe('LI')
+        expect(item).not.toHaveAttribute('data-framer-motion')
       })
     })
 

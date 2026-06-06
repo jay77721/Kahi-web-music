@@ -1,7 +1,6 @@
 'use client'
 
 import type { CSSProperties, ReactNode } from 'react'
-import { motion, type Variants } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
 // ---------------------------------------------------------------------------
@@ -29,31 +28,6 @@ interface MetadataBentoProps {
 }
 
 // ---------------------------------------------------------------------------
-// Motion variants
-// ---------------------------------------------------------------------------
-
-const containerVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.05,
-      delayChildren: 0.05,
-    },
-  },
-}
-
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 12, scale: 0.96 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
-  },
-}
-
-// ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
 
@@ -67,16 +41,13 @@ function BentoTile({ item }: BentoTileProps) {
   const style = item.color ? ({ '--bento-accent': item.color } as CSSProperties) : undefined
 
   return (
-    <motion.div
-      variants={itemVariants}
-      whileHover={{ scale: 1.02, y: -2 }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+    <div
       className={cn(
-        'bento-card group relative flex min-h-[64px] items-center gap-2 overflow-hidden',
+        'bento-card group relative flex min-h-[64px] w-full items-center gap-2 overflow-hidden',
         'rounded-lg border border-white/10 bg-white/[0.04] backdrop-blur-sm',
         'px-3 py-2',
-        'transition-colors duration-200',
+        'transition-[background-color,box-shadow,transform] duration-200 ease-out active-scale',
+        'hover:-translate-y-0.5 hover:scale-[1.02]',
         'hover:bg-white/10 hover:shadow-[0_8px_24px_rgba(0,0,0,0.28)]'
       )}
       style={style}
@@ -107,7 +78,7 @@ function BentoTile({ item }: BentoTileProps) {
           {item.value}
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 }
 
@@ -125,14 +96,11 @@ export function MetadataBento({ items, className }: MetadataBentoProps) {
   if (items.length === 0) return null
 
   return (
-    <motion.div
+    <div
       role="list"
       aria-label="Playlist metadata"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
       className={cn(
-        'bento-grid grid grid-cols-[repeat(auto-fit,minmax(104px,1fr))] gap-2 md:gap-3',
+        'bento-grid stagger-children grid grid-cols-[repeat(auto-fit,minmax(104px,1fr))] gap-2 md:gap-3',
         className
       )}
     >
@@ -140,11 +108,11 @@ export function MetadataBento({ items, className }: MetadataBentoProps) {
         <div
           key={`${item.label}-${index}`}
           role="listitem"
-          className="contents"
+          className="min-w-0"
         >
           <BentoTile item={item} />
         </div>
       ))}
-    </motion.div>
+    </div>
   )
 }

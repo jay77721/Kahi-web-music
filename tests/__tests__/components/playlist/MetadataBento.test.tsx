@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, test, expect, afterEach, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
 import { Music, Heart, User, Calendar } from 'lucide-react'
@@ -17,6 +18,8 @@ const baseItems: BentoItem[] = [
   { icon: <User />, label: 'Creator', value: 'Jay', size: 'sm' },
   { icon: <Calendar />, label: 'Created', value: '2024-01-01', size: 'sm' },
 ]
+
+const METADATA_BENTO_SOURCE = 'components/playlist/MetadataBento.tsx'
 
 afterEach(() => {
   cleanup()
@@ -105,6 +108,34 @@ describe('MetadataBento', () => {
       const grid = container.querySelector('.bento-grid')
       expect(grid).toBeTruthy()
       expect(grid).toHaveClass('grid')
+    })
+
+    test('uses CSS hover and active transforms instead of framer-motion', () => {
+      const { container } = render(<MetadataBento items={baseItems} />)
+      const card = screen.getByText('Play Count').closest('[data-bento-size]')
+
+      expect(card).toHaveClass('transition-[background-color,box-shadow,transform]')
+      expect(card).toHaveClass('hover:scale-[1.02]')
+      expect(card).toHaveClass('hover:-translate-y-0.5')
+      expect(card).toHaveClass('active-scale')
+      expect(container.querySelector('[data-framer-motion]')).toBeNull()
+    })
+
+    test('uses CSS stagger animation on the list container', () => {
+      const { container } = render(<MetadataBento items={baseItems} />)
+      const list = screen.getByRole('list')
+
+      expect(list).toHaveClass('stagger-children')
+      expect(screen.getAllByRole('listitem')).toHaveLength(baseItems.length)
+      expect(container.querySelector('[data-framer-motion]')).toBeNull()
+    })
+
+    test('does not import framer-motion', () => {
+      const source = readFileSync(METADATA_BENTO_SOURCE, 'utf8')
+
+      expect(source).not.toContain('framer-motion')
+      expect(source).not.toContain('motion.')
+      expect(source).not.toContain('Variants')
     })
   })
 

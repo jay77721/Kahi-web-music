@@ -1,6 +1,6 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import type { CSSProperties } from 'react'
 import { cn } from '@/lib/utils'
 
 interface TagProps {
@@ -13,7 +13,7 @@ interface TagProps {
 
 export function Tag({ label, color, onClick, active = false, className }: TagProps) {
   const accentStyle = color
-    ? ({ '--tag-accent': color } as React.CSSProperties)
+    ? ({ '--tag-accent': color } as CSSProperties)
     : undefined
 
   const content = (
@@ -39,17 +39,14 @@ export function Tag({ label, color, onClick, active = false, className }: TagPro
   }
 
   return (
-    <motion.button
+    <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
       aria-label={label}
-      className="group inline-block bg-transparent border-0 p-0 cursor-pointer"
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.97 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+      className="group inline-block bg-transparent border-0 p-0 cursor-pointer hover-scale active-scale"
     >
       {content}
-    </motion.button>
+    </button>
   )
 }

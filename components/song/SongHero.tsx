@@ -3,7 +3,6 @@
 import { memo } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
 import { Disc3 } from 'lucide-react'
 import { imageUrl, formatDuration } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -23,7 +22,6 @@ export interface SongHeroProps {
 // ---------------------------------------------------------------------------
 
 const COVER_SIZE = 240
-const EASE_OUT_EXPO: [number, number, number, number] = [0.16, 1, 0.3, 1]
 const PUBLISH_FALLBACK = '—'
 const UNKNOWN_ALBUM = '未知专辑'
 const UNKNOWN_ARTIST = '未知艺人'
@@ -119,16 +117,14 @@ function SongHeroImpl({ song, className }: SongHeroProps) {
   const publishTime = formatPublishTime(song.publishTime)
 
   return (
-    <motion.section
+    <section
       data-testid="song-hero"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: EASE_OUT_EXPO }}
       className={cn(
         'flex flex-col md:flex-row items-center md:items-end gap-6',
         'p-5 md:p-8 rounded-2xl',
         'bg-[var(--bg-surface)] border border-[var(--border)]',
         'shadow-[var(--shadow-md)]',
+        'animate-slide-up',
         className
       )}
     >
@@ -192,7 +188,7 @@ function SongHeroImpl({ song, className }: SongHeroProps) {
           </div>
         </dl>
       </div>
-    </motion.section>
+    </section>
   )
 }
 

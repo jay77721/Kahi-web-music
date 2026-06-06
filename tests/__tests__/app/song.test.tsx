@@ -1,5 +1,6 @@
 'use client'
 
+import { readFileSync } from 'node:fs'
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import React from 'react'
@@ -57,15 +58,6 @@ vi.mock('@/components/layout/AppShell', () => ({
     React.createElement('div', { 'data-testid': 'app-shell' }, children),
 }))
 
-vi.mock('@/components/song/SongHero', () => ({
-  SongHero: ({ song }: { song: Song }) =>
-    React.createElement(
-      'div',
-      { 'data-testid': 'song-hero' },
-      React.createElement('h1', null, song.name)
-    ),
-}))
-
 vi.mock('@/components/song/SongActions', () => ({
   SongActions: ({ song }: { song: Song }) =>
     React.createElement('div', { 'data-testid': 'song-actions' }, song.name),
@@ -120,6 +112,8 @@ const FAKE_LYRICS: LyricLine[] = [
   { time: 10, text: '三行歌词' },
 ]
 
+const SONG_HERO_SOURCE = 'components/song/SongHero.tsx'
+
 function makePlayerStore() {
   return {
     currentTrack: null,
@@ -165,6 +159,13 @@ describe('SongDetailPage', () => {
     vi.clearAllMocks()
   })
 
+  test('does not import framer-motion in SongHero', () => {
+    const source = readFileSync(SONG_HERO_SOURCE, 'utf8')
+
+    expect(source).not.toContain('framer-motion')
+    expect(source).not.toMatch(/\bmotion\./)
+  })
+
   test('renders the loading skeleton while SWR is fetching', async () => {
     mockUseSWR.mockReturnValue(swrState({ isLoading: true }))
 
@@ -202,10 +203,11 @@ describe('SongDetailPage', () => {
     mockUseSWR.mockReturnValue(swrState({ data: makeLoadedData() }))
 
     const { default: SongPage } = await import('@/app/song/[id]/page')
-    render(<SongPage />)
+    const { container } = render(<SongPage />)
 
     expect(screen.getByTestId('song-page')).toBeInTheDocument()
-    expect(screen.getByTestId('song-hero')).toBeInTheDocument()
+    expect(screen.getByTestId('song-hero')).toHaveClass('animate-slide-up')
+    expect(container.querySelector('[data-framer-motion]')).toBeNull()
     expect(screen.getByTestId('song-actions')).toBeInTheDocument()
     expect(screen.getByTestId('song-lyrics')).toBeInTheDocument()
     expect(screen.getByTestId('lyrics-panel')).toHaveAttribute('data-lyric-count', '3')

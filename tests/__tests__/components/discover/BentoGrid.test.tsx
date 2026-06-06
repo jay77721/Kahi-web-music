@@ -1,6 +1,6 @@
+import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { act, cleanup, render } from '@testing-library/react'
-import type { HTMLAttributes, ReactNode } from 'react'
 import { BentoGrid } from '@/components/discover/BentoGrid'
 
 type SwrCall = {
@@ -49,36 +49,6 @@ const swrState = vi.hoisted(() => ({
       },
     ],
   } as Record<string, unknown>,
-}))
-
-type MotionDivMockProps = HTMLAttributes<HTMLDivElement> & {
-  children?: ReactNode
-  initial?: unknown
-  animate?: unknown
-  variants?: unknown
-  whileHover?: unknown
-  whileTap?: unknown
-  transition?: unknown
-}
-
-function stripMotionProps(props: MotionDivMockProps) {
-  const domProps = { ...props }
-  delete domProps.initial
-  delete domProps.animate
-  delete domProps.variants
-  delete domProps.whileHover
-  delete domProps.whileTap
-  delete domProps.transition
-  return domProps
-}
-
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: (props: MotionDivMockProps) => {
-      const { children, ...rest } = stripMotionProps(props)
-      return <div {...rest}>{children}</div>
-    },
-  },
 }))
 
 vi.mock('swr', () => ({
@@ -155,5 +125,22 @@ describe('BentoGrid', () => {
     expect(container.querySelector('a[href="/search"]')).toBeTruthy()
     expect(container.querySelector('a[href="/playlist/101"]')).toBeTruthy()
     expect(container.querySelector('a[href="/song/202"]')).toBeTruthy()
+  })
+
+  test('uses CSS entry and stagger classes without framer-motion markers', () => {
+    const { container, getAllByRole, getByRole } = render(<BentoGrid />)
+
+    expect(getByRole('list', { name: 'Bento discover grid' })).toHaveClass(
+      'section-enter',
+      'stagger-children'
+    )
+    expect(getAllByRole('listitem')).toHaveLength(5)
+    expect(container.querySelector('[data-framer-motion]')).toBeNull()
+  })
+
+  test('does not import framer-motion', () => {
+    const source = readFileSync('components/discover/BentoGrid.tsx', 'utf8')
+
+    expect(source).not.toMatch(/from ['"]framer-motion['"]/)
   })
 })

@@ -2,7 +2,6 @@
 
 import { memo } from 'react'
 import Image from 'next/image'
-import { motion } from 'framer-motion'
 import { Crown, Music2, UserCheck, Users } from 'lucide-react'
 import { imageUrl, formatCount } from '@/lib/format'
 import type { UserProfile } from '@/types/user'
@@ -43,12 +42,9 @@ export const ProfileHeader = memo(function ProfileHeader({
   const isVip = (user.vipType ?? 0) > 0
 
   return (
-    <motion.section
+    <section
       data-testid="profile-header"
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      className={`profile-stat-card glass-subtle rounded-2xl p-5 md:p-7 ${className ?? ''}`}
+      className={`profile-stat-card glass-subtle rounded-2xl p-5 md:p-7 animate-slide-up ${className ?? ''}`}
       aria-label={`${user.nickname} 的个人主页`}
     >
       <div className="flex flex-col md:flex-row md:items-end gap-5 md:gap-7">
@@ -118,6 +114,6 @@ export const ProfileHeader = memo(function ProfileHeader({
           </dl>
         </div>
       </div>
-    </motion.section>
+    </section>
   )
 })

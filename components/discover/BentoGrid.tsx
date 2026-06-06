@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { motion } from 'framer-motion'
 import { Radio, Disc3, Sparkles, UserStar, AlertCircle, RefreshCw } from 'lucide-react'
 import useSWR from 'swr'
 import { BentoCard } from './BentoCard'
@@ -148,19 +147,6 @@ export function BentoGrid() {
         { id: 0, name: '新歌榜单', coverImgUrl: '' },
       ]
 
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.05, delayChildren: 0.05 },
-    },
-  }
-
-  const item = {
-    hidden: { opacity: 0, y: 16 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.4 } },
-  } as const
-
   const allFailed = shouldLoadTopList
     ? radarError && newSongError && topListError
     : radarError && newSongError
@@ -173,11 +159,8 @@ export function BentoGrid() {
 
   if (allFailed) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="rounded-2xl bg-[var(--bg-surface)] p-8 flex flex-col items-center justify-center gap-3 text-center"
+      <div
+        className="section-enter rounded-2xl bg-[var(--bg-surface)] p-8 flex flex-col items-center justify-center gap-3 text-center"
       >
         <AlertCircle className="w-8 h-8 text-[var(--text-tertiary)]" />
         <p className="text-sm text-[var(--text-secondary)]">内容加载失败，请检查网络连接</p>
@@ -190,22 +173,19 @@ export function BentoGrid() {
           <RefreshCw className="w-3.5 h-3.5" />
           重试
         </Button>
-      </motion.div>
+      </div>
     )
   }
 
   return (
-    <motion.div
+    <div
       role="list"
       ref={gridRef}
       aria-label="Bento discover grid"
-      className="grid grid-cols-12 gap-3 md:gap-4 auto-rows-[150px] md:auto-rows-[170px]"
-      variants={container}
-      initial="hidden"
-      animate="show"
+      className="section-enter grid grid-cols-12 gap-3 md:gap-4 auto-rows-[150px] md:auto-rows-[170px] stagger-children"
     >
       {/* Private Radar — large feature (4×2) */}
-      <motion.div role="listitem" variants={item} className="col-span-12 md:col-span-4 md:row-span-2">
+      <div role="listitem" className="col-span-12 md:col-span-4 md:row-span-2">
         <BentoCard
           size="lg"
           title={radar?.name ?? FALLBACK_RADAR.title}
@@ -217,11 +197,11 @@ export function BentoGrid() {
           href={radar ? `/playlist/${radar.id}` : '/daily'}
           className="h-full"
         />
-      </motion.div>
+      </div>
 
       {/* Hot playlist — medium 1 (4×1) */}
       {hotCards[0] && (
-        <motion.div role="listitem" variants={item} className="col-span-6 md:col-span-4 row-span-1">
+        <div role="listitem" className="col-span-6 md:col-span-4 row-span-1">
           <BentoCard
             size="md"
             title={hotCards[0].name}
@@ -233,12 +213,12 @@ export function BentoGrid() {
             href={hotCards[0].id ? `/leaderboard?id=${hotCards[0].id}` : '/leaderboard'}
             className="h-full"
           />
-        </motion.div>
+        </div>
       )}
 
       {/* Hot playlist — medium 2 (4×1) */}
       {hotCards[1] && (
-        <motion.div role="listitem" variants={item} className="col-span-6 md:col-span-4 row-span-1">
+        <div role="listitem" className="col-span-6 md:col-span-4 row-span-1">
           <BentoCard
             size="md"
             title={hotCards[1].name}
@@ -250,11 +230,11 @@ export function BentoGrid() {
             href={hotCards[1].id ? `/leaderboard?id=${hotCards[1].id}` : '/leaderboard'}
             className="h-full"
           />
-        </motion.div>
+        </div>
       )}
 
       {/* New Songs — large feature (4×2) */}
-      <motion.div role="listitem" variants={item} className="col-span-12 md:col-span-4 md:row-span-2">
+      <div role="listitem" className="col-span-12 md:col-span-4 md:row-span-2">
         <BentoCard
           size="lg"
           title={newSong?.name ?? FALLBACK_NEW_SONG.title}
@@ -266,10 +246,10 @@ export function BentoGrid() {
           href={newSong ? `/song/${newSong.id}` : '/search'}
           className="h-full"
         />
-      </motion.div>
+      </div>
 
       {/* Artist discovery shortcut: no first-screen fetch or cover image. */}
-      <motion.div role="listitem" variants={item} className="col-span-12 row-span-1">
+      <div role="listitem" className="col-span-12 row-span-1">
         <BentoCard
           size="md"
           title={FALLBACK_ARTIST.title}
@@ -280,7 +260,7 @@ export function BentoGrid() {
           href="/search"
           className="h-full"
         />
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   )
 }
