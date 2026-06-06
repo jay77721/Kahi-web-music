@@ -12,6 +12,7 @@ type MockDynamicModule = unknown
 const searchState = vi.hoisted(() => ({
   searchResultsModuleLoaded: vi.fn(),
   lyricSearchResultsModuleLoaded: vi.fn(),
+  searchSuggestionsModuleLoaded: vi.fn(),
 }))
 
 const mockRouterPush = vi.fn()
@@ -131,13 +132,16 @@ vi.mock('@/components/search/SearchSuggestions', () => ({
     query: string
     onSelect: (keyword: string) => void
     enabled?: boolean
-  }) => (
-    <div data-testid="search-suggestions" data-query={query} data-enabled={String(enabled)}>
-      <button type="button" onClick={() => onSelect('建议词')}>
-        建议词
-      </button>
-    </div>
-  ),
+  }) => {
+    searchState.searchSuggestionsModuleLoaded()
+    return (
+      <div data-testid="search-suggestions" data-query={query} data-enabled={String(enabled)}>
+        <button type="button" onClick={() => onSelect('建议词')}>
+          建议词
+        </button>
+      </div>
+    )
+  },
 }))
 
 function pushedSearchParams(callIndex = -1) {
@@ -154,6 +158,7 @@ describe('SearchPage', () => {
     mockRouterReplace.mockReset()
     searchState.searchResultsModuleLoaded.mockClear()
     searchState.lyricSearchResultsModuleLoaded.mockClear()
+    searchState.searchSuggestionsModuleLoaded.mockClear()
     window.localStorage.clear()
   })
 
@@ -184,6 +189,7 @@ describe('SearchPage', () => {
 
     expect(searchState.searchResultsModuleLoaded).not.toHaveBeenCalled()
     expect(searchState.lyricSearchResultsModuleLoaded).not.toHaveBeenCalled()
+    expect(searchState.searchSuggestionsModuleLoaded).not.toHaveBeenCalled()
   })
 
   test('submits a trimmed keyword, stores history, and navigates to search results', () => {
@@ -235,7 +241,7 @@ describe('SearchPage', () => {
     expect(screen.getByRole('textbox', { name: '搜索歌词' })).toHaveValue('')
   })
 
-  test('quick selections share the same trimmed navigation path', () => {
+  test('quick selections share the same trimmed navigation path', async () => {
     render(<SearchPage />)
 
     fireEvent.click(screen.getByRole('button', { name: '历史词' }))
@@ -244,7 +250,8 @@ describe('SearchPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '热门词' }))
     expect(pushedSearchParams().params.get('q')).toBe('热门词')
 
-    fireEvent.click(screen.getByRole('button', { name: '建议词' }))
+    fireEvent.focus(screen.getByRole('textbox', { name: '搜索音乐' }))
+    fireEvent.click(await screen.findByRole('button', { name: '建议词' }))
     expect(pushedSearchParams().params.get('q')).toBe('建议词')
   })
 
@@ -252,14 +259,16 @@ describe('SearchPage', () => {
     currentSearchParams = new URLSearchParams('q=jay')
     render(<SearchPage />)
 
-    expect(screen.getByTestId('search-suggestions')).toHaveAttribute('data-enabled', 'false')
+    expect(screen.queryByTestId('search-suggestions')).not.toBeInTheDocument()
+    expect(searchState.searchSuggestionsModuleLoaded).not.toHaveBeenCalled()
     expect(await screen.findByTestId('song-results')).toHaveTextContent('songs:jay')
     expect(searchState.searchResultsModuleLoaded).toHaveBeenCalledTimes(1)
     expect(searchState.lyricSearchResultsModuleLoaded).not.toHaveBeenCalled()
 
     fireEvent.focus(screen.getByRole('textbox'))
 
-    expect(screen.getByTestId('search-suggestions')).toHaveAttribute('data-enabled', 'true')
+    expect(await screen.findByTestId('search-suggestions')).toHaveAttribute('data-enabled', 'true')
+    expect(searchState.searchSuggestionsModuleLoaded).toHaveBeenCalledTimes(1)
   })
 
   test('switches result type without dropping the current query', () => {

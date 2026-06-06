@@ -2,8 +2,6 @@
 
 import {
   createContext,
-  lazy,
-  Suspense,
   useCallback,
   useContext,
   useMemo,
@@ -12,6 +10,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { Song } from '@/types/song'
+import SongContextMenuContent from './SongContextMenuContent'
 
 interface SongContextMenuProps {
   children: ReactNode
@@ -32,8 +31,6 @@ interface SongContextMenuController {
   openMenu: (song: Song, x: number, y: number, triggerElement?: HTMLElement | null) => void
   closeMenu: (options?: CloseMenuOptions) => void
 }
-
-const SongContextMenuContent = lazy(() => import('./SongContextMenuContent'))
 
 const SongContextMenuContext = createContext<SongContextMenuController | null>(null)
 
@@ -80,9 +77,7 @@ export function SongContextMenu({ children }: SongContextMenuProps) {
     <SongContextMenuContext.Provider value={controller}>
       {children}
       {menu.isOpen && menu.song && (
-        <Suspense fallback={null}>
-          <SongContextMenuContent song={menu.song} x={menu.x} y={menu.y} onClose={closeMenu} />
-        </Suspense>
+        <SongContextMenuContent song={menu.song} x={menu.x} y={menu.y} onClose={closeMenu} />
       )}
     </SongContextMenuContext.Provider>
   )

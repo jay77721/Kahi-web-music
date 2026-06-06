@@ -101,7 +101,8 @@ const AuthenticatedLikedPage = dynamic<AuthenticatedLikedPageProps>(
     const { imageUrl } = formatModule
 
     function AuthenticatedLikedContent({ profile }: AuthenticatedLikedPageProps) {
-      const { playQueue, setPlayMode } = usePlayerStore()
+      const playQueue = usePlayerStore((state) => state.playQueue)
+      const setPlayMode = usePlayerStore((state) => state.setPlayMode)
       const [detailState, setDetailState] = useState<LikedDetailState>(EMPTY_DETAIL_STATE)
       const detailRequestRef = useRef(0)
 

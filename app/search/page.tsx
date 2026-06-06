@@ -8,7 +8,7 @@ import { Search, X } from 'lucide-react'
 import { AppShell } from '@/components/layout/AppShell'
 import { SearchHistory } from '@/components/search/SearchHistory'
 import { HotSearchTags } from '@/components/search/HotSearchTags'
-import { SearchSuggestions } from '@/components/search/SearchSuggestions'
+import type { SearchSuggestionsProps } from '@/components/search/SearchSuggestions'
 import { storage, STORAGE_KEYS } from '@/lib/storage'
 import { cn } from '@/lib/utils'
 
@@ -26,10 +26,16 @@ const LazyLyricSearchResults = dynamic<{ query: string }>(
   { loading: () => <SearchResultsFallback /> }
 )
 
+const LazySearchSuggestions = dynamic<SearchSuggestionsProps>(
+  () => import('@/components/search/SearchSuggestions').then((module) => module.SearchSuggestions),
+  { loading: () => null }
+)
+
 function SearchPageContent({ query, type }: { query: string; type: SearchType }) {
   const router = useRouter()
   const [inputValue, setInputValue] = useState(query)
   const [isFocused, setIsFocused] = useState(false)
+  const [hasLoadedSuggestions, setHasLoadedSuggestions] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const shouldRefocusInputRef = useRef(false)
 
@@ -104,6 +110,7 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
   }, [])
 
   const hasTypedQuery = inputValue.trim().length > 0
+  const shouldMountSuggestions = hasLoadedSuggestions
   const showEmptyState = hasTypedQuery && !query
   const showResults = query.length > 0
 
@@ -125,12 +132,14 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
             aria-label="搜索音乐"
           >
             <div className="relative">
-              <SearchSuggestions
-                query={inputValue}
-                onSelect={handleSearch}
-                inputRef={inputRef}
-                enabled={isFocused}
-              />
+              {shouldMountSuggestions && (
+                <LazySearchSuggestions
+                  query={inputValue}
+                  onSelect={handleSearch}
+                  inputRef={inputRef}
+                  enabled={isFocused}
+                />
+              )}
               <div
                 className={cn(
                   'relative flex items-center rounded-full bg-[var(--bg-surface)] border border-white/10',
@@ -146,7 +155,10 @@ function SearchPageContent({ query, type }: { query: string; type: SearchType })
                   type="text"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  onFocus={() => setIsFocused(true)}
+                  onFocus={() => {
+                    setIsFocused(true)
+                    setHasLoadedSuggestions(true)
+                  }}
                   onBlur={() => setIsFocused(false)}
                   aria-label={type === 'lyric' ? '搜索歌词' : '搜索音乐'}
                   autoComplete="off"

@@ -161,15 +161,14 @@ kahi-web-music/
 │   ├── song/                     # Song detail
 │   ├── user/                     # User profile
 │   ├── layout.tsx                # Root layout: SW + shortcuts + toaster
-│   ├── page.tsx                  # Home: greeting + Bento + Banner
+│   ├── page.tsx                  # Home: greeting + RecentPlayed + Banner + BentoGrid
 │   └── globals.css               # Tailwind v4 + design tokens
 │
 ├── components/
 │   ├── comment/                  # CommentList
 │   ├── common/                   # SongTable, Skeleton, transitions,
 │   │                             # PlaylistCard, GlobalShortcuts, SW registrar
-│   ├── discover/                 # Banner, BentoGrid, BentoCard,
-│   │                             # NewSongList, RankingPreview, RecentPlayed
+│   ├── discover/                 # Banner, BentoGrid, BentoCard, RecentPlayed
 │   ├── layout/                   # AppShell, Header, Sidebar, MobileNav,
 │   │                             # PageTransitionShell
 │   ├── mv/                       # (reserved)

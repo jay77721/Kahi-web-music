@@ -86,10 +86,14 @@ function ActionButton({ label, icon, onClick, variant = 'default', testId, disab
  * or user store if they need different behavior.
  */
 function SongActionsImpl({ song, className }: SongActionsProps) {
-  const { playSong, currentTrack, isPlaying, pause, resume } = usePlayerStore()
+  const playSong = usePlayerStore((state) => state.playSong)
+  const currentTrackId = usePlayerStore((state) => state.currentTrack?.id ?? null)
+  const isPlaying = usePlayerStore((state) => state.isPlaying)
+  const pause = usePlayerStore((state) => state.pause)
+  const resume = usePlayerStore((state) => state.resume)
   const { isLoggedIn } = useUserStore()
 
-  const isCurrent = currentTrack?.id === song.id
+  const isCurrent = currentTrackId === song.id
   const shareTitle = song.name?.trim() || '未知歌曲'
 
   const handlePlay = useCallback(() => {

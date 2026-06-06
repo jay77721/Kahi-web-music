@@ -32,7 +32,7 @@ function formatAlbumDate(value: number | undefined): string {
 export default function AlbumPage() {
   const params = useParams()
   const id = getRouteId(params?.id as string | string[] | undefined)
-  const { playQueue } = usePlayerStore()
+  const playQueue = usePlayerStore((state) => state.playQueue)
 
   const { data, isLoading, error } = useSWR<NormalizedAlbumDetail>(
     id ? `album-${id}` : null,

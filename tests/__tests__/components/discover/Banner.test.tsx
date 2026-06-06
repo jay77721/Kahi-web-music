@@ -18,6 +18,8 @@ const mockBanners = vi.hoisted(() => [
   },
 ])
 
+type IntersectionCallback = IntersectionObserverCallback
+
 vi.mock('swr', () => ({
   default: (key: string, _fetcher: unknown, options?: Record<string, unknown>) => {
     swrCalls.push({ key, options })
@@ -101,5 +103,58 @@ describe('Banner', () => {
     })
 
     expect(screen.getAllByRole('img')[0]).toHaveAttribute('src', expect.stringContaining('banner-b'))
+  })
+
+  test('does not auto-rotate while scrolled offscreen', () => {
+    vi.useFakeTimers()
+    const originalIntersectionObserver = window.IntersectionObserver
+    let intersectionCallback: IntersectionCallback | null = null
+
+    class MockIntersectionObserver {
+      readonly root = null
+      readonly rootMargin = ''
+      readonly thresholds = []
+      disconnect = vi.fn()
+      observe = vi.fn()
+      takeRecords = vi.fn(() => [])
+      unobserve = vi.fn()
+
+      constructor(callback: IntersectionCallback) {
+        intersectionCallback = callback
+      }
+    }
+
+    Object.defineProperty(window, 'IntersectionObserver', {
+      configurable: true,
+      value: MockIntersectionObserver,
+    })
+
+    render(<Banner />)
+    expect(screen.getAllByRole('img')[0]).toHaveAttribute('src', expect.stringContaining('banner-a'))
+
+    act(() => {
+      intersectionCallback?.([{ isIntersecting: false } as IntersectionObserverEntry], {} as IntersectionObserver)
+    })
+
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+
+    expect(screen.getAllByRole('img')[0]).toHaveAttribute('src', expect.stringContaining('banner-a'))
+
+    act(() => {
+      intersectionCallback?.([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver)
+    })
+
+    act(() => {
+      vi.advanceTimersByTime(5000)
+    })
+
+    expect(screen.getAllByRole('img')[0]).toHaveAttribute('src', expect.stringContaining('banner-b'))
+
+    Object.defineProperty(window, 'IntersectionObserver', {
+      configurable: true,
+      value: originalIntersectionObserver,
+    })
   })
 })

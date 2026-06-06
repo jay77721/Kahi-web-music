@@ -148,7 +148,7 @@ const AuthenticatedMyPage = dynamic<AuthenticatedMyPageProps>(
       const router = useRouter()
       const searchParams = useSearchParams()
       const tab = searchParams.get('tab') || 'liked'
-      const { playQueue } = usePlayerStore()
+      const playQueue = usePlayerStore((state) => state.playQueue)
       const { history, clear: clearHistory } = useHistoryStore()
       const historySongs = useMemo(() => history.map((item) => item.song), [history])
 

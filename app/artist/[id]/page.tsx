@@ -312,7 +312,7 @@ async function loadArtistDeferred(id: string): Promise<ArtistDeferredData> {
 export default function ArtistPage() {
   const params = useParams()
   const id = getRouteId(params?.id as string | string[] | undefined)
-  const { playQueue } = usePlayerStore()
+  const playQueue = usePlayerStore((state) => state.playQueue)
   const [deferredReadyId, setDeferredReadyId] = useState<string | null>(null)
 
   const { data: primaryData, isLoading } = useSWR<ArtistPrimaryData>(

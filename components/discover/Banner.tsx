@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, type SyntheticEvent } from 'react'
+import { useState, useEffect, useCallback, useRef, type SyntheticEvent } from 'react'
 import { ChevronLeft, ChevronRight, AlertCircle, RefreshCw, Pause, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -30,6 +30,7 @@ function isPauseToggleEvent(event: SyntheticEvent<HTMLElement>): boolean {
 }
 
 export function Banner() {
+  const bannerRef = useRef<HTMLDivElement | null>(null)
   const { data, isLoading, error, mutate } = useSWR(
     'banner',
     swrFetcher(async () => {
@@ -42,6 +43,7 @@ export function Banner() {
   const [current, setCurrent] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
   const [isTabVisible, setIsTabVisible] = useState(true)
+  const [isBannerVisible, setIsBannerVisible] = useState(true)
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const banners = data || []
   const activeIndex = banners.length > 0 ? Math.min(current, banners.length - 1) : 0
@@ -76,10 +78,25 @@ export function Banner() {
   }, [])
 
   useEffect(() => {
-    if (banners.length <= 1 || isPaused || prefersReducedMotion || !isTabVisible) return
+    const element = bannerRef.current
+    if (banners.length <= 1 || !element || !window.IntersectionObserver) {
+      setIsBannerVisible(true)
+      return
+    }
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setIsBannerVisible(entry.isIntersecting)
+    })
+
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [banners.length])
+
+  useEffect(() => {
+    if (banners.length <= 1 || isPaused || prefersReducedMotion || !isTabVisible || !isBannerVisible) return
     const timer = setInterval(next, BANNER_ROTATE_MS)
     return () => clearInterval(timer)
-  }, [banners.length, isPaused, isTabVisible, next, prefersReducedMotion])
+  }, [banners.length, isBannerVisible, isPaused, isTabVisible, next, prefersReducedMotion])
 
   if (isLoading) {
     return <Skeleton className="w-full aspect-[3/1] md:aspect-[4/1] rounded-2xl" />
@@ -122,6 +139,7 @@ export function Banner() {
 
   return (
     <div
+      ref={bannerRef}
       className="relative w-full aspect-[3/1] md:aspect-[4/1] rounded-2xl overflow-hidden group shadow-lg"
       onFocus={pauseForCarouselInteraction}
       onPointerDown={pauseForCarouselInteraction}

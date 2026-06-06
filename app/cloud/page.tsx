@@ -71,7 +71,7 @@ const AuthenticatedCloudPage = dynamic<AuthenticatedCloudPageProps>(
     }
 
     function AuthenticatedCloudContent({ profile }: AuthenticatedCloudPageProps) {
-      const { playQueue } = usePlayerStore()
+      const playQueue = usePlayerStore((state) => state.playQueue)
       const sampledAvatar = profile ? imageUrl(profile.avatarUrl, 120) : null
       const { color } = useDominantColor(sampledAvatar, { timeoutMs: 4000 })
       const backgroundStyle = useMemo<CSSProperties>(() => {

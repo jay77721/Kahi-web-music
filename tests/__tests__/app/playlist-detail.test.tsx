@@ -52,7 +52,10 @@ vi.mock('@/lib/api', () => ({
 }))
 
 vi.mock('@/stores/playerStore', () => ({
-  usePlayerStore: () => mockUsePlayerStore(),
+  usePlayerStore: (selector?: (state: { playQueue: ReturnType<typeof vi.fn> }) => unknown) => {
+    const state = mockUsePlayerStore()
+    return selector ? selector(state) : state
+  },
 }))
 
 vi.mock('@/components/layout/AppShell', () => ({

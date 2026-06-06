@@ -305,9 +305,10 @@
 
 - Renders as an anchor when `href` is given, otherwise a button.
 
-### `<NewSongList />`, `<RankingPreview />`, `<RecommendGrid />`
+### Home composition
 
-- Auxiliary discover widgets. Each pulls a single SWR resource and renders a grid.
+- The home page renders `<RecentPlayed />`, `<Banner />`, and lazy-loaded `<BentoGrid />` in sequence.
+- `<BentoGrid />` owns the API-backed discover tiles; `<Banner />` owns the carousel; `<RecentPlayed />` reads local playback history.
 
 ### `<RecentPlayed />`
 

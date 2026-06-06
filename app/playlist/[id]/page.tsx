@@ -75,7 +75,7 @@ async function fetchPlaylistDetailSlice(
 export default function PlaylistDetailPage() {
   const params = useParams()
   const id = getRouteId(params?.id as string | string[] | undefined)
-  const { playQueue } = usePlayerStore()
+  const playQueue = usePlayerStore((state) => state.playQueue)
   const [batchMode, setBatchMode] = useState<boolean>(false)
   const [isLoadingFullTracks, setIsLoadingFullTracks] = useState<boolean>(false)
   const [fullTracksLoadedForId, setFullTracksLoadedForId] = useState<string | null>(null)

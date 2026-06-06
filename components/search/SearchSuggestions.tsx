@@ -18,7 +18,7 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-interface SearchSuggestionsProps {
+export interface SearchSuggestionsProps {
   query: string
   onSelect: (keyword: string) => void
   inputRef?: RefObject<HTMLInputElement | null>

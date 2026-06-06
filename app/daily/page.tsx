@@ -44,7 +44,7 @@ const AuthenticatedDailyPage = dynamic(
     const { usePlayerStore } = playerStoreModule
 
     function AuthenticatedDailyContent() {
-      const { playQueue } = usePlayerStore()
+      const playQueue = usePlayerStore((state) => state.playQueue)
 
       const { data, isLoading, error, mutate } = useSWR<Song[]>(
         'recommend-songs',

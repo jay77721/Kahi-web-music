@@ -169,8 +169,10 @@ vi.mock('@/lib/api-adapters', () => {
 vi.mock('@/stores/playerStore', () => {
   mockPlayerStoreModuleLoaded()
   return {
-    usePlayerStore: (selector?: (s: Record<string, unknown>) => unknown) =>
-      selector ? mockUsePlayerStore(selector) : (mockUsePlayerStore() ?? makePlayerStore()),
+    usePlayerStore: (selector?: (s: Record<string, unknown>) => unknown) => {
+      const store = mockUsePlayerStore() ?? makePlayerStore()
+      return selector ? selector(store) : store
+    },
   }
 })
 

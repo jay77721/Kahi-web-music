@@ -160,19 +160,6 @@ body::before {
   -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
 }
 
-/* ── Rank badge gradients (used by Leaderboard) ──
-   The 1/2/3 medals get a layered linear-gradient that reads as gold/silver/
-   bronze. We avoid `currentColor` so the dark text overlay stays readable. */
-.rank-gold {
-  background: linear-gradient(135deg, #fff3b0 0%, #ffd86b 35%, #f0a830 70%, #c87f1a 100%);
-}
-.rank-silver {
-  background: linear-gradient(135deg, #f4f6fa 0%, #cfd6e0 45%, #98a2b3 100%);
-}
-.rank-bronze {
-  background: linear-gradient(135deg, #f3c6a3 0%, #d6906a 50%, #a05a32 100%);
-}
-
 /* ── Keyframes ── */
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }

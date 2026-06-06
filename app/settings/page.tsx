@@ -208,7 +208,8 @@ function SummaryItem({ icon, label, value }: SummaryItemProps) {
 
 export default function SettingsPage() {
   const { theme, setTheme } = useUIStore()
-  const { playMode, setPlayMode } = usePlayerStore()
+  const playMode = usePlayerStore((state) => state.playMode)
+  const setPlayMode = usePlayerStore((state) => state.setPlayMode)
   const { isLoggedIn, logout } = useUserStore()
 
   const [quality, setQuality] = useState<string>(DEFAULT_QUALITY)

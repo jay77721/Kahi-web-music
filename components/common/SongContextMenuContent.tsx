@@ -80,7 +80,8 @@ export default function SongContextMenuContent({
   onClose,
 }: SongContextMenuContentProps) {
   const router = useRouter()
-  const { playSong, addToQueue } = usePlayerStore()
+  const playSong = usePlayerStore((state) => state.playSong)
+  const addToQueue = usePlayerStore((state) => state.addToQueue)
   const { isLoggedIn } = useUserStore()
   const { add: addToHistory } = useHistoryStore()
   const menuRef = useRef<HTMLDivElement>(null)
