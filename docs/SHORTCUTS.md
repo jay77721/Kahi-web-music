@@ -99,9 +99,7 @@ Routes map roughly to the sidebar / mobile nav entries below. There is no URL-ba
 | `/daily` | Daily recommendations | 每日推荐 |
 | `/fm` | Personal FM | 私人FM |
 | `/radio` | Radios / DJ programs | 电台 |
-| `/my?tab=liked` | Liked songs | 我喜欢的 |
-| `/liked` | Liked songs (standalone) | — |
-| `/my?tab=recent` | Recent plays | 最近播放 |
+| `/liked` | Liked songs | 我喜欢的 |
 | `/cloud` | Cloud disk | 云盘 |
 | `/search` | Search + lyric search | (Header search input) |
 | `/login` | Phone + captcha login | (User avatar) |

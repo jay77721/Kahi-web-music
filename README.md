@@ -154,7 +154,7 @@ kahi-web-music/
 │   ├── leaderboard/              # Top lists
 │   ├── login/                    # Phone + captcha login
 │   ├── mv/                       # MV pages
-│   ├── my/                       # Liked / recent
+│   ├── liked/                    # Liked songs
 │   ├── playlist/                 # Playlist detail
 │   ├── radio/                    # Radio
 │   ├── search/                   # Search + lyric search

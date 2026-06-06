@@ -126,11 +126,11 @@ describe('LoginPage session restoration gate', () => {
     expect(screen.getByRole('status')).toBeInTheDocument()
     expect(screen.queryByText('PhoneLoginForm')).not.toBeInTheDocument()
     await waitFor(() => {
-      expect(mocks.routerReplace).toHaveBeenCalledWith('/my')
+      expect(mocks.routerReplace).toHaveBeenCalledWith('/liked')
     })
   })
 
-  test('redirects an authenticated StrictMode render to /my only once', async () => {
+  test('redirects an authenticated StrictMode render to /liked only once', async () => {
     mocks.userStoreState.isLoggedIn = true
 
     render(
@@ -142,7 +142,7 @@ describe('LoginPage session restoration gate', () => {
     await waitFor(() => {
       expect(mocks.routerReplace).toHaveBeenCalledTimes(1)
     })
-    expect(mocks.routerReplace).toHaveBeenCalledWith('/my')
+    expect(mocks.routerReplace).toHaveBeenCalledWith('/liked')
   })
 
   test('allows a fresh authenticated remount to redirect after a previous StrictMode redirect', async () => {
@@ -164,7 +164,7 @@ describe('LoginPage session restoration gate', () => {
     await waitFor(() => {
       expect(mocks.routerReplace).toHaveBeenCalledTimes(2)
     })
-    expect(mocks.routerReplace).toHaveBeenLastCalledWith('/my')
+    expect(mocks.routerReplace).toHaveBeenLastCalledWith('/liked')
   })
 })
 

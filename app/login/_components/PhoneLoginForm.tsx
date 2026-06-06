@@ -86,7 +86,7 @@ export function PhoneLoginForm() {
       try {
         await login(phone, captcha)
         toast.success('登录成功')
-        router.push('/my')
+        router.push('/liked')
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : '登录失败'
         toast.error(msg)

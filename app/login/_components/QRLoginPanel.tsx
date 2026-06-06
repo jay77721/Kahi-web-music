@@ -87,7 +87,7 @@ export function QRLoginPanel() {
               }
               setProfile(accountRes.profile)
               toast.success('登录成功')
-              router.push('/my')
+              router.push('/liked')
             } catch (error) {
               if (!isCurrentGeneration()) return
               toast.error(getErrorMessage(error, '登录状态确认失败，请重试'))

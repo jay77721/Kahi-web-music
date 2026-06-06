@@ -244,7 +244,7 @@
 ### `<Sidebar />`
 
 - Two modes: expanded (`w-[280px]`) and collapsed (`w-[76px]`).
-- Main nav (发现音乐, 排行榜, 每日推荐, 私人FM, 电台) · My nav (我喜欢的, 最近播放, 云盘) · user link.
+- Main nav (发现音乐, 排行榜, 每日推荐, 私人FM, 电台) · My nav (我喜欢的, 云盘) · user link.
 - Active item uses CSS background/indicator states for lightweight navigation feedback.
 
 ### `<Header />`
@@ -258,7 +258,7 @@
 
 - Bottom tab bar, mobile-only.
 - Top row: now-playing indicator (when a track is active) linking back home.
-- Tabs: 首页, 搜索, 我的, 云盘, 电台, 登录.
+- Tabs: 首页, 搜索, 收藏, 设置.
 
 ### `<PageTransitionShell>`
 

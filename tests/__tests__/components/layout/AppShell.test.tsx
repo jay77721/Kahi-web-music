@@ -117,10 +117,12 @@ describe('AppShell', () => {
   })
 
   test('keeps mobile navigation mounted under a responsive CSS guard', () => {
-    render(<AppShell><span>Content</span></AppShell>)
+    const { container } = render(<AppShell><span>Content</span></AppShell>)
 
     const mobileNav = screen.getByRole('navigation', { name: '移动主导航' })
     expect(mobileNav).toHaveClass('md:hidden')
+    expect(container.querySelector('a[href="/liked"]')).toBeTruthy()
+    expect(container.querySelector('a[href="/my"]')).toBeNull()
   })
 
   test('renders without crashing', () => {

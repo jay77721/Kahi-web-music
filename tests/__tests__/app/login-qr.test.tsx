@@ -215,7 +215,7 @@ describe('QRLoginPanel', () => {
     expect(mocks.userAccount).toHaveBeenCalledTimes(1)
     expect(mocks.setProfile).toHaveBeenCalledWith(profile)
     expect(mocks.toast.success).toHaveBeenCalledWith('登录成功')
-    expect(mocks.routerPush).toHaveBeenCalledWith('/my')
+    expect(mocks.routerPush).toHaveBeenCalledWith('/liked')
   })
 
   test('ignores a stale account confirmation failure after unmount', async () => {

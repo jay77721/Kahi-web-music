@@ -36,7 +36,7 @@ export default function LoginPage() {
     if (!isLoggedIn || hasRedirectedRef.current) return
 
     hasRedirectedRef.current = true
-    router.replace('/my')
+    router.replace('/liked')
   }, [isLoggedIn, router])
 
   if (isRestoringSession || isLoggedIn) {
@@ -46,7 +46,7 @@ export default function LoginPage() {
         style={LOGIN_BACKGROUND_STYLE}
       >
         <p role="status" aria-live="polite" className="text-sm">
-          {isLoggedIn ? '正在进入个人页...' : '正在恢复登录状态...'}
+          {isLoggedIn ? '正在进入收藏...' : '正在恢复登录状态...'}
         </p>
       </main>
     )

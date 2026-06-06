@@ -2,28 +2,18 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Search, Heart, User, Settings as SettingsIcon } from 'lucide-react'
+import { Home, Search, Heart, Settings as SettingsIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
   { href: '/', label: '首页', icon: Home },
   { href: '/search', label: '搜索', icon: Search },
   { href: '/liked', label: '收藏', icon: Heart },
-  { href: '/my', label: '我的', icon: User },
   { href: '/settings', label: '设置', icon: SettingsIcon },
 ]
 
 function isNavItemActive(pathname: string, href: string) {
   if (href === '/') return pathname === '/'
-
-  if (href === '/my') {
-    return (
-      pathname === '/my' ||
-      pathname.startsWith('/my/') ||
-      pathname === '/user' ||
-      pathname.startsWith('/user/')
-    )
-  }
 
   return pathname === href || pathname.startsWith(`${href}/`)
 }

@@ -2,11 +2,11 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Home, Music, ListMusic, Radio, Headphones,
-  Heart, Clock, Cloud, User, ChevronLeft, ChevronRight, Plus,
+  Heart, Cloud, User, ChevronLeft, ChevronRight, Plus,
   Music2, Settings as SettingsIcon,
 } from 'lucide-react'
 import { useUIStore } from '@/stores/uiStore'
@@ -22,35 +22,26 @@ const mainNavItems = [
 ]
 
 const myNavItems = [
-  { href: '/my?tab=liked', label: '我喜欢的', icon: Heart, activePath: '/my', activeTab: 'liked' },
-  { href: '/my?tab=recent', label: '最近播放', icon: Clock, activePath: '/my', activeTab: 'recent' },
+  { href: '/liked', label: '我喜欢的', icon: Heart },
   { href: '/cloud', label: '云盘', icon: Cloud },
 ]
 
 const placeholderPlaylists = [
   { id: 1, name: '我喜欢的音乐', playCount: 0 },
-  { id: 2, name: '最近播放', playCount: 0 },
 ]
 
 type NavItem = {
   href: string
   label: string
   icon: React.ElementType
-  activePath?: string
-  activeTab?: string
 }
 
 function pathFromHref(href: string): string {
   return href.split('?')[0]
 }
 
-function isSidebarNavItemActive(item: NavItem, pathname: string, activeTab: string): boolean {
-  const basePath = item.activePath ?? pathFromHref(item.href)
-
-  if (item.activeTab) {
-    return pathname === basePath && activeTab === item.activeTab
-  }
-
+function isSidebarNavItemActive(item: NavItem, pathname: string): boolean {
+  const basePath = pathFromHref(item.href)
   if (basePath === '/') return pathname === '/'
   return pathname === basePath || pathname.startsWith(`${basePath}/`)
 }
@@ -71,14 +62,12 @@ function SidebarActiveIndicator({ active, compact = false }: { active: boolean; 
 
 export function Sidebar() {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const activeTab = searchParams.get('tab') || 'liked'
   const { sidebarOpen, toggleSidebar } = useUIStore()
   const { isLoggedIn, profile } = useUserStore()
 
   const navLink = (item: NavItem) => {
     const Icon = item.icon
-    const isActive = isSidebarNavItemActive(item, pathname, activeTab)
+    const isActive = isSidebarNavItemActive(item, pathname)
 
     return (
       <Link
@@ -129,7 +118,7 @@ export function Sidebar() {
         <nav aria-label="主导航" className="flex flex-col items-center gap-3 flex-1">
           {mainNavItems.map((item) => {
             const Icon = item.icon
-            const isActive = isSidebarNavItemActive(item, pathname, activeTab)
+            const isActive = isSidebarNavItemActive(item, pathname)
             return (
               <Link
                 key={item.href}
