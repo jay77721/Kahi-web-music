@@ -1,7 +1,6 @@
 'use client'
 
 import { memo, useLayoutEffect, useMemo, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { useReducedMotion } from '@/hooks/useReducedMotion'
 import type { LyricLine, LyricSyllable } from '@/types'
@@ -52,12 +51,9 @@ function LyricsPanelImpl({ lyrics, currentTime, onSeek }: LyricsPanelProps) {
   const safeLyrics = lyrics ?? EMPTY_LYRICS
   const hasLyrics = safeLyrics.length > 0
 
-  // When the user prefers reduced motion, render plain <li> elements without
-  // the AnimatePresence choreography. The active line still uses the
-  // scale + glow styling via CSS, but no transform animation runs.
-  const lineTransition = prefersReducedMotion
-    ? { duration: 0 }
-    : { duration: 0.35, ease: [0.16, 1, 0.3, 1] as const }
+  const lineTransitionClass = prefersReducedMotion
+    ? 'transition-none'
+    : 'transition-[color,opacity,transform] duration-300 ease-out motion-reduce:transition-none'
 
   return (
     <div
@@ -72,63 +68,53 @@ function LyricsPanelImpl({ lyrics, currentTime, onSeek }: LyricsPanelProps) {
     >
       {hasLyrics ? (
         <ul ref={ulRef} className="flex flex-col items-center gap-3 text-center" role="list">
-          <AnimatePresence initial={false}>
-            {safeLyrics.map((line, index) => {
-              const isActive = index === activeIndex
-              return (
-                <motion.li
-                  key={`${line.time}-${index}`}
-                  ref={isActive ? activeRef : null}
-                  data-active={isActive ? 'true' : 'false'}
-                  data-time={line.time}
-                  data-has-syllables={line.syllables ? 'true' : 'false'}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={buildAriaLabel(line)}
-                  onClick={() => onSeek?.(line.time)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault()
-                      onSeek?.(line.time)
-                    }
-                  }}
-                  initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
-                  animate={{
-                    opacity: isActive ? 1 : 0.4,
-                    y: 0,
-                    scale: isActive ? 1.05 : 1,
-                  }}
-                  exit={prefersReducedMotion ? undefined : { opacity: 0, y: -6 }}
-                  transition={lineTransition}
-                  className={cn(
-                    'lyric-line cursor-pointer select-none',
-                    'transition-colors duration-300 ease-out',
-                    isActive
-                      ? 'text-white font-medium lyric-active text-glow'
-                      : 'text-white/40 hover:text-white/70',
-                    'focus:outline-none focus-visible:text-white/90'
-                  )}
-                >
-                  <SyllableText
-                    line={line}
-                    isActive={isActive}
-                    currentTime={currentTime}
-                  />
-                  {line.translation ? (
-                    <span
-                      data-testid="lyric-translation"
-                      className={cn(
-                        'block text-sm mt-1 leading-snug',
-                        isActive ? 'text-white/50' : 'text-white/30'
-                      )}
-                    >
-                      {line.translation}
-                    </span>
-                  ) : null}
-                </motion.li>
-              )
-            })}
-          </AnimatePresence>
+          {safeLyrics.map((line, index) => {
+            const isActive = index === activeIndex
+            return (
+              <li
+                key={`${line.time}-${index}`}
+                ref={isActive ? activeRef : null}
+                data-active={isActive ? 'true' : 'false'}
+                data-time={line.time}
+                data-has-syllables={line.syllables ? 'true' : 'false'}
+                role="button"
+                tabIndex={0}
+                aria-label={buildAriaLabel(line)}
+                onClick={() => onSeek?.(line.time)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onSeek?.(line.time)
+                  }
+                }}
+                className={cn(
+                  'lyric-line cursor-pointer select-none',
+                  lineTransitionClass,
+                  isActive
+                    ? 'text-white font-medium opacity-100 scale-[1.05] lyric-active text-glow'
+                    : 'text-white/40 opacity-40 scale-100 hover:text-white/70',
+                  'focus:outline-none focus-visible:text-white/90'
+                )}
+              >
+                <SyllableText
+                  line={line}
+                  isActive={isActive}
+                  currentTime={currentTime}
+                />
+                {line.translation ? (
+                  <span
+                    data-testid="lyric-translation"
+                    className={cn(
+                      'block text-sm mt-1 leading-snug',
+                      isActive ? 'text-white/50' : 'text-white/30'
+                    )}
+                  >
+                    {line.translation}
+                  </span>
+                ) : null}
+              </li>
+            )
+          })}
         </ul>
       ) : (
         <p className="text-white/40 text-sm py-8 text-center" role="status">

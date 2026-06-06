@@ -1,11 +1,14 @@
 'use client'
 
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import React from 'react'
 import type { DjProgramToplistItem, DjRadio } from '@/types/dj'
 
 const mockUseSWR = vi.fn()
+const RADIO_PAGE_SOURCE = join(process.cwd(), 'app/radio/page.tsx')
 
 vi.mock('swr', () => ({
   default: (...args: unknown[]) => mockUseSWR(...args),
@@ -115,6 +118,25 @@ describe('RadioPage', () => {
     expect(screen.getByTestId('radio-tab-all')).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByTestId('radio-card-12')).toBeInTheDocument()
     expect(screen.queryByTestId('radio-card-13')).not.toBeInTheDocument()
+  })
+
+  test('does not import or render framer-motion wrappers', async () => {
+    const source = readFileSync(RADIO_PAGE_SOURCE, 'utf8')
+    expect(source).not.toMatch(/from ['"]framer-motion['"]/)
+    expect(source).not.toContain('AnimatePresence')
+    expect(source).not.toMatch(/\bmotion\./)
+
+    mockUseSWR.mockImplementation((key: string) => {
+      if (key === 'djradio-hot') return swrState({ data: makeRadios(1) })
+      return swrState({ data: [] })
+    })
+
+    const { default: RadioPage } = await import('@/app/radio/page')
+    const { container } = render(<RadioPage />)
+
+    expect(screen.getByTestId('radio-card-1')).toBeInTheDocument()
+    expect(screen.getByTestId('radio-card-1')).toHaveClass('hover-lift')
+    expect(container.querySelector('[data-framer-motion]')).toBeNull()
   })
 
   test('renders the all-radio grid in smaller batches and expands on demand', async () => {

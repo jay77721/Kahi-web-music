@@ -1,5 +1,6 @@
 'use client'
 
+import { readFileSync } from 'node:fs'
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, fireEvent, render, screen, within } from '@/tests/helpers/test-utils'
 
@@ -16,18 +17,22 @@ const mockStore = {
   currentTime: 0,
   duration: 200,
   playMode: 'sequential' as const,
-  lyrics: [],
+  lyrics: [] as Array<{ time: number; text: string }>,
   currentLyricIndex: -1,
   next: vi.fn(),
   prev: vi.fn(),
   seek: vi.fn(),
+  togglePlay: vi.fn(),
   cyclePlayMode: vi.fn(),
   setHasUserInteracted: vi.fn(),
 }
 
 vi.mock('@/stores/playerStore', () => ({
-  usePlayerStore: (selector?: (state: typeof mockStore) => unknown) => (
-    selector ? selector(mockStore) : mockStore
+  usePlayerStore: Object.assign(
+    (selector?: (state: typeof mockStore) => unknown) => (
+      selector ? selector(mockStore) : mockStore
+    ),
+    { getState: () => mockStore }
   ),
 }))
 
@@ -66,7 +71,29 @@ vi.mock('@/components/player/SpectrumVisualizer', () => ({
   SpectrumVisualizer: () => <div data-testid="spectrum-visualizer-stub" />,
 }))
 
+vi.mock('@/components/player/LyricsPanel', () => ({
+  LyricsPanel: ({
+    lyrics,
+    currentTime,
+    onSeek,
+  }: {
+    lyrics: Array<{ time: number; text: string }>
+    currentTime: number
+    onSeek?: (time: number) => void
+  }) => (
+    <div data-testid="lyrics-panel-stub" data-current-time={currentTime}>
+      {lyrics.map((line) => (
+        <button key={line.time} type="button" onClick={() => onSeek?.(line.time)}>
+          {line.text}
+        </button>
+      ))}
+    </div>
+  ),
+}))
+
 import { FullScreenPlayer } from '@/components/player/FullScreenPlayer'
+
+const FULL_SCREEN_PLAYER_SOURCE = 'components/player/FullScreenPlayer.tsx'
 
 describe('FullScreenPlayer', () => {
   beforeEach(() => {
@@ -95,6 +122,31 @@ describe('FullScreenPlayer', () => {
     mockStore.currentTrack = null
     const { container } = render(<FullScreenPlayer />)
     expect(container.firstChild).toBeNull()
+  })
+
+  test('does not import or render framer-motion wrappers', () => {
+    const source = readFileSync(FULL_SCREEN_PLAYER_SOURCE, 'utf8')
+    expect(source).not.toMatch(/from ['"]framer-motion['"]/)
+    expect(source).not.toContain('motion.div')
+    expect(source).not.toMatch(/\bmotion\./)
+
+    mockUI.fullScreenPlayerOpen = true
+    mockStore.currentTrack = {
+      id: 1,
+      name: 'Test',
+      ar: [{ id: 1, name: 'Artist' }],
+      al: { id: 1, name: 'Album', picUrl: 'https://example.com/cover.jpg' },
+      mv: 0,
+    }
+    const { container } = render(<FullScreenPlayer />)
+
+    expect(screen.getByRole('dialog', { name: '全屏播放器' })).toHaveClass(
+      'motion-safe:animate-[scaleIn_350ms_ease-out_both]'
+    )
+    expect(screen.getByTestId('vinyl-stage')).toHaveClass(
+      'motion-safe:animate-[slideUp_400ms_ease-out_100ms_both]'
+    )
+    expect(container.querySelector('[data-framer-motion]')).toBeNull()
   })
 
   test('renders as a modal dialog and moves focus into the overlay when opened', () => {
@@ -134,6 +186,49 @@ describe('FullScreenPlayer', () => {
     fireEvent.keyDown(screen.getByRole('dialog', { name: '全屏播放器' }), { key: 'Escape' })
 
     expect(mockUI.setFullScreenPlayerOpen).toHaveBeenCalledWith(false)
+  })
+
+  test('keeps playback controls wired after replacing motion wrappers', () => {
+    mockUI.fullScreenPlayerOpen = true
+    mockStore.currentTrack = {
+      id: 1,
+      name: 'Test',
+      ar: [{ id: 1, name: 'Artist' }],
+      al: { id: 1, name: 'Album', picUrl: 'https://example.com/cover.jpg' },
+      mv: 0,
+    }
+    render(<FullScreenPlayer />)
+
+    const dialog = screen.getByRole('dialog', { name: '全屏播放器' })
+    const buttons = within(dialog).getAllByRole('button')
+
+    fireEvent.click(buttons[1]!)
+    fireEvent.click(buttons[2]!)
+    fireEvent.click(buttons[3]!)
+    fireEvent.click(buttons[4]!)
+
+    expect(mockStore.cyclePlayMode).toHaveBeenCalledTimes(1)
+    expect(mockStore.prev).toHaveBeenCalledTimes(1)
+    expect(mockStore.togglePlay).toHaveBeenCalledTimes(1)
+    expect(mockStore.next).toHaveBeenCalledTimes(1)
+  })
+
+  test('passes lyrics through and wires lyric seeking', () => {
+    mockUI.fullScreenPlayerOpen = true
+    mockStore.currentTime = 12
+    mockStore.lyrics = [{ time: 10, text: 'first line' }]
+    mockStore.currentTrack = {
+      id: 1,
+      name: 'Test',
+      ar: [{ id: 1, name: 'Artist' }],
+      al: { id: 1, name: 'Album', picUrl: 'https://example.com/cover.jpg' },
+      mv: 0,
+    }
+    render(<FullScreenPlayer />)
+
+    expect(screen.getByTestId('lyrics-panel-stub')).toHaveAttribute('data-current-time', '12')
+    fireEvent.click(screen.getByRole('button', { name: 'first line' }))
+    expect(mockStore.seek).toHaveBeenCalledWith(10)
   })
 
   test('keeps tab focus inside the modal dialog', () => {

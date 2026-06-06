@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState, type ReactNode } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import useSWR from 'swr'
 import { ChevronRight, Radio, Play, Users, Headphones } from 'lucide-react'
@@ -14,7 +13,6 @@ import { ncmApi } from '@/lib/api'
 import { normalizeDjHotList, normalizeDjProgramList } from '@/lib/api-adapters'
 import { formatCount, imageUrl, formatRelativeTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { fadeIn, staggerContainer, staggerItem, hoverLift } from '@/lib/animations'
 import type { DjRadio, DjRadioHot, DjProgramToplistItem } from '@/types/dj'
 
 type TabType = 'all' | 'hot' | 'toplist'
@@ -65,12 +63,7 @@ export default function RadioPage() {
     <AppShell>
       <div className="page-enter">
         {/* Hero header */}
-        <motion.div
-          variants={fadeIn}
-          initial="hidden"
-          animate="visible"
-          className="relative overflow-hidden mb-8"
-        >
+        <div className="relative overflow-hidden mb-8 animate-fade-in">
           {/* Background gradient */}
           <div className="absolute inset-0 gradient-mesh opacity-60" />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[var(--bg-primary)]" />
@@ -112,15 +105,13 @@ export default function RadioPage() {
               ))}
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* Content sections */}
         <div className="px-4 md:px-6 pb-8">
-          <AnimatePresence mode="wait">
-            {activeTab === 'hot' && <HotRadioSection key="hot" onBrowseAll={() => setActiveTab('all')} />}
-            {activeTab === 'all' && <AllRadioSection key="all" />}
-            {activeTab === 'toplist' && <ProgramToplistSection key="toplist" />}
-          </AnimatePresence>
+          {activeTab === 'hot' && <HotRadioSection key="hot" onBrowseAll={() => setActiveTab('all')} />}
+          {activeTab === 'all' && <AllRadioSection key="all" />}
+          {activeTab === 'toplist' && <ProgramToplistSection key="toplist" />}
         </div>
       </div>
     </AppShell>
@@ -224,9 +215,8 @@ function ProgramToplistSection() {
       ) : data?.length ? (
         <div className="space-y-1 stagger-children">
           {data.map((program, index) => (
-            <motion.div
+            <div
               key={program.id}
-              variants={staggerItem}
               className="group flex items-center gap-4 p-3 rounded-xl bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] border border-[var(--border)] hover:border-[var(--border-light)] transition-all duration-200 cursor-pointer"
             >
               {/* Rank */}
@@ -292,7 +282,7 @@ function ProgramToplistSection() {
               >
                 <Play className="w-4 h-4 text-[var(--accent)]" fill="currentColor" />
               </Button>
-            </motion.div>
+            </div>
           ))}
         </div>
       ) : (
@@ -311,13 +301,7 @@ interface RadioSectionProps {
 
 function RadioSection({ title, badge, action, children }: RadioSectionProps) {
   return (
-    <motion.div
-      variants={staggerContainer}
-      initial="hidden"
-      animate="visible"
-      exit="hidden"
-      className="space-y-6"
-    >
+    <div className="space-y-6 section-enter">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-1 h-6 rounded-full bg-[var(--accent)]" />
@@ -330,15 +314,15 @@ function RadioSection({ title, badge, action, children }: RadioSectionProps) {
       </div>
 
       {children}
-    </motion.div>
+    </div>
   )
 }
 
 function RadioErrorState() {
   return (
-    <motion.div variants={fadeIn} className="text-center py-16" data-testid="radio-error-state">
+    <div className="text-center py-16 animate-fade-in" data-testid="radio-error-state">
       <p className="text-[var(--text-tertiary)]">加载失败，请稍后重试</p>
-    </motion.div>
+    </div>
   )
 }
 
@@ -361,11 +345,11 @@ function RadioCardGrid({
 
   return (
     <div className="space-y-6">
-      <div className={RADIO_GRID_CLASS}>
+      <div className={cn(RADIO_GRID_CLASS, 'stagger-children')}>
         {visibleRadios.map((radio) => (
-          <motion.div key={radio.id} variants={staggerItem}>
+          <div key={radio.id}>
             <RadioCard radio={radio} />
-          </motion.div>
+          </div>
         ))}
       </div>
 
@@ -399,11 +383,8 @@ function RadioCard({ radio }: RadioCardProps) {
   const isHot = 'rank' in radio && typeof radio.rank === 'number'
 
   return (
-    <Link href={`/radio/${radio.id}`} className="group block" data-testid={`radio-card-${radio.id}`}>
-      <motion.div
-        variants={hoverLift}
-        initial="rest"
-        whileHover="hover"
+    <Link href={`/radio/${radio.id}`} className="group block hover-lift" data-testid={`radio-card-${radio.id}`}>
+      <div
         className="relative rounded-2xl overflow-hidden bg-[var(--bg-elevated)] border border-[var(--border)] shadow-[var(--shadow-sm)]"
       >
         {/* Cover image */}
@@ -442,13 +423,11 @@ function RadioCard({ radio }: RadioCardProps) {
 
           {/* Hover play button */}
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <motion.div
-              initial={{ scale: 0.8, y: 8 }}
-              whileHover={{ scale: 1.1 }}
-              className="w-12 h-12 rounded-full bg-[var(--accent)] flex items-center justify-center shadow-[0_8px_32px_rgba(0,0,0,0.5)]"
+            <div
+              className="w-12 h-12 rounded-full bg-[var(--accent)] flex items-center justify-center shadow-[0_8px_32px_rgba(0,0,0,0.5)] transition-transform duration-200 group-hover:scale-110"
             >
               <Play className="w-5 h-5 text-black ml-0.5" fill="currentColor" />
-            </motion.div>
+            </div>
           </div>
         </div>
 
@@ -476,7 +455,7 @@ function RadioCard({ radio }: RadioCardProps) {
             </div>
           )}
         </div>
-      </motion.div>
+      </div>
     </Link>
   )
 }

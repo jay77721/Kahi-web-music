@@ -1,8 +1,12 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, test, expect, vi, afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import { render, screen, fireEvent } from '@/tests/helpers/test-utils'
 import { LyricsPanel } from '@/components/player/LyricsPanel'
 import type { LyricLine } from '@/types'
+
+const LYRICS_PANEL_SOURCE = join(process.cwd(), 'components/player/LyricsPanel.tsx')
 
 const sampleLyrics: LyricLine[] = [
   { time: 0, text: 'First line' },
@@ -20,6 +24,20 @@ describe('LyricsPanel', () => {
     expect(screen.getByText('First line')).toBeInTheDocument()
     expect(screen.getByText('Second line')).toBeInTheDocument()
     expect(screen.getByText('Third line')).toBeInTheDocument()
+  })
+
+  test('does not import framer-motion for lyric rows', () => {
+    const source = readFileSync(LYRICS_PANEL_SOURCE, 'utf8')
+    expect(source).not.toContain("from 'framer-motion'")
+    expect(source).not.toContain('from "framer-motion"')
+    expect(source).not.toContain('AnimatePresence')
+    expect(source).not.toMatch(/\bmotion\./)
+  })
+
+  test('renders plain list items without framer-motion markers', () => {
+    const { container } = render(<LyricsPanel lyrics={sampleLyrics} currentTime={0} />)
+    expect(container.querySelector('[data-framer-motion]')).toBeNull()
+    expect(container.querySelectorAll('li[data-active]')).toHaveLength(sampleLyrics.length)
   })
 
   test('renders the translation when present', () => {

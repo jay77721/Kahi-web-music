@@ -2,7 +2,6 @@
 
 import { memo, useMemo, useRef, useEffect, useState, useCallback } from 'react'
 import { ChevronDown, Repeat, Repeat1, Shuffle, Play, Pause, SkipBack, SkipForward } from 'lucide-react'
-import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { usePlayerStore } from '@/stores/playerStore'
@@ -10,7 +9,6 @@ import { useUIStore } from '@/stores/uiStore'
 import { formatTime, formatArtists, imageUrl } from '@/lib/format'
 import { useDominantColor } from '@/hooks/useDominantColor'
 import { useAudioAnalyser } from '@/hooks/useAudioAnalyser'
-import { useReducedMotion, useReducedMotionVariants } from '@/hooks/useReducedMotion'
 import { useSwipe } from '@/hooks/useSwipe'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { LyricsPanel } from '@/components/player/LyricsPanel'
@@ -21,6 +19,14 @@ import { Tonearm } from '@/components/player/Tonearm'
 // Vinyl disc sizing — smaller on phones, larger on desktop.
 const VINYL_SIZE_MOBILE = 200
 const VINYL_SIZE_DESKTOP = 320
+
+const PANEL_ENTER_CLASS = 'motion-safe:animate-[scaleIn_350ms_ease-out_both] motion-reduce:animate-none'
+const HEADER_ENTER_CLASS = 'motion-safe:animate-[slideDown_300ms_ease-out_50ms_both] motion-reduce:animate-none'
+const ALBUM_ENTER_CLASS = 'motion-safe:animate-[slideUp_400ms_ease-out_100ms_both] motion-reduce:animate-none'
+const SPECTRUM_ENTER_CLASS = 'motion-safe:animate-[slideUp_400ms_ease-out_180ms_both] motion-reduce:animate-none'
+const LYRICS_ENTER_CLASS = 'motion-safe:animate-[slideUp_400ms_ease-out_100ms_both] motion-reduce:animate-none'
+const CONTROLS_ENTER_CLASS = 'motion-safe:animate-[slideUp_350ms_ease-out_150ms_both] motion-reduce:animate-none'
+const PLAYING_GLOW_CLASS = 'motion-safe:animate-[pulse_2s_ease-in-out_infinite] motion-reduce:animate-none'
 
 // Re-extract the dominant color no more than once per `RESAMPLE_INTERVAL_MS`.
 // This keeps the UI responsive when the user scrubs the queue quickly.
@@ -109,7 +115,6 @@ function FullScreenPlayerContent() {
     collectFrequencyData: false,
     enabled: isPlaying,
   })
-  const prefersReducedMotion = useReducedMotion()
 
   // Responsive vinyl sizing — use a small/medium breakpoint similar to Tailwind's `sm`.
   const [vinylSize, setVinylSize] = useState(VINYL_SIZE_MOBILE)
@@ -251,76 +256,20 @@ function FullScreenPlayerContent() {
   const currentTimeLabel = formatTime(currentTime)
   const durationLabel = formatTime(duration || 0)
 
-  // Animation variants
-  const panelVariants = useReducedMotionVariants({
-    hidden: { opacity: 0, scale: 0.95, y: 20 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      y: 0,
-      transition: { duration: 0.35 }
-    },
-    exit: {
-      opacity: 0,
-      scale: 0.95,
-      y: 20,
-      transition: { duration: 0.2 }
-    }
-  })
-
-  const albumArtVariants = useReducedMotionVariants({
-    hidden: { opacity: 0, y: 30, scale: 0.95 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: { duration: 0.4, delay: 0.1 }
-    }
-  })
-
-  const controlsVariants = useReducedMotionVariants({
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.35, delay: 0.15 }
-    }
-  })
-
-  // Inline motion props for the header, spectrum and lyrics. When the user
-  // prefers reduced motion we collapse to the final state and skip the
-  // duration/delay so the section is visible immediately.
-  const headerMotion = prefersReducedMotion
-    ? { initial: false, animate: { opacity: 1, y: 0 }, transition: { duration: 0 } }
-    : { initial: { opacity: 0, y: -10 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.3, delay: 0.05 } }
-
-  const spectrumMotion = prefersReducedMotion
-    ? { initial: false, animate: { opacity: 1, y: 0 }, transition: { duration: 0 } }
-    : { initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4, delay: 0.18 } }
-
-  const lyricsMotion = prefersReducedMotion
-    ? { initial: false, animate: { opacity: 1, y: 0 }, transition: { duration: 0 } }
-    : { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4, delay: 0.1 } }
-
   return (
-    <motion.div
+    <div
       ref={swipeRef}
       role="dialog"
       aria-modal="true"
       aria-label="全屏播放器"
       tabIndex={-1}
       onKeyDown={handleOverlayKeyDown}
-      variants={panelVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      className="fixed inset-0 z-[100] flex flex-col dynamic-bg fullscreen-content"
+      className={`fixed inset-0 z-[100] flex flex-col dynamic-bg fullscreen-content ${PANEL_ENTER_CLASS}`}
       style={dynamicStyle}
     >
       {/* Header */}
-      <motion.div
-        {...headerMotion}
-        className="flex items-center justify-between px-4 py-3"
+      <div
+        className={`flex items-center justify-between px-4 py-3 ${HEADER_ENTER_CLASS}`}
       >
         <Button variant="ghost" size="icon" className="hover:text-[var(--accent)] transition-colors" onClick={() => setFullScreenPlayerOpen(false)} aria-label="关闭">
           <ChevronDown className="w-6 h-6" />
@@ -332,16 +281,13 @@ function FullScreenPlayerContent() {
           </p>
         </div>
         <div className="w-10" />
-      </motion.div>
+      </div>
 
       {/* Content: album art + lyrics */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 overflow-hidden">
         {/* Vinyl record with animated entrance */}
-        <motion.div
-          variants={albumArtVariants}
-          initial="hidden"
-          animate="visible"
-          className="relative mb-8 vinyl-stage"
+        <div
+          className={`relative mb-8 vinyl-stage ${ALBUM_ENTER_CLASS}`}
           data-testid="vinyl-stage"
         >
           <VinylDisc
@@ -351,49 +297,36 @@ function FullScreenPlayerContent() {
           />
           <Tonearm isPlaying={isPlaying} className="vinyl-stage__tonearm" />
 
-          {isPlaying && !prefersReducedMotion && (
-            <motion.div
-              className="absolute inset-0 rounded-full -z-10"
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-              style={{ boxShadow: '0 0 80px var(--accent-glow), 0 0 120px var(--accent-subtle)' }}
-            />
-          )}
-          {isPlaying && prefersReducedMotion && (
+          {isPlaying && (
             <div
-              className="absolute inset-0 rounded-full -z-10"
+              className={`absolute inset-0 rounded-full -z-10 ${PLAYING_GLOW_CLASS}`}
               style={{ boxShadow: '0 0 80px var(--accent-glow), 0 0 120px var(--accent-subtle)' }}
             />
           )}
-        </motion.div>
+        </div>
 
         {/* Spectrum visualizer (below cover) */}
-        <motion.div
-          {...spectrumMotion}
-          className="w-full max-w-md -mt-2 mb-6 px-2"
+        <div
+          className={`w-full max-w-md -mt-2 mb-6 px-2 ${SPECTRUM_ENTER_CLASS}`}
         >
           <SpectrumVisualizer analyser={analyser} isPlaying={isPlaying} />
-        </motion.div>
+        </div>
 
         {/* Lyrics (glassmorphism panel) */}
-        <motion.div
-          {...lyricsMotion}
-          className="w-full flex justify-center"
+        <div
+          className={`w-full flex justify-center ${LYRICS_ENTER_CLASS}`}
         >
           <LyricsPanel
             lyrics={lyrics}
             currentTime={currentTime}
             onSeek={handleLyricClick}
           />
-        </motion.div>
+        </div>
       </div>
 
       {/* Bottom controls with animation */}
-      <motion.div
-        variants={controlsVariants}
-        initial="hidden"
-        animate="visible"
-        className="px-6 pb-8 space-y-4"
+      <div
+        className={`px-6 pb-8 space-y-4 ${CONTROLS_ENTER_CLASS}`}
       >
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-[var(--text-tertiary)] w-10 text-right tabular-nums">
@@ -433,7 +366,7 @@ function FullScreenPlayerContent() {
             <SkipForward className="w-6 h-6" />
           </Button>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   )
 }
