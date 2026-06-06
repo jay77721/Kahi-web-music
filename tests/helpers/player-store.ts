@@ -28,5 +28,8 @@ export function resetMockPlayerStore(store: MockPlayerStoreState) {
   store.addToQueue.mockClear()
   store.currentTrack = null
   store.isPlaying = false
-  ;(usePlayerStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(store)
+  ;(usePlayerStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+    (selector?: (state: MockPlayerStoreState) => unknown) =>
+      typeof selector === 'function' ? selector(store) : store
+  )
 }

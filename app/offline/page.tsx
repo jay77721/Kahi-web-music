@@ -1,6 +1,6 @@
 export default function OfflinePage() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-background px-6 text-center text-foreground">
+    <main className="flex min-h-dvh flex-col items-center justify-center bg-background px-6 text-center text-foreground">
       <div className="max-w-md space-y-4 rounded-3xl border border-border/60 bg-card/80 p-8 shadow-2xl shadow-black/20">
         <p className="text-sm font-medium uppercase tracking-[0.3em] text-primary">
           Offline

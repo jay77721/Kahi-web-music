@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { SongTable } from '@/components/common/SongTable'
 import { makeMockSong as makeSong } from '@/tests/helpers/mock-data'
 import { createMockPlayerStore, resetMockPlayerStore } from '@/tests/helpers/player-store'
+import { usePlayerStore } from '@/stores/playerStore'
 
 vi.mock('@/stores/playerStore', () => ({
   usePlayerStore: vi.fn(),
@@ -258,6 +259,29 @@ describe('SongTable', () => {
   })
 
   describe('current track highlighting', () => {
+    test('does not subscribe to playback progress while deriving row state', () => {
+      const guardedStore = new Proxy(mockStore, {
+        get(target, property, receiver) {
+          if (property === 'currentTime') {
+            throw new Error('SongTable should not subscribe to currentTime')
+          }
+          return Reflect.get(target, property, receiver)
+        },
+      })
+      ;(usePlayerStore as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+        (selector?: (state: typeof guardedStore) => unknown) => {
+          if (typeof selector !== 'function') {
+            throw new Error('SongTable must use narrow player-store selectors')
+          }
+          return selector(guardedStore)
+        }
+      )
+
+      expect(() => {
+        render(<SongTable songs={[makeSong({ id: 1 })]} />)
+      }).not.toThrow()
+    })
+
     test('applies accent background and left border when song matches currentTrack', () => {
       const currentSong = makeSong({ id: 1, name: 'Current' })
       mockStore.currentTrack = currentSong

@@ -27,10 +27,6 @@ vi.mock('next/navigation', () => ({
   }),
 }))
 
-vi.mock('@/hooks/useDominantColor', () => ({
-  useDominantColor: () => ({ color: null }),
-}))
-
 vi.mock('@/app/login/_components/PhoneLoginForm', () => ({
   PhoneLoginForm: () => 'PhoneLoginForm',
 }))
@@ -186,17 +182,19 @@ describe('LoginPage theme tokens', () => {
   })
 
   test('uses design tokens for login page chrome instead of dark-only palette classes', () => {
-    render(<LoginPage />)
+    const { container } = render(<LoginPage />)
 
     const shell = getLoginShell()
     const classNames = getClassNames(shell)
 
+    expect(shell).toHaveClass('min-h-dvh')
     expect(shell).toHaveClass('bg-[var(--bg-primary)]')
     expect(shell).toHaveClass('text-[var(--text-primary)]')
     expect(classNames).toContain('bg-[var(--bg-elevated)]')
     expect(classNames).toContain('text-[var(--text-primary)]')
     expect(classNames).toContain('text-[var(--accent-foreground)]')
     expect(classNames).not.toMatch(/\bbg-black\b|\bbg-white\/5\b|\btext-white\b|\btext-black\b|hover:text-white/)
+    expect(container.querySelector('[style*="blur("]')).toBeNull()
   })
 
   test.each(['light', 'dark'] as const)(

@@ -1,10 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Music2, QrCode, Smartphone } from 'lucide-react'
 import { useUserStore } from '@/stores/userStore'
-import { useDominantColor } from '@/hooks/useDominantColor'
 import { PhoneLoginForm } from './_components/PhoneLoginForm'
 import { QRLoginPanel } from './_components/QRLoginPanel'
 
@@ -15,25 +14,15 @@ const TABS: ReadonlyArray<{ value: TabValue; label: string; icon: typeof Smartph
   { value: 'qr', label: '扫码登录', icon: QrCode },
 ]
 
-/** Fallback gradient when dominant-color extraction is unavailable. */
 const DEFAULT_ACCENT_OKLCH = 'oklch(0.78 0.18 145)'
-
-function useLoginBackground() {
-  // We have no logo image asset to sample from; pass null so the hook
-  // returns null and we fall back to the brand-green default.
-  const { color } = useDominantColor(null)
-  return useMemo(() => {
-    const accent = color?.oklch ?? DEFAULT_ACCENT_OKLCH
-    return {
-      background: `
-        radial-gradient(ellipse at 20% 50%, color-mix(in oklch, ${accent} 10%, transparent) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 20%, color-mix(in oklch, ${accent} 6%, transparent) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 80%, color-mix(in oklch, var(--accent) 4%, transparent) 0%, transparent 50%),
-        var(--bg-primary)
-      `,
-    } as const
-  }, [color])
-}
+const LOGIN_BACKGROUND_STYLE = {
+  background: `
+    radial-gradient(ellipse at 20% 50%, color-mix(in oklch, ${DEFAULT_ACCENT_OKLCH} 10%, transparent) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, color-mix(in oklch, ${DEFAULT_ACCENT_OKLCH} 6%, transparent) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, color-mix(in oklch, var(--accent) 4%, transparent) 0%, transparent 50%),
+    var(--bg-primary)
+  `,
+} as const
 
 export default function LoginPage() {
   const router = useRouter()
@@ -41,7 +30,6 @@ export default function LoginPage() {
   const hasRestoredSession = useUserStore((s) => s.hasRestoredSession)
   const [activeTab, setActiveTab] = useState<TabValue>('phone')
   const hasRedirectedRef = useRef(false)
-  const bgStyle = useLoginBackground()
   const isRestoringSession = !hasRestoredSession
 
   useEffect(() => {
@@ -54,8 +42,8 @@ export default function LoginPage() {
   if (isRestoringSession || isLoggedIn) {
     return (
       <main
-        className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 bg-[var(--bg-primary)] text-[var(--text-tertiary)]"
-        style={bgStyle}
+        className="relative min-h-dvh flex items-center justify-center overflow-hidden px-4 bg-[var(--bg-primary)] text-[var(--text-tertiary)]"
+        style={LOGIN_BACKGROUND_STYLE}
       >
         <p role="status" aria-live="polite" className="text-sm">
           {isLoggedIn ? '正在进入个人页...' : '正在恢复登录状态...'}
@@ -66,11 +54,10 @@ export default function LoginPage() {
 
   return (
     <main
-      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden px-4 bg-[var(--bg-primary)] text-[var(--text-primary)]"
-      style={bgStyle}
+      className="relative min-h-dvh flex flex-col items-center justify-center overflow-hidden px-4 bg-[var(--bg-primary)] text-[var(--text-primary)]"
+      style={LOGIN_BACKGROUND_STYLE}
       aria-labelledby="login-heading"
     >
-      <FloatingOrbs />
       <BackButton onClick={() => router.push('/')} />
       <BrandHeader />
 
@@ -108,29 +95,6 @@ export default function LoginPage() {
         <LegalFooter />
       </div>
     </main>
-  )
-}
-
-function FloatingOrbs() {
-  return (
-    <>
-      <div
-        aria-hidden
-        className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full opacity-20 pointer-events-none"
-        style={{
-          background: 'radial-gradient(circle, var(--accent) 0%, transparent 70%)',
-          filter: 'blur(80px)',
-        }}
-      />
-      <div
-        aria-hidden
-        className="absolute bottom-1/4 right-1/4 w-48 h-48 rounded-full opacity-10 pointer-events-none"
-        style={{
-          background: 'radial-gradient(circle, #7850dc 0%, transparent 70%)',
-          filter: 'blur(60px)',
-        }}
-      />
-    </>
   )
 }
 

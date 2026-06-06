@@ -61,9 +61,9 @@ body::before {
    main content area without tabbing through the entire sidebar. */
 .skip-nav {
   position: absolute;
-  top: -100%;
+  top: 0.75rem;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, calc(-100% - 1rem));
   z-index: 99999;
   padding: 0.75rem 1.5rem;
   font-size: 0.875rem;
@@ -74,10 +74,10 @@ body::before {
   text-decoration: none;
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--transition-fast), top var(--transition-fast);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
 }
 .skip-nav:focus-visible {
-  top: 0.75rem;
+  transform: translateX(-50%);
   opacity: 1;
   pointer-events: auto;
   outline: none;

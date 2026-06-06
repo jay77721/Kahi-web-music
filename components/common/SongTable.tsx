@@ -65,7 +65,11 @@ export function SongTable({
   onPlayAll,
   className,
 }: SongTableProps) {
-  const { playSong, playQueue, addToQueue, currentTrack, isPlaying } = usePlayerStore()
+  const playSong = usePlayerStore((state) => state.playSong)
+  const playQueue = usePlayerStore((state) => state.playQueue)
+  const addToQueue = usePlayerStore((state) => state.addToQueue)
+  const currentTrackId = usePlayerStore((state) => state.currentTrack?.id)
+  const isPlaying = usePlayerStore((state) => state.isPlaying)
 
   const handlePlaySong = useCallback((song: Song) => {
     playSong(song)
@@ -94,8 +98,6 @@ export function SongTable({
     () => deriveHeaderState(allIds.length, selectedVisibleCount),
     [allIds.length, selectedVisibleCount]
   )
-
-  const currentTrackId = currentTrack?.id
 
   const handleHeaderToggle = useCallback(() => {
     if (headerState === 'all') {
